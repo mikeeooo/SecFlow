@@ -141,13 +141,35 @@ evidence of real-world detection or fraud reduction.
 | Model + rules only, Verify or Block | 65.5% |
 | Single-request latency | p50 3.5 ms, p95 4.2 ms (in process) |
 
+### What the risk percentage is worth
+
+The score ranks how unusual a request is; its yield is measured per score band on the labelled test
+period (`score_bands` in `artifacts/evaluation.json`, shown on every investigation and on Algorithm
+Results):
+
+| Score band | Requests | Fraud | Observed fraud rate | Zone |
+|---|---:|---:|---:|---|
+| 0–40 | 12,803 | 23 | ≤ 0.4% | Permit |
+| 40–61 | 6,046 | 46 | 0.6–1.0% | Permit |
+| 61–70 | 751 | 33 | 4.4% | Verify |
+| 70–80 | 297 | 48 | 16.2% | Verify |
+| 80–90 | 82 | 29 | 35.4% | Verify |
+| 90–100 | 21 | 21 | 100% | Verify / Block |
+
+Base fraud rate is 1.0%, so a request scoring 80–90 is about 35× more likely to be fraud than an
+average one. Flagging everything from 61 up catches 65.5% of fraud while touching 5.75% of traffic.
+
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for the per-component and per-scenario breakdown and
 the tradeoffs behind these numbers.
 
 ## Limitations to know before you rely on it
 
-- **Process memory.** Simulations, reviews, and the live stream live in one backend process. A
-  restart discards them; the baseline files and models remain. Multiple workers or instances
+- **Process memory.** Simulations and the live stream live in one backend process. A restart
+  discards them; the baseline files and models remain.
+- **Review history is durable.** Every approve or reject is written to
+  `storage/state/review_history.sqlite3` (override with `SECFLOW_STATE_DIR`; on Vercel it goes to
+  `/tmp`, which is per instance). After a restart, reviews of baseline requests are re-applied and
+  the Review History page still lists every decision, including reviews of simulated requests. Multiple workers or instances
   would each hold separate, unshared state. Run a single process (`uvicorn` without `--workers`).
 - **Synthetic everything.** Accounts, counterparties, payments, and security evidence are
   generated. Names are plausible but belong to no verified person or business.

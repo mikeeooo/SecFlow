@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   FlaskConical,
+  History,
   LayoutDashboard,
   ListFilter,
   Menu,
@@ -18,6 +19,7 @@ export const NAV = [
   { to: "/live", label: "Live Transfers", Icon: Radio },
   { to: "/transactions", label: "Transactions", Icon: ListFilter },
   { to: "/accounts", label: "Accounts", Icon: Users },
+  { to: "/history", label: "Review History", Icon: History },
   { to: "/simulator", label: "Simulator", Icon: FlaskConical },
   { to: "/algorithms", label: "Algorithm Results", Icon: BarChart3 },
 ];

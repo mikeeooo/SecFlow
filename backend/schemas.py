@@ -154,6 +154,23 @@ class Thresholds(BaseModel):
     source: str
 
 
+class ScoreBand(BaseModel):
+    """How often requests in this risk-score band were really fraud on the labelled test period."""
+
+    low: float
+    high: float
+    requests: int
+    fraud: int
+    fraud_rate: float | None
+    fraud_rate_95ci: list[float] | None
+    lift: float | None
+    recall_at_or_above: float | None
+    precision_at_or_above: float | None
+    flag_rate_at_or_above: float | None
+    base_fraud_rate: float | None
+    evaluated_requests: int
+
+
 class AssessmentDetail(AssessmentSummary):
     explanation: str
     status_notes: list[str]
@@ -172,6 +189,7 @@ class AssessmentDetail(AssessmentSummary):
     channel: str
     facts: dict[str, Any]
     idempotent_replay: bool = False
+    score_band: ScoreBand | None = None
 
 
 class TimelineEntry(BaseModel):
@@ -217,12 +235,47 @@ class AccountSummary(BaseModel):
     created_at: str
     requests: int
     flagged: int
+    rejected: int = 0
     last_activity: str | None
     last_decision: Decision | None
 
 
 class AccountPage(Page):
     items: list[AccountSummary]
+    all_accounts: int
+    personal: int
+    business: int
+    active: int
+
+
+class ReviewHistoryItem(BaseModel):
+    review_id: str
+    request_id: str
+    action: Literal["approve", "reject"]
+    reason: str
+    actor: str
+    created_at: str
+    original_decision: Decision
+    original_decision_label: DecisionLabel
+    original_risk_score: float | None
+    resulting_outcome: Outcome
+    origin: Literal["baseline", "simulation"]
+    event_time: str
+    sender_id: str
+    sender_name: str
+    recipient_id: str
+    recipient_name: str
+    amount: float
+    currency: str
+    investigation_available: bool
+
+
+class ReviewHistoryPage(Page):
+    items: list[ReviewHistoryItem]
+    approved: int
+    rejected: int
+    persisted: bool
+    storage_note: str | None
 
 
 class StreamStatus(BaseModel):

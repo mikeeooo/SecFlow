@@ -22,6 +22,9 @@ export const useTransactions = (params: Record<string, string | number | undefin
 export const useAccounts = (params: Record<string, string | number | undefined>) =>
   useQuery({ queryKey: keys.accounts(params), queryFn: () => api.accounts(params), placeholderData: keepPreviousData });
 
+export const useReviewHistory = (params: Record<string, string | number | undefined>) =>
+  useQuery({ queryKey: ["reviews", params], queryFn: () => api.reviews(params), placeholderData: keepPreviousData });
+
 export const useAccount = (id: string) => useQuery({ queryKey: keys.account(id), queryFn: () => api.account(id) });
 export const useInvestigation = (id: string) => useQuery({ queryKey: keys.investigation(id), queryFn: () => api.investigation(id) });
 export const useAlgorithms = () => useQuery({ queryKey: ["algorithms"], queryFn: api.algorithms });
@@ -49,6 +52,8 @@ export function useReview(id: string) {
       client.setQueryData(keys.investigation(id), data);
       void client.invalidateQueries({ queryKey: keys.overview });
       void client.invalidateQueries({ queryKey: ["transactions"] });
+      void client.invalidateQueries({ queryKey: ["reviews"] });
+      void client.invalidateQueries({ queryKey: ["accounts"] });
     },
   });
 }

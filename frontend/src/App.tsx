@@ -7,6 +7,7 @@ import { AlgorithmsPage } from "./pages/Algorithms";
 import { InvestigationPage } from "./pages/Investigation";
 import { LiveTransfersPage } from "./pages/LiveTransfers";
 import { OverviewPage } from "./pages/Overview";
+import { ReviewHistoryPage } from "./pages/ReviewHistory";
 import { SimulatorPage } from "./pages/Simulator";
 import { TransactionsPage } from "./pages/Transactions";
 
@@ -30,6 +31,7 @@ export function App() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/accounts/:accountId" element={<AccountDetailPage />} />
         <Route path="/investigations/:requestId" element={<InvestigationPage />} />
+        <Route path="/history" element={<ReviewHistoryPage />} />
         <Route path="/simulator" element={<SimulatorPage />} />
         <Route path="/algorithms" element={<AlgorithmsPage />} />
         <Route path="*" element={<NotFound />} />

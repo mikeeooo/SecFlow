@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, XCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../api/client";
@@ -8,7 +8,7 @@ import { DecisionBadge, LABEL_STYLE } from "../components/DecisionBadge";
 import { RiskComposition } from "../components/RiskComposition";
 import { ErrorState, LoadingState, errorMessage } from "../components/States";
 import { Button, Card, CardHeader, Chip, Field, KeyValue, PageHeader, Segmented, cx, inputClass } from "../components/ui";
-import { FAMILY_TEXT, LABEL_HINT, OUTCOME_TEXT, SOURCE_TEXT, formatDateTime, formatMoney, humanize } from "../lib/format";
+import { FAMILY_TEXT, LABEL_HINT, OUTCOME_TEXT, SOURCE_TEXT, formatDateTime, formatInt, formatMoney, formatPercent, formatScore, humanize } from "../lib/format";
 
 export function InvestigationPage() {
   const { requestId = "" } = useParams();
@@ -38,6 +38,7 @@ export function InvestigationPage() {
           <Card className="p-5">
             <RiskComposition details={a.component_details} total={a.risk_score} verify={a.thresholds.verify} block={a.thresholds.block} />
           </Card>
+          <ScoreMeaning a={a} />
           <ComponentsTable a={a} />
           <Reasons a={a} />
           <Facts a={a} />
@@ -113,6 +114,72 @@ function DecisionPanel({ a }: { a: AssessmentDetail }) {
         </p>
       )}
     </Card>
+  );
+}
+
+/**
+ * What the 0–100 score is worth: the formula with this request's numbers, and how often requests
+ * in the same score band really were fraud on the labelled final-test period.
+ */
+function ScoreMeaning({ a }: { a: AssessmentDetail }) {
+  const band = a.score_band;
+  const parts = a.component_details.filter((c) => c.contribution != null);
+  const zone = a.risk_score == null ? null : a.risk_score >= a.thresholds.block ? "block" : a.risk_score >= a.thresholds.verify ? "verify" : "permit";
+  return (
+    <Card>
+      <CardHeader title="What this risk percentage means" subtitle="The score ranks how unusual a request is. Its real meaning comes from how often each score band was fraud on labelled test data." />
+      <div className="space-y-4 px-5 pb-5 text-[14px]">
+        <div className="rounded-[10px] bg-surface-2 p-3">
+          <p className="text-[12px] font-medium text-label-2">How it is computed</p>
+          <p className="tabular mt-1 font-mono text-[13px]">
+            risk = 100 × (0.35·IF + 0.25·LOF + 0.10·DBSCAN + 0.30·rules)
+          </p>
+          {a.risk_score != null ? (
+            <p className="tabular mt-1 font-mono text-[13px]">
+              = {parts.map((c) => (c.contribution ?? 0).toFixed(1)).join(" + ")} = <strong>{formatScore(a.risk_score)}</strong>
+            </p>
+          ) : null}
+          <p className="mt-2 text-[12px] text-label-2">
+            Each model score is a percentile against reference-period traffic (0 = typical, 1 = more unusual than all of it).
+            Verify starts at {a.thresholds.verify}, Block at {a.thresholds.block} with at least {a.thresholds.min_corroborating_families} corroborating behaviour families.
+            {zone ? ` This request is in the ${zone === "permit" ? "Permit" : zone === "verify" ? "Verify" : "Block"} zone.` : ""}
+          </p>
+        </div>
+        {band && band.fraud_rate != null ? (
+          <div>
+            <p className="text-[12px] font-medium text-label-2">How reliable a score of {band.low}–{band.high} is</p>
+            <p className="mt-1">
+              Of <strong>{formatInt(band.requests)}</strong> test-period requests scoring {band.low}–{band.high},{" "}
+              <strong>{formatInt(band.fraud)}</strong> were fraud: an observed fraud rate of{" "}
+              <strong className="text-block">{formatPercent(band.fraud_rate)}</strong>
+              {band.fraud_rate_95ci ? <span className="text-label-2"> (95% CI {formatPercent(band.fraud_rate_95ci[0])}–{formatPercent(band.fraud_rate_95ci[1])})</span> : null}
+              {band.lift != null && band.base_fraud_rate != null ? <>, {band.lift.toFixed(1)}× the base rate of {formatPercent(band.base_fraud_rate, 2)}.</> : "."}
+            </p>
+            <BandMeter rate={band.fraud_rate} />
+            <p className="mt-2 text-[13px] text-label-2">
+              Flagging every request scoring at least {band.low} would catch {formatPercent(band.recall_at_or_above)} of all fraud,
+              with {formatPercent(band.precision_at_or_above)} of those flags being real fraud, while flagging {formatPercent(band.flag_rate_at_or_above, 2)} of all traffic.
+            </p>
+          </div>
+        ) : (
+          <p className="text-[13px] text-label-2">No labelled evaluation is available for this model version, so the score band cannot be translated into an observed fraud rate.</p>
+        )}
+        <p className="text-[12px] text-label-2">
+          The rate describes the band on synthetic labelled data ({band ? formatInt(band.evaluated_requests) : "—"} requests), not a probability that this specific payment is fraud. Confirmed fraud comes only from trusted security evidence.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function BandMeter({ rate }: { rate: number }) {
+  return (
+    <div className="mt-2" aria-hidden>
+      <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+        <div className="h-full rounded-full bg-block-strong" style={{ width: `${Math.max(1, Math.min(100, rate * 100))}%` }} />
+      </div>
+      <div className="tabular mt-1 flex justify-between text-[11px] text-label-2"><span>0%</span><span>50%</span><span>100% fraud</span></div>
+    </div>
   );
 }
 
@@ -270,6 +337,11 @@ function ReviewPanel({ data }: { data: Investigation }) {
               </p>
             </li>
           ))}
+          <li className="mt-2">
+            <Link to="/history" className="inline-flex items-center gap-1 text-[13px] font-medium text-accent">
+              <History aria-hidden className="size-4" /> Saved in review history
+            </Link>
+          </li>
         </ul>
       ) : null}
       {data.can_review ? (

@@ -16,6 +16,7 @@ import time
 from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -31,6 +32,9 @@ from storage.history import HistoryIndex
 REVIEW_BUDGET = 0.05
 LATENCY_SAMPLE = 300
 COMPONENT_NAMES = ("isolation_forest", "lof", "dbscan", "rules")
+# Risk-score band edges. 61 and 97 are the validated Verify / Block thresholds, so each band sits
+# wholly on one side of them. The last edge is open so a score of exactly 100 lands in the top band.
+SCORE_BAND_EDGES = (0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 61.0, 70.0, 80.0, 90.0, 97.0, 100.0)
 
 
 def _ratio(numerator: float, denominator: float) -> float | None:
@@ -108,6 +112,54 @@ def _component_matrix(results: Sequence[AssessmentResult]) -> np.ndarray:
 
 def _decide_without_evidence(results: Sequence[AssessmentResult], policy: Policy, point) -> list[str]:
     return [decide_action(r.risk, r.rules, [], r.policy.assessment_status, point, policy).decision for r in results]
+
+
+def score_bands(risk: np.ndarray, y: np.ndarray, codes: np.ndarray,
+                edges: Sequence[float] = SCORE_BAND_EDGES) -> dict[str, Any]:
+    """Empirical fraud rate per risk-score band on labelled requests (the score's real-world yield).
+
+    For each band: how many requests fell in it, how many were labelled fraud, the observed fraud
+    rate with a Wilson 95% interval, its lift over the base rate, and the cumulative view "if every
+    request scoring at least this band's lower edge were flagged" (recall, precision, flag rate).
+    """
+    scored = ~np.isnan(risk)
+    risk, y, codes = risk[scored], y[scored], codes[scored]
+    total, total_fraud = len(y), int(y.sum())
+    base_rate = _ratio(total_fraud, total)
+    bands = []
+    for i, (low, high) in enumerate(pairwise(edges)):
+        last = i == len(edges) - 2
+        in_band = (risk >= low) & ((risk <= high) if last else (risk < high))
+        at_or_above = risk >= low
+        n, fraud = int(in_band.sum()), int((in_band & y).sum())
+        above_n, above_fraud = int(at_or_above.sum()), int((at_or_above & y).sum())
+        rate = _ratio(fraud, n)
+        bands.append({
+            "low": low,
+            "high": high,
+            "requests": n,
+            "fraud": fraud,
+            "legitimate": n - fraud,
+            "fraud_rate": rate,
+            "fraud_rate_95ci": wilson_interval(fraud, n),
+            "lift": None if rate is None or not base_rate else rate / base_rate,
+            "share_of_requests": _ratio(n, total),
+            "share_of_fraud": _ratio(fraud, total_fraud),
+            "recall_at_or_above": _ratio(above_fraud, total_fraud),
+            "precision_at_or_above": _ratio(above_fraud, above_n),
+            "flag_rate_at_or_above": _ratio(above_n, total),
+            "decisions": {d: int((in_band & (codes == c)).sum()) for d, c in (("Permit", 0), ("Verify", 1), ("Block", 2))},
+        })
+    return {
+        "edges": list(edges),
+        "requests": total,
+        "fraud": total_fraud,
+        "base_fraud_rate": base_rate,
+        "bands": bands,
+        "note": ("Observed on the labelled synthetic final-test period. The fraud rate of a band is how often a "
+                 "request with that score really was fraud; it is an empirical rate, not a calibrated probability "
+                 "for any single request."),
+    }
 
 
 def _subset(codes: np.ndarray, y: np.ndarray, mask: np.ndarray) -> dict[str, Any]:
@@ -224,6 +276,7 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
             ),
             "note": "All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection.",
         },
+        "score_bands": score_bands(risk, y, full_codes),
         "per_scenario": per_scenario,
         "unusual_legitimate": _subset(full_codes, y, unusual_mask),
         "routine_legitimate": _subset(full_codes, y, routine_mask),
@@ -385,6 +438,28 @@ def render_markdown(s: dict[str, Any]) -> str:
             f"| {name} | {row['kind']} | {row['requests']:,} | {_pct(row['verify_or_block_rate'])} | {_pct(row['block_rate'])} "
             f"| {_pct(row['evidence_block_rate'])} | {_pct(row['model_only_verify_or_block_rate'])} |"
         )
+    bands = s.get("score_bands")
+    if bands:
+        lines += [
+            "",
+            "## What the risk score is worth: observed fraud rate per score band (final test)",
+            "",
+            (f"Base fraud rate {_pct(bands['base_fraud_rate'], 2)} over {bands['requests']:,} scored requests. "
+             "*Recall ≥ band* and *precision ≥ band* describe flagging every request at or above the band's lower edge."),
+            "",
+            "| Score band | Requests | Fraud | Fraud rate (95% CI) | Lift | Recall ≥ band | Precision ≥ band | Flag rate ≥ band |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for b in bands["bands"]:
+            ci = b["fraud_rate_95ci"]
+            ci_text = "" if ci is None else f" ({ci[0] * 100:.1f}–{ci[1] * 100:.1f}%)"
+            lift = "n/a" if b["lift"] is None else f"{b['lift']:.1f}×"
+            lines.append(
+                f"| {b['low']:g}–{b['high']:g} | {b['requests']:,} | {b['fraud']} | {_pct(b['fraud_rate'])}{ci_text} | "
+                f"{lift} | {_pct(b['recall_at_or_above'])} | {_pct(b['precision_at_or_above'])} | "
+                f"{_pct(b['flag_rate_at_or_above'], 2)} |"
+            )
+        lines += ["", bands["note"]]
     ev = s["evidence_channel"]
     lines += [
         "",

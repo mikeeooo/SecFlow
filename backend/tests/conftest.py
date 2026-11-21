@@ -4,11 +4,14 @@ modify the committed data or model bundle."""
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("SECFLOW_AUTOSTART_STREAM", "false")
+# Review history goes to a throwaway directory so tests never touch storage/state/.
+os.environ.setdefault("SECFLOW_STATE_DIR", tempfile.mkdtemp(prefix="secflow-state-"))
 
 from storage.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
 

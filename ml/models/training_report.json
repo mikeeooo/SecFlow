@@ -12,7 +12,7 @@
         "n_estimators": 100,
         "max_samples": 256,
         "validation_average_precision": 0.2056115060489829,
-        "fit_seconds": 0.123
+        "fit_seconds": 0.128
       },
       {
         "n_estimators": 100,
@@ -24,7 +24,7 @@
         "n_estimators": 200,
         "max_samples": 256,
         "validation_average_precision": 0.1773360716607619,
-        "fit_seconds": 0.24
+        "fit_seconds": 0.239
       },
       {
         "n_estimators": 200,
@@ -40,7 +40,7 @@
         "fit_rows": 60000.0,
         "training_lof_median": 1.0552675387279558,
         "training_lof_p99": 1.3343497944434293,
-        "fit_seconds": 1.5
+        "fit_seconds": 1.624
       },
       {
         "n_neighbors": 35,
@@ -48,7 +48,7 @@
         "fit_rows": 60000.0,
         "training_lof_median": 1.0580215409884066,
         "training_lof_p99": 1.3307248838944548,
-        "fit_seconds": 1.65
+        "fit_seconds": 1.64
       },
       {
         "n_neighbors": 50,
@@ -56,7 +56,7 @@
         "fit_rows": 60000.0,
         "training_lof_median": 1.0597204727583058,
         "training_lof_p99": 1.333604229804143,
-        "fit_seconds": 1.783
+        "fit_seconds": 1.834
       }
     ],
     "dbscan": [
@@ -469,6 +469,6 @@
     "rules": 0.41711254442128587,
     "combined": 0.2873272981556727
   },
-  "training_seconds": 23.05,
+  "training_seconds": 23.65,
   "evidence_store_size": 83
 }

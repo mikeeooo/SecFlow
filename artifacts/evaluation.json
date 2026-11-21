@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-05T13:39:50Z",
+  "generated_at": "2026-11-21T20:30:06Z",
   "scope": "Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.",
   "model_version": "secflow-sk-1.0-71ecbbce2d",
   "policy_version": "secflow-evidence-first-1.0.0+21de4ca9",
@@ -251,6 +251,281 @@
     "fraud_without_evidence": 180,
     "model_only_recall_on_fraud_without_evidence": 0.6722222222222223,
     "note": "All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection."
+  },
+  "score_bands": {
+    "edges": [
+      0.0,
+      10.0,
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      61.0,
+      70.0,
+      80.0,
+      90.0,
+      97.0,
+      100.0
+    ],
+    "requests": 20000,
+    "fraud": 200,
+    "base_fraud_rate": 0.01,
+    "bands": [
+      {
+        "low": 0.0,
+        "high": 10.0,
+        "requests": 1911,
+        "fraud": 0,
+        "legitimate": 1911,
+        "fraud_rate": 0.0,
+        "fraud_rate_95ci": [
+          0.0,
+          0.002
+        ],
+        "lift": 0.0,
+        "share_of_requests": 0.09555,
+        "share_of_fraud": 0.0,
+        "recall_at_or_above": 1.0,
+        "precision_at_or_above": 0.01,
+        "flag_rate_at_or_above": 1.0,
+        "decisions": {
+          "Permit": 1911,
+          "Verify": 0,
+          "Block": 0
+        }
+      },
+      {
+        "low": 10.0,
+        "high": 20.0,
+        "requests": 3111,
+        "fraud": 2,
+        "legitimate": 3109,
+        "fraud_rate": 0.0006428801028608164,
+        "fraud_rate_95ci": [
+          0.0002,
+          0.0023
+        ],
+        "lift": 0.06428801028608164,
+        "share_of_requests": 0.15555,
+        "share_of_fraud": 0.01,
+        "recall_at_or_above": 1.0,
+        "precision_at_or_above": 0.011056443142241142,
+        "flag_rate_at_or_above": 0.90445,
+        "decisions": {
+          "Permit": 3111,
+          "Verify": 0,
+          "Block": 0
+        }
+      },
+      {
+        "low": 20.0,
+        "high": 30.0,
+        "requests": 3838,
+        "fraud": 7,
+        "legitimate": 3831,
+        "fraud_rate": 0.0018238665971860343,
+        "fraud_rate_95ci": [
+          0.0009,
+          0.0038
+        ],
+        "lift": 0.18238665971860343,
+        "share_of_requests": 0.1919,
+        "share_of_fraud": 0.035,
+        "recall_at_or_above": 0.99,
+        "precision_at_or_above": 0.013219388436373347,
+        "flag_rate_at_or_above": 0.7489,
+        "decisions": {
+          "Permit": 3838,
+          "Verify": 0,
+          "Block": 0
+        }
+      },
+      {
+        "low": 30.0,
+        "high": 40.0,
+        "requests": 3943,
+        "fraud": 14,
+        "legitimate": 3929,
+        "fraud_rate": 0.003550595992898808,
+        "fraud_rate_95ci": [
+          0.0021,
+          0.006
+        ],
+        "lift": 0.3550595992898808,
+        "share_of_requests": 0.19715,
+        "share_of_fraud": 0.07,
+        "recall_at_or_above": 0.955,
+        "precision_at_or_above": 0.017145421903052065,
+        "flag_rate_at_or_above": 0.557,
+        "decisions": {
+          "Permit": 3940,
+          "Verify": 0,
+          "Block": 3
+        }
+      },
+      {
+        "low": 40.0,
+        "high": 50.0,
+        "requests": 3373,
+        "fraud": 19,
+        "legitimate": 3354,
+        "fraud_rate": 0.0056329676845538095,
+        "fraud_rate_95ci": [
+          0.0036,
+          0.0088
+        ],
+        "lift": 0.5632967684553809,
+        "share_of_requests": 0.16865,
+        "share_of_fraud": 0.095,
+        "recall_at_or_above": 0.885,
+        "precision_at_or_above": 0.024593580658607752,
+        "flag_rate_at_or_above": 0.35985,
+        "decisions": {
+          "Permit": 3372,
+          "Verify": 0,
+          "Block": 1
+        }
+      },
+      {
+        "low": 50.0,
+        "high": 61.0,
+        "requests": 2673,
+        "fraud": 27,
+        "legitimate": 2646,
+        "fraud_rate": 0.010101010101010102,
+        "fraud_rate_95ci": [
+          0.007,
+          0.0147
+        ],
+        "lift": 1.0101010101010102,
+        "share_of_requests": 0.13365,
+        "share_of_fraud": 0.135,
+        "recall_at_or_above": 0.79,
+        "precision_at_or_above": 0.04131799163179916,
+        "flag_rate_at_or_above": 0.1912,
+        "decisions": {
+          "Permit": 2658,
+          "Verify": 9,
+          "Block": 6
+        }
+      },
+      {
+        "low": 61.0,
+        "high": 70.0,
+        "requests": 751,
+        "fraud": 33,
+        "legitimate": 718,
+        "fraud_rate": 0.043941411451398134,
+        "fraud_rate_95ci": [
+          0.0315,
+          0.0611
+        ],
+        "lift": 4.394141145139813,
+        "share_of_requests": 0.03755,
+        "share_of_fraud": 0.165,
+        "recall_at_or_above": 0.655,
+        "precision_at_or_above": 0.11381407471763684,
+        "flag_rate_at_or_above": 0.05755,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 749,
+          "Block": 2
+        }
+      },
+      {
+        "low": 70.0,
+        "high": 80.0,
+        "requests": 297,
+        "fraud": 48,
+        "legitimate": 249,
+        "fraud_rate": 0.16161616161616163,
+        "fraud_rate_95ci": [
+          0.1241,
+          0.2078
+        ],
+        "lift": 16.161616161616163,
+        "share_of_requests": 0.01485,
+        "share_of_fraud": 0.24,
+        "recall_at_or_above": 0.49,
+        "precision_at_or_above": 0.245,
+        "flag_rate_at_or_above": 0.02,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 291,
+          "Block": 6
+        }
+      },
+      {
+        "low": 80.0,
+        "high": 90.0,
+        "requests": 82,
+        "fraud": 29,
+        "legitimate": 53,
+        "fraud_rate": 0.35365853658536583,
+        "fraud_rate_95ci": [
+          0.2589,
+          0.4616
+        ],
+        "lift": 35.36585365853658,
+        "share_of_requests": 0.0041,
+        "share_of_fraud": 0.145,
+        "recall_at_or_above": 0.25,
+        "precision_at_or_above": 0.4854368932038835,
+        "flag_rate_at_or_above": 0.00515,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 82,
+          "Block": 0
+        }
+      },
+      {
+        "low": 90.0,
+        "high": 97.0,
+        "requests": 18,
+        "fraud": 18,
+        "legitimate": 0,
+        "fraud_rate": 1.0,
+        "fraud_rate_95ci": [
+          0.8241,
+          1.0
+        ],
+        "lift": 100.0,
+        "share_of_requests": 0.0009,
+        "share_of_fraud": 0.09,
+        "recall_at_or_above": 0.105,
+        "precision_at_or_above": 1.0,
+        "flag_rate_at_or_above": 0.00105,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 16,
+          "Block": 2
+        }
+      },
+      {
+        "low": 97.0,
+        "high": 100.0,
+        "requests": 3,
+        "fraud": 3,
+        "legitimate": 0,
+        "fraud_rate": 1.0,
+        "fraud_rate_95ci": [
+          0.4385,
+          1.0
+        ],
+        "lift": 100.0,
+        "share_of_requests": 0.00015,
+        "share_of_fraud": 0.015,
+        "recall_at_or_above": 0.015,
+        "precision_at_or_above": 1.0,
+        "flag_rate_at_or_above": 0.00015,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 0,
+          "Block": 3
+        }
+      }
+    ],
+    "note": "Observed on the labelled synthetic final-test period. The fraud rate of a band is how often a request with that score really was fraud; it is an empirical rate, not a calibrated probability for any single request."
   },
   "per_scenario": {
     "account_recovery": {
@@ -609,11 +884,11 @@
   "latency_ms": {
     "requests_timed": 300,
     "scope": "single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process",
-    "mean": 3.525,
-    "p50": 3.5,
-    "p95": 4.23,
-    "p99": 4.586,
-    "max": 4.94
+    "mean": 3.599,
+    "p50": 3.486,
+    "p95": 4.289,
+    "p99": 4.669,
+    "max": 33.264
   },
   "validation_goals": {
     "max_legitimate_false_block_rate": 0.001,
@@ -653,6 +928,6 @@
     "verify_rate": 0.05735,
     "legitimate_false_block_rate": 0.0,
     "model_only_recall_verify_or_block": 0.655,
-    "latency_p95_ms": 4.23
+    "latency_p95_ms": 4.289
   }
 }
