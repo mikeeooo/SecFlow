@@ -265,6 +265,7 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
         <Stat label="Verify rate" value={formatPercent(full.verify_rate, 2)} tone="verify" hint={`legitimate false blocks ${formatPercent(full.legitimate_false_block_rate, 3)}`} />
         <Stat label="p95 latency" value={`${e.latency_ms.p95} ms`} hint={`${e.latency_ms.requests_timed} single requests, in process`} />
       </Card>
+      {e.score_bands ? <ScoreBandsCard bands={e.score_bands} verify={e.operating_point.verify} block={e.operating_point.block} /> : null}
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader title="Combined policy" subtitle="TP / FP / FN / TN; positive = Verify or Block, or Block only" />
@@ -320,5 +321,47 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
         </Card>
       </div>
     </section>
+  );
+}
+
+/** The yield of the risk percentage: observed fraud rate per score band on labelled test data. */
+function ScoreBandsCard({ bands, verify, block }: { bands: Report; verify: number; block: number }) {
+  const rows = bands.bands as Report[];
+  const zone = (low: number) => (low >= block ? "Block zone" : low >= verify ? "Verify zone" : "Permit zone");
+  return (
+    <Card className="mt-5">
+      <CardHeader
+        title="What the risk percentage is worth"
+        subtitle={`Observed fraud rate per score band over ${formatInt(bands.requests)} labelled test requests (base rate ${formatPercent(bands.base_fraud_rate, 2)})`}
+      />
+      <div className="space-y-4 px-5 pb-5">
+        <p className="max-w-3xl text-[14px]">
+          The risk score is an anomaly ranking from 0 to 100, not a probability. Its real yield is read from this table: the higher the band,
+          the more often requests in it were really fraud. <em>Recall ≥ band</em> is the share of all fraud caught if every request at or above
+          the band&apos;s lower edge were flagged; <em>precision ≥ band</em> is how many of those flags were real fraud.
+        </p>
+        <ul className="space-y-1.5" aria-label="Fraud rate per score band">
+          {rows.map((b) => (
+            <li key={b.low} className="grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-3 text-[13px] sm:grid-cols-[72px_minmax(0,1fr)_72px_110px]">
+              <span className="tabular text-label-2">{b.low}–{b.high}</span>
+              <div className="h-3 overflow-hidden rounded-full bg-surface-2">
+                <div className={b.low >= block ? "h-full bg-block-strong" : b.low >= verify ? "h-full bg-verify" : "h-full bg-permit"}
+                  style={{ width: `${Math.max(b.fraud_rate ? 1 : 0, (b.fraud_rate ?? 0) * 100)}%` }} />
+              </div>
+              <span className="tabular text-right font-semibold">{formatPercent(b.fraud_rate)}</span>
+              <span className="hidden text-[12px] text-label-2 sm:block">{zone(b.low)}</span>
+            </li>
+          ))}
+        </ul>
+        <Table caption="Score bands" head={["Score band", "Requests", "Fraud", "Fraud rate (95% CI)", "Lift", "Recall ≥ band", "Precision ≥ band", "Flagged ≥ band"]}
+          rows={rows.map((b) => [
+            `${b.low}–${b.high}`, formatInt(b.requests), formatInt(b.fraud),
+            `${formatPercent(b.fraud_rate)}${b.fraud_rate_95ci ? ` (${formatPercent(b.fraud_rate_95ci[0])}–${formatPercent(b.fraud_rate_95ci[1])})` : ""}`,
+            b.lift == null ? "n/a" : `${b.lift.toFixed(1)}×`, formatPercent(b.recall_at_or_above), formatPercent(b.precision_at_or_above),
+            formatPercent(b.flag_rate_at_or_above, 2),
+          ])} />
+        <p className="text-[12px] text-label-2">{bands.note}</p>
+      </div>
+    </Card>
   );
 }

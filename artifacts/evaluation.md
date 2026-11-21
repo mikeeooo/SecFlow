@@ -1,6 +1,6 @@
 # SecFlow evaluation report
 
-Generated 2026-11-05T13:39:50Z · model `secflow-sk-1.0-71ecbbce2d` · policy `secflow-evidence-first-1.0.0+21de4ca9`
+Generated 2026-11-21T20:30:06Z · model `secflow-sk-1.0-71ecbbce2d` · policy `secflow-evidence-first-1.0.0+21de4ca9`
 
 > Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.
 
@@ -60,6 +60,26 @@ Flag thresholds come from the validation period (top 5% review budget; DBSCAN fl
 | travel | legitimate | 131 | 28.2% | 0.0% | 0.0% | 28.2% |
 | velocity | fraud | 40 | 65.0% | 0.0% | 0.0% | 65.0% |
 
+## What the risk score is worth: observed fraud rate per score band (final test)
+
+Base fraud rate 1.00% over 20,000 scored requests. *Recall ≥ band* and *precision ≥ band* describe flagging every request at or above the band's lower edge.
+
+| Score band | Requests | Fraud | Fraud rate (95% CI) | Lift | Recall ≥ band | Precision ≥ band | Flag rate ≥ band |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0–10 | 1,911 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 1.0% | 100.00% |
+| 10–20 | 3,111 | 2 | 0.1% (0.0–0.2%) | 0.1× | 100.0% | 1.1% | 90.44% |
+| 20–30 | 3,838 | 7 | 0.2% (0.1–0.4%) | 0.2× | 99.0% | 1.3% | 74.89% |
+| 30–40 | 3,943 | 14 | 0.4% (0.2–0.6%) | 0.4× | 95.5% | 1.7% | 55.70% |
+| 40–50 | 3,373 | 19 | 0.6% (0.4–0.9%) | 0.6× | 88.5% | 2.5% | 35.98% |
+| 50–61 | 2,673 | 27 | 1.0% (0.7–1.5%) | 1.0× | 79.0% | 4.1% | 19.12% |
+| 61–70 | 751 | 33 | 4.4% (3.1–6.1%) | 4.4× | 65.5% | 11.4% | 5.75% |
+| 70–80 | 297 | 48 | 16.2% (12.4–20.8%) | 16.2× | 49.0% | 24.5% | 2.00% |
+| 80–90 | 82 | 29 | 35.4% (25.9–46.2%) | 35.4× | 25.0% | 48.5% | 0.52% |
+| 90–97 | 18 | 18 | 100.0% (82.4–100.0%) | 100.0× | 10.5% | 100.0% | 0.10% |
+| 97–100 | 3 | 3 | 100.0% (43.9–100.0%) | 100.0× | 1.5% | 100.0% | 0.01% |
+
+Observed on the labelled synthetic final-test period. The fraud rate of a band is how often a request with that score really was fraud; it is an empirical rate, not a calibrated probability for any single request.
+
 ## Evidence channel versus model-only detection
 
 - Confirmed-evidence blocks: 20 (20 fraud, 0 legitimate).
@@ -83,7 +103,7 @@ Flag thresholds come from the validation period (top 5% review budget; DBSCAN fl
 
 ## Latency
 
-300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 3.525 ms, p50 3.5 ms, p95 4.23 ms, p99 4.586 ms.
+300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 3.599 ms, p50 3.486 ms, p95 4.289 ms, p99 4.669 ms.
 
 ## Decision sources
 

@@ -24,6 +24,7 @@ from backend.schemas import (
     AssessmentDetail,
     Investigation,
     LiveFeed,
+    ReviewHistoryPage,
     ReviewRequest,
     SimulationRequest,
     StreamModeRequest,
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         finally:
             await stream.shutdown()
+            service.review_log.close()
 
     app = FastAPI(
         title="SecFlow API",
@@ -136,7 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         q: str | None = None,
         account_type: Annotated[str | None, Query(pattern="^(personal|business)$")] = None,
         page: Annotated[int, Query(ge=1)] = 1,
-        page_size: Annotated[int, Query(ge=1, le=100)] = 30,
+        page_size: Annotated[int, Query(ge=1, le=1000)] = 30,
     ) -> AccountPage:
         return svc(request).accounts_page(q, page, page_size, account_type)
 
@@ -193,6 +195,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/investigations/{request_id}/reviews", response_model=Investigation, status_code=201)
     def review(request: Request, request_id: str, payload: ReviewRequest) -> Investigation:
         return svc(request).review(request_id, payload)
+
+    @app.get("/api/reviews", response_model=ReviewHistoryPage)
+    def review_history(
+        request: Request,
+        action: Annotated[str | None, Query(pattern="^(approve|reject)$")] = None,
+        q: Annotated[str | None, Query(max_length=100)] = None,
+        sort: Annotated[str, Query(pattern="^(newest|oldest)$")] = "newest",
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=200)] = 50,
+    ) -> ReviewHistoryPage:
+        return svc(request).review_history(action, q, page, page_size, sort)
 
     @app.get("/api/algorithms")
     def algorithms(request: Request) -> dict[str, Any]:

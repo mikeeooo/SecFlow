@@ -105,6 +105,7 @@ export interface AssessmentDetail extends AssessmentSummary {
   channel: string;
   facts: Record<string, unknown>;
   idempotent_replay: boolean;
+  score_band: ScoreBand | null;
 }
 
 export interface TimelineEntry {
@@ -139,6 +140,58 @@ export interface Paged<T> {
   page_size: number;
 }
 
+/** Observed fraud rate of the risk-score band, measured on the labelled final-test period. */
+export interface ScoreBand {
+  low: number;
+  high: number;
+  requests: number;
+  fraud: number;
+  fraud_rate: number | null;
+  fraud_rate_95ci: [number, number] | null;
+  lift: number | null;
+  recall_at_or_above: number | null;
+  precision_at_or_above: number | null;
+  flag_rate_at_or_above: number | null;
+  base_fraud_rate: number | null;
+  evaluated_requests: number;
+}
+
+export interface AccountPage extends Paged<AccountSummary> {
+  all_accounts: number;
+  personal: number;
+  business: number;
+  active: number;
+}
+
+export interface ReviewHistoryItem {
+  review_id: string;
+  request_id: string;
+  action: "approve" | "reject";
+  reason: string;
+  actor: string;
+  created_at: string;
+  original_decision: Decision;
+  original_decision_label: DecisionLabel;
+  original_risk_score: number | null;
+  resulting_outcome: Outcome;
+  origin: "baseline" | "simulation";
+  event_time: string;
+  sender_id: string;
+  sender_name: string;
+  recipient_id: string;
+  recipient_name: string;
+  amount: number;
+  currency: string;
+  investigation_available: boolean;
+}
+
+export interface ReviewHistoryPage extends Paged<ReviewHistoryItem> {
+  approved: number;
+  rejected: number;
+  persisted: boolean;
+  storage_note: string | null;
+}
+
 export interface AccountSummary {
   account_id: string;
   display_name: string;
@@ -147,6 +200,7 @@ export interface AccountSummary {
   created_at: string;
   requests: number;
   flagged: number;
+  rejected: number;
   last_activity: string | null;
   last_decision: Decision | null;
 }

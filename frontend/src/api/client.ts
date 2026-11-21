@@ -3,7 +3,7 @@ import type {
   Dashboard,
   DashboardWindow,
   AccountDetail,
-  AccountSummary,
+  AccountPage,
   AssessmentDetail,
   Health,
   Investigation,
@@ -12,6 +12,7 @@ import type {
   Paged,
   PartyOption,
   Report,
+  ReviewHistoryPage,
   ReviewRequest,
   SimulationRequest,
   SimulatorOptions,
@@ -83,7 +84,7 @@ export const api = {
   transactions: (params: Record<string, string | number | undefined>) =>
     request<Paged<AssessmentSummary>>(`/api/transactions${query(params)}`),
   accounts: (params: Record<string, string | number | undefined>) =>
-    request<Paged<AccountSummary>>(`/api/accounts${query(params)}`),
+    request<AccountPage>(`/api/accounts${query(params)}`),
   account: (id: string) => request<AccountDetail>(`/api/accounts/${encodeURIComponent(id)}`),
   parties: (q: string, limit = 12) => request<PartyOption[]>(`/api/parties${query({ q, limit })}`),
   simulatorOptions: (senderId?: string) => request<SimulatorOptions>(`/api/simulator/options${query({ sender_id: senderId })}`),
@@ -91,6 +92,8 @@ export const api = {
   investigation: (id: string) => request<Investigation>(`/api/investigations/${encodeURIComponent(id)}`),
   review: (id: string, body: ReviewRequest) =>
     request<Investigation>(`/api/investigations/${encodeURIComponent(id)}/reviews`, post(body)),
+  reviews: (params: Record<string, string | number | undefined>) =>
+    request<ReviewHistoryPage>(`/api/reviews${query(params)}`),
   liveTransfers: (after: number, signal?: AbortSignal) =>
     request<LiveFeed>(`/api/live-transfers${query({ after, limit: 100 })}`, { signal }),
   streamStatus: () => request<StreamStatus>("/api/simulation-stream"),

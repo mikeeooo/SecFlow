@@ -10,7 +10,7 @@ import pytest
 from config.settings import load_settings
 from ml.algorithms.isolation_forest import IsolationForestDetector
 from ml.algorithms.local_outlier_factor import LocalOutlierFactorDetector
-from ml.evaluation import binary_metrics, policy_metrics, run_evaluation, wilson_interval
+from ml.evaluation import binary_metrics, policy_metrics, run_evaluation, score_bands, wilson_interval
 from ml.model import load_bundle
 
 
@@ -99,3 +99,18 @@ def test_exported_metadata_matches_loaded_artifact() -> None:
     exported = json.loads((settings.artifacts_dir / "evaluation.json").read_text())
     assert exported["model_version"] == load_bundle(settings.models_dir).version
     assert Path(settings.artifacts_dir / "evaluation.md").read_text().startswith("# SecFlow evaluation report")
+
+
+def test_score_bands_cover_every_request_and_rise_with_the_score() -> None:
+    rng = np.random.default_rng(0)
+    risk = np.concatenate([rng.uniform(0, 60, 900), rng.uniform(60, 100, 100), [100.0, np.nan]])
+    y = np.concatenate([np.zeros(900, bool), rng.random(100) < 0.6, [True, False]])
+    codes = (risk >= 61).astype(int)
+    codes[np.isnan(risk)] = 0
+    report = score_bands(risk, y, codes)
+    assert report["requests"] == 1001  # the unscored request is excluded
+    assert sum(b["requests"] for b in report["bands"]) == 1001
+    assert sum(b["fraud"] for b in report["bands"]) == int(y[:-1].sum())
+    assert report["bands"][-1]["requests"] >= 1  # a score of exactly 100 lands in the top band
+    assert report["bands"][0]["recall_at_or_above"] == 1.0
+    assert all(b["fraud"] == 0 for b in report["bands"][:5])  # bands below 50 hold no fraud

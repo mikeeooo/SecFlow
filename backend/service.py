@@ -29,7 +29,10 @@ from backend.schemas import (
     AssessmentDetail,
     Investigation,
     PartyRef,
+    ReviewHistoryItem,
+    ReviewHistoryPage,
     ReviewRequest,
+    ScoreBand,
     SimulationRequest,
     TransactionPage,
 )
@@ -58,6 +61,7 @@ from storage.records import (
     format_ts,
     make_key,
 )
+from storage.review_log import ReviewHistoryEntry, ReviewLog
 
 log = logging.getLogger("secflow.service")
 HISTOGRAM_BINS = 20
@@ -113,6 +117,9 @@ class SecFlowService:
         for event in self.dataset.auth_events:
             self._sessions[event.session_id].append(event)
         self._replay_baseline(keys)
+        self.review_log = ReviewLog(settings.state_dir)
+        self._restore_reviews()
+        self._evaluation = self._load_evaluation()
         last_ts = max(history.max_key // KEY_SCALE, self.dataset.requests[-1].ts)
         self._sim_epoch = last_ts + 3_600
         self._wall_epoch = time.monotonic()
@@ -147,6 +154,56 @@ class SecFlowService:
                     outcome=OUTCOME_FOR_DECISION[result.policy.decision],
                 )
             )
+
+    def _restore_reviews(self) -> None:
+        """Re-apply persisted reviews to the baseline requests they decided.
+
+        Simulated requests do not survive a restart, so their reviews stay visible only in the
+        history. A stored review is re-applied only when the baseline request still carries the
+        same automated decision (a retrained model or a new dataset may change it).
+        """
+        restored = 0
+        for entry in self.review_log.entries():
+            record = self.state.records.get(entry.request_id)
+            if record is None or record.origin != "baseline" or entry.origin != "baseline":
+                continue
+            if record.result.policy.decision != entry.original_decision or record.reviews:
+                continue
+            self.state.restore_review(entry.request_id, ReviewRecord(
+                review_id=entry.review_id, request_id=entry.request_id, action=entry.action, reason=entry.reason,
+                actor=entry.actor, created_at=entry.created_at, simulated_time=entry.simulated_time,
+                original_decision=entry.original_decision, original_risk_score=entry.original_risk_score,
+                resulting_outcome=entry.resulting_outcome,
+            ))
+            restored += 1
+        if restored:
+            log.info("Restored %d persisted review(s) onto baseline requests", restored)
+
+    def _load_evaluation(self) -> dict[str, Any] | None:
+        path = self.settings.artifacts_dir / "evaluation.json"
+        if not path.exists():
+            return None
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            log.warning("Evaluation report unreadable: %s", error)
+            return None
+
+    def score_band(self, score: float | None) -> ScoreBand | None:
+        """The labelled final-test fraud rate of the score band this risk score falls in."""
+        report = self._evaluation
+        if score is None or not report or "score_bands" not in report:
+            return None
+        if self.bundle is None or report.get("model_version") != self.bundle.version:
+            return None  # the bands describe a different model
+        bands = report["score_bands"]["bands"]
+        for i, band in enumerate(bands):
+            last = i == len(bands) - 1
+            if band["low"] <= score and (score <= band["high"] if last else score < band["high"]):
+                return ScoreBand(**{k: band[k] for k in ScoreBand.model_fields if k in band},
+                                 base_fraud_rate=report["score_bands"]["base_fraud_rate"],
+                                 evaluated_requests=report["score_bands"]["requests"])
+        return None
 
     # ------------------------------------------------------------------
     # helpers
@@ -253,27 +310,59 @@ class SecFlowService:
     # ------------------------------------------------------------------
     def review(self, request_id: str, payload: ReviewRequest) -> Investigation:
         def build(record: AssessmentRecord) -> ReviewRecord:
+            """Runs under the state lock: persist to the history first, then settle and commit."""
             approved = payload.action == "approve"
             now = self._clock()
-            if approved and record.origin == "simulation":
-                self._settle(record.request, now)
-            return ReviewRecord(
-                review_id=f"REV-{self.state.review_count + 1:05d}", request_id=request_id, action=payload.action,
+            seq = self.review_log.next_seq()
+            review = ReviewRecord(
+                review_id=f"REV-{seq:05d}", request_id=request_id, action=payload.action,
                 reason=payload.reason, actor=payload.actor, created_at=utc_now_iso(), simulated_time=now,
                 original_decision=record.result.policy.decision,
                 original_risk_score=round(record.result.risk.total, 2) if record.result.risk else None,
                 resulting_outcome="approved_after_review" if approved else "rejected_after_review",
             )
+            request = record.request
+            self.review_log.append(ReviewHistoryEntry(
+                review_id=review.review_id, seq=seq, request_id=request_id, action=review.action,
+                reason=review.reason, actor=review.actor, created_at=review.created_at, simulated_time=now,
+                original_decision=review.original_decision, original_decision_label=record.result.policy.label,
+                original_risk_score=review.original_risk_score, resulting_outcome=review.resulting_outcome,
+                origin=record.origin, event_time=format_ts(request.ts), sender_id=request.sender_id,
+                sender_name=self.party(request.sender_id).name, recipient_id=request.recipient_id,
+                recipient_name=self.party(request.recipient_id).name, amount=request.amount, currency=request.currency,
+            ))
+            if approved and record.origin == "simulation":
+                self._settle(record.request, now)
+            return review
 
         self.state.add_review(request_id, build)
         return self.investigation(request_id)
+
+    def review_history(self, action: str | None, q: str | None, page: int, page_size: int,
+                       sort: str) -> ReviewHistoryPage:
+        entries, total, counts = self.review_log.page(action, q, page, page_size, sort)
+        with self.state.lock:
+            live = {e.request_id for e in entries if e.request_id in self.state.records}
+        items = [
+            ReviewHistoryItem(
+                **{k: getattr(e, k) for k in ReviewHistoryItem.model_fields if hasattr(e, k)},
+                investigation_available=e.request_id in live,
+            )
+            for e in entries
+        ]
+        status = self.review_log.status()
+        return ReviewHistoryPage(items=items, total=total, page=page, page_size=page_size,
+                                 approved=counts["approve"], rejected=counts["reject"],
+                                 persisted=status["persisted"], storage_note=status["error"])
 
     # ------------------------------------------------------------------
     # queries
     # ------------------------------------------------------------------
     def _detail(self, record: AssessmentRecord, replay: bool = False) -> AssessmentDetail:
-        return views.detail(record, self.party, self.policy, self.operating_point,
-                            self.bundle.version if self.bundle else None, replay)
+        detail = views.detail(record, self.party, self.policy, self.operating_point,
+                              self.bundle.version if self.bundle else None, replay)
+        detail.score_band = self.score_band(detail.risk_score)
+        return detail
 
     def investigation(self, request_id: str) -> Investigation:
         with self.state.lock:
@@ -397,10 +486,12 @@ class SecFlowService:
         records = self._records()
         stats: dict[str, dict[str, Any]] = {}
         for r in records:
-            s = stats.setdefault(r.request.sender_id, {"requests": 0, "flagged": 0, "last": None})
+            s = stats.setdefault(r.request.sender_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
             s["requests"] += 1
             s["flagged"] += int(r.result.policy.decision != "Permit")
-            s["last"] = r
+            s["rejected"] += int(r.outcome == "rejected_after_review")
+            if s["last"] is None or r.key > s["last"].key:
+                s["last"] = r
         query = (q or "").strip().lower()
         accounts = [
             a for a in self.accounts.values()
@@ -411,15 +502,19 @@ class SecFlowService:
         start = (page - 1) * page_size
         items = []
         for a in accounts[start:start + page_size]:
-            s = stats.get(a.account_id, {"requests": 0, "flagged": 0, "last": None})
+            s = stats.get(a.account_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
             last = s["last"]
             items.append(AccountSummary(
                 account_id=a.account_id, display_name=a.display_name, account_type=a.account_type,
                 home_country=a.home_country, created_at=format_ts(a.created_at), requests=s["requests"],
-                flagged=s["flagged"], last_activity=format_ts(last.request.ts) if last else None,
+                flagged=s["flagged"], rejected=s["rejected"], last_activity=format_ts(last.request.ts) if last else None,
                 last_decision=last.result.policy.decision if last else None,
             ))
-        return AccountPage(items=items, total=len(accounts), page=page, page_size=page_size)
+        by_type = Counter(a.account_type for a in self.accounts.values())
+        return AccountPage(items=items, total=len(accounts), page=page, page_size=page_size,
+                           all_accounts=len(self.accounts), personal=by_type.get("personal", 0),
+                           business=by_type.get("business", 0),
+                           active=sum(1 for a in self.accounts if stats.get(a, {}).get("requests")))
 
     def account_detail(self, account_id: str) -> dict[str, Any]:
         account = self.accounts.get(account_id)
@@ -572,8 +667,7 @@ class SecFlowService:
         return self._graph.build(self._records(), self.party, max_anomalies)
 
     def evaluation(self) -> dict[str, Any] | None:
-        path = self.settings.artifacts_dir / "evaluation.json"
-        return json.loads(path.read_text()) if path.exists() else None
+        return self._evaluation
 
     def health(self, stream: dict[str, Any]) -> dict[str, Any]:
         manifest = self.dataset.manifest
@@ -610,8 +704,9 @@ class SecFlowService:
                 "reviews": reviews,
                 "persisted": False,
                 "shared_across_workers": False,
-                "note": "Simulations and reviews live in this process only. A restart discards them, and separate "
-                "workers or instances would not share them. Run a single backend process.",
+                "review_history": self.review_log.status(),
+                "note": "Simulations live in this process only; a restart discards them. Every approve or reject "
+                "is also written to the review history file, which survives restarts. Run a single backend process.",
             },
             "stream": stream,
             "simulation_time": format_ts(self.simulation_now()),

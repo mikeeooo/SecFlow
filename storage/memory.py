@@ -1,7 +1,7 @@
 """Temporary process-memory state: assessments, reviews, idempotency, and the history overlay.
 
-Everything here lives in one Python process. Restarting the server discards simulations and
-reviews; multiple workers or instances would each hold their own independent copy. All
+Everything here lives in one Python process. Restarting the server discards simulations; reviews
+are also written to `storage.review_log` and re-applied to baseline requests at startup. Multiple workers or instances would each hold their own independent copy. All
 mutations happen under a single re-entrant lock so duplicate detection, scoring and commit
 are atomic within the process.
 """
@@ -111,6 +111,14 @@ class MemoryState:
             self.simulation_order.append(request_id)
             self._fingerprints[request_id] = fingerprint
             return record, False
+
+    def restore_review(self, request_id: str, review: ReviewRecord) -> None:
+        """Re-apply a review loaded from the durable history at startup (no validation of new input)."""
+        with self.lock:
+            record = self.records[request_id]
+            record.reviews.append(review)
+            record.outcome = review.resulting_outcome
+            self.review_count += 1
 
     def add_review(self, request_id: str, build: Callable[[AssessmentRecord], ReviewRecord]) -> ReviewRecord:
         with self.lock:

@@ -43,9 +43,18 @@ class Settings:
     models_dir: Path
     artifacts_dir: Path
     policy_path: Path
+    state_dir: Path | None  # durable review history; None keeps it in process memory only
     autostart_stream: bool
     stream_interval_seconds: float
     batch_interval_seconds: float
+
+
+def _default_state_dir() -> Path | None:
+    if not _env_bool("SECFLOW_PERSIST_REVIEWS", True):
+        return None
+    if os.environ.get("VERCEL"):  # the deployment bundle is read-only; /tmp is the only writable path
+        return Path("/tmp/secflow-state")
+    return ROOT / "storage" / "state"
 
 
 def load_settings() -> Settings:
@@ -57,6 +66,7 @@ def load_settings() -> Settings:
         models_dir=_env_path("SECFLOW_MODELS_DIR", ROOT / "ml" / "models"),
         artifacts_dir=_env_path("SECFLOW_ARTIFACTS_DIR", ROOT / "artifacts"),
         policy_path=_env_path("SECFLOW_POLICY_PATH", ROOT / "config" / "policy.json"),
+        state_dir=_env_path("SECFLOW_STATE_DIR", default_state) if (default_state := _default_state_dir()) else None,
         autostart_stream=_env_bool("SECFLOW_AUTOSTART_STREAM", True),
         stream_interval_seconds=_env_float("SECFLOW_STREAM_INTERVAL", 2.0),
         batch_interval_seconds=_env_float("SECFLOW_BATCH_INTERVAL", 4.0),
