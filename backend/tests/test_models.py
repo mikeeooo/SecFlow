@@ -253,6 +253,6 @@ def test_segment_without_fraud_falls_back() -> None:
     y = np.zeros(2_000, dtype=bool)
     y[:20] = True
     risk = np.where(y, 90.0, 10.0)
-    point, report = select_segment_points(risk, np.full(2_000, 3), np.zeros(2_000, dtype=bool), y, segments, policy)
+    _, report = select_segment_points(risk, np.full(2_000, 3), np.zeros(2_000, dtype=bool), y, segments, policy)
     assert report["segments"]["business"]["fallback"] is True
     assert "no fraud" in report["segments"]["business"]["reason"]

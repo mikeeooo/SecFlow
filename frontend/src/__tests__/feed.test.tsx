@@ -30,7 +30,7 @@ describe("Live Transfers", () => {
         return { body: { items: [summary("LIVE-1", 5), summary("LIVE-1", 5)], next_cursor: 5, stream: stream(true), simulation_time: "2026-10-28T10:00:00Z" } };
       }
       if (url.startsWith("/api/simulation-stream")) return { body: stream(true) };
-      return { body: { policy: { operating_point: { verify: 61, block: 97, source: "validated" } } } };
+      return { body: { policy: { operating_point: { verify: 61, block: 97, source: "validated", weights: { isolation_forest: 0.8, lof: 0.05, dbscan: 0, rules: 0.15 }, segments: { personal: { verify: 61, block: 97 }, business: { verify: 70, block: 98 } } } } } };
     });
     renderAt(<LiveTransfersPage />);
     await waitFor(() => expect(screen.getAllByText(/Amara Okafor/).length).toBeGreaterThan(0));
@@ -66,7 +66,7 @@ describe("Live Transfers", () => {
         if (attempt === 1) return { status: 0 };
         return { body: { items: [summary("LIVE-9", 9)], next_cursor: 9, stream: stream(true), simulation_time: "2026-10-28T10:00:00Z" } };
       }
-      if (url.startsWith("/api/health")) return { body: { policy: { operating_point: { verify: 61, block: 97, source: "validated" } } } };
+      if (url.startsWith("/api/health")) return { body: { policy: { operating_point: { verify: 61, block: 97, source: "validated", weights: { isolation_forest: 0.8, lof: 0.05, dbscan: 0, rules: 0.15 }, segments: { personal: { verify: 61, block: 97 }, business: { verify: 70, block: 98 } } } } } };
       return { body: stream(true) };
     });
     renderAt(<LiveTransfersPage />);

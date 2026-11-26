@@ -46,7 +46,9 @@ export function summary(id: string, cursor: number, overrides: Partial<Assessmen
     recipient: { id: "CP-00001", name: "Harbor Lane Utilities", kind: "counterparty" },
     amount: 42.5, currency: "EUR", risk_score: 31.2, decision: "Permit", decision_source: "risk_policy",
     decision_label: "Permitted", assessment_status: "assessed", outcome: "permitted", review_status: "not_applicable",
-    components: { isolation_forest: 0.4, lof: 0.3, dbscan: 0, rules: 0.1 }, evidence_ids: [], corroborating_signals: [],
+    components: { isolation_forest: 0.4, lof: 0.3, dbscan: 0, rules: 0.1 },
+    contributions: { isolation_forest: 32, lof: 1.5, dbscan: 0, rules: 1.5 }, segment: "personal",
+    evidence_ids: [], corroborating_signals: [],
     ...overrides,
   };
 }

@@ -36,7 +36,7 @@ export function InvestigationPage() {
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-5">
           <Card className="p-5">
-            <RiskComposition details={a.component_details} total={a.risk_score} verify={a.thresholds.verify} block={a.thresholds.block} />
+            <RiskComposition details={a.component_details} total={a.risk_score} verify={a.thresholds.verify} block={a.thresholds.block} segment={a.thresholds.segment} />
           </Card>
           <ScoreMeaning a={a} />
           <ComponentsTable a={a} />
