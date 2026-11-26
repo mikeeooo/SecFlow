@@ -134,7 +134,8 @@ def validate_dataset(path: Path, spec: DatasetSpec) -> list[str]:
             break
     fraud_total = sum(1 for l in labels if l["is_fraud"])
     per_category = sum(spec.fraud_per_category.values())
-    if fraud_total != per_category * len(FRAUD_CATEGORIES):
+    extra_total = sum(n for scenarios in spec.extra_fraud.values() for n in scenarios.values())
+    if fraud_total != per_category * len(FRAUD_CATEGORIES) + extra_total:
         problems.append(f"Unexpected fraud total {fraud_total}")
     unusual = sum(1 for l in labels if not l["is_fraud"] and l["scenario"] != "routine_payment")
     if unusual != sum(spec.unusual_per_partition.values()):
@@ -178,6 +179,9 @@ def _validate_partitions(
             problems.append(f"{partition.name}: expected {expected_total} requests, found {bucket.get('total')}")
         for category in FRAUD_CATEGORIES:
             if bucket.get(category) != spec.fraud_per_category[partition.name]:
+                problems.append(f"{partition.name}: {category} count {bucket.get(category)}")
+        for category, expected in spec.extra_fraud.get(partition.name, {}).items():
+            if bucket.get(category) != expected:
                 problems.append(f"{partition.name}: {category} count {bucket.get(category)}")
         if bucket.get("unusual") != spec.unusual_per_partition[partition.name]:
             problems.append(f"{partition.name}: unusual count {bucket.get('unusual')}")
