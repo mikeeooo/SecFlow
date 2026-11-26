@@ -85,8 +85,8 @@ def test_each_component_scores_each_row_once(evaluations) -> None:
 
 def test_evaluation_uses_only_the_chronological_test_period(evaluations) -> None:
     first, _, _ = evaluations
-    assert first["test_requests"] == 20_000 and first["test_fraud"] == 200
-    assert first["splits"]["test"] == {"requests": 20_000, "fraud": 200, "fraud_share": 0.01}
+    assert first["test_requests"] == 20_000 and first["test_fraud"] == 240
+    assert first["splits"]["test"] == {"requests": 20_000, "fraud": 240, "fraud_share": 0.012}
     assert first["cold_start_accounts"]["accounts"] == 40
     assert first["unusual_legitimate"]["requests"] == 1_000
 
@@ -96,7 +96,7 @@ def test_reports_both_positive_views_and_separate_evidence_channel(evaluations) 
     for view in (first["combined_policy"], first["combined_policy_without_evidence"]):
         assert {"verify_or_block", "block_only"} <= set(view)
     channel = first["evidence_channel"]
-    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 200
+    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 240
     assert set(first["components"]) == {"isolation_forest", "lof", "dbscan", "rules", "combined_risk_score"}
 
 
