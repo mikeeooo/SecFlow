@@ -12,3 +12,4 @@ artifacts/features/
 .vercel
 .env*
 storage/state/
+.claude/
