@@ -1,6 +1,6 @@
 {
   "policy_name": "secflow-evidence-first",
-  "policy_revision": "1.0.0",
+  "policy_revision": "1.1.0",
   "description": "Weighted anomaly-risk index with an evidence-first action table. Scores are anomaly/context indices, not fraud probabilities.",
   "weights": {
     "isolation_forest": 0.35,
@@ -13,8 +13,8 @@
     "block": 70
   },
   "threshold_search": {
-    "verify": {"start": 30, "stop": 80, "step": 1},
-    "block": {"start": 45, "stop": 98, "step": 1}
+    "verify": {"start": 30, "stop": 95, "step": 1},
+    "block": {"start": 45, "stop": 100, "step": 1}
   },
   "validation_goals": {
     "max_legitimate_false_block_rate": 0.001,
@@ -59,6 +59,9 @@
     {"code": "SHARED_NEW_BENEFICIARY", "family": "beneficiary_risk", "weight": 0.30, "corroborating": true,
      "description": "New beneficiary that other accounts also began paying in the last 24 hours",
      "params": {"min_other_senders_24h": 2, "max_recipient_history_days": 7}},
+    {"code": "REPEAT_NEW_BENEFICIARY", "family": "beneficiary_risk", "weight": 0.15, "corroborating": false,
+     "description": "Several payments to the same new beneficiary within 24 hours",
+     "params": {"min_prior_payments_24h": 1}},
     {"code": "NEW_BENEFICIARY_HIGH_AMOUNT", "family": "amount_deviation", "weight": 0.20, "corroborating": true,
      "description": "Unusually high amount sent to a beneficiary without an established payment history",
      "params": {"min_zscore": 1.2}},

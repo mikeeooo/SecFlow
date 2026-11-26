@@ -124,9 +124,14 @@ function ModelsAndEvaluation() {
         <p className="tabular mt-3 rounded-[10px] bg-surface-2 p-3 font-mono text-[13px] break-words">
           risk = 100 × ({policy.weights.isolation_forest} × IF + {policy.weights.lof} × LOF + {policy.weights.dbscan} × DBSCAN + {policy.weights.rules} × rules)
         </p>
+        <p className="mt-2 text-[12px] text-label-2">
+          {policy.weights_source === "learned"
+            ? "Weights learned by exhaustive search on the simplex (step 0.05, LOF ≥ 0.05), maximising average precision on the calibration period (days 61–70)."
+            : "Learned weights unavailable: showing the policy fallback weights."}
+        </p>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="Verify threshold" value={policy.operating_point.verify} hint={humanize(policy.operating_point.source)} tone="verify" />
-          <Stat label="Block threshold" value={policy.operating_point.block} hint={`plus ≥ ${policy.min_corroborating_families} corroborating families`} tone="block" />
+          <Stat label="Personal accounts" value={`${policy.segments.personal.verify} / ${policy.segments.personal.block}`} hint="Verify / Block thresholds, chosen on validation" tone="verify" />
+          <Stat label="Business accounts" value={`${policy.segments.business.verify} / ${policy.segments.business.block}`} hint={`Block also needs ≥ ${policy.min_corroborating_families} corroborating families`} tone="block" />
           <Stat label="Cold-start limit" value={`€${policy.cold_start.max_amount_without_history}`} hint="without history, above this or without strong sign-in → Verify" />
           <Stat label="Trusted evidence sources" value={policy.trusted_sources.length} hint={policy.trusted_sources.map(humanize).join(", ")} />
         </div>
@@ -140,6 +145,7 @@ function ModelsAndEvaluation() {
         {([
           ["isolation_forest", "Isolation Forest score", 1],
           ["lof", "Local Outlier Factor score", 1],
+          ["dbscan", "DBSCAN context score (0 inside a core neighbourhood, 1 at twice eps)", 1],
           ["rules", "Behaviour rules score", 1],
           ["risk_score", "Combined anomaly-risk index", 100],
         ] as const).map(([key, title, max]) => (
@@ -179,8 +185,10 @@ function ModelsAndEvaluation() {
             <div className="space-y-4 px-5 pb-5">
               <KeyValue items={[
                 { label: "IsolationForest", value: `${model.selected_parameters.isolation_forest.n_estimators} trees, ${model.selected_parameters.isolation_forest.max_samples} samples` },
-                { label: "LocalOutlierFactor", value: `novelty, ${model.selected_parameters.lof.n_neighbors} neighbours` },
-                { label: "Fitted rows (IF/LOF)", value: formatInt(model.fit_rows.isolation_forest) },
+                { label: "LocalOutlierFactor", value: `novelty, ${model.selected_parameters.lof.n_neighbors} neighbours, ${humanize(model.selected_parameters.lof.subspace)} subspace` },
+                { label: "LOF features", value: (model.lof_features as string[]).length },
+                { label: "Fitted rows (IF / LOF)", value: `${formatInt(model.fit_rows.isolation_forest)} / ${formatInt(model.fit_rows.lof)}` },
+                { label: "Holdout accounts", value: `${model.holdout_accounts} (never fitted on)` },
                 { label: "DBSCAN fit profiles", value: formatInt(model.fit_rows.dbscan) },
                 { label: "Score reference rows", value: formatInt(model.fit_rows.score_mapping_reference) },
                 { label: "scikit-learn", value: model.sklearn_version },
@@ -222,10 +230,37 @@ function ModelsAndEvaluation() {
             <div className="space-y-4 px-5 pb-5">
               <Table caption="Isolation Forest search" head={["IsolationForest", "Avg. precision"]}
                 rows={(a.training.search.isolation_forest as Report[]).map((r) => [`${r.n_estimators} trees · ${r.max_samples}`, num(r.validation_average_precision)])} />
-              <Table caption="LOF search" head={["LOF neighbours", "Avg. precision"]}
-                rows={(a.training.search.lof as Report[]).map((r) => [r.n_neighbors, num(r.validation_average_precision)])} />
-              <Table caption="DBSCAN search" head={["DBSCAN min_samples · eps", "Fraud outside", "Legit outside"]}
-                rows={(a.training.search.dbscan as Report[]).map((r) => [`${r.min_samples} · ${num(r.eps, 2)}`, formatPercent(r.validation_fraud_outside_rate), formatPercent(r.validation_legitimate_outside_rate)])} />
+              <Table caption="LOF search" head={["LOF subspace · neighbours · fit rows", "Avg. precision"]}
+                rows={(a.training.search.lof as Report[]).map((r) => {
+                  const lof = model?.selected_parameters.lof;
+                  const chosen = lof && lof.subspace === r.subspace && lof.n_neighbors === r.n_neighbors && lof.fit_rows_requested === r.fit_rows_requested;
+                  return [`${humanize(r.subspace)} · ${r.n_neighbors} · ${r.fit_rows_requested}${chosen ? " (selected)" : ""}`, num(r.validation_average_precision)];
+                })} />
+              <Table caption="DBSCAN search" head={["DBSCAN min_samples · eps", "Avg. precision", "Fraud outside", "Legit outside"]}
+                rows={(a.training.search.dbscan as Report[]).map((r) => [`${r.min_samples} · ${num(r.eps, 2)}`, num(r.validation_average_precision), formatPercent(r.validation_fraud_outside_rate), formatPercent(r.validation_legitimate_outside_rate)])} />
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {a.training?.weights_search ? (
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <Card>
+            <CardHeader title="Learned combination weights" subtitle={`Top candidates of ${formatInt(a.training.weights_search.candidates)} on the calibration period (${formatInt(a.training.weights_search.rows)} requests, ${a.training.weights_search.fraud} fraud)`} />
+            <div className="px-5 pb-5">
+              <Table caption="Weight search" head={["IF", "LOF", "DBSCAN", "Rules", "Avg. precision"]}
+                rows={(a.training.weights_search.top as Report[]).map((r) => [num(r.isolation_forest, 2), num(r.lof, 2), num(r.dbscan, 2), num(r.rules, 2), num(r.average_precision)])} />
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Thresholds per account segment" subtitle="Grid search on validation with the same goals for each segment" />
+            <div className="px-5 pb-5">
+              <Table caption="Segment thresholds" head={["Segment", "Requests", "Fraud", "Verify ≥", "Block ≥", "Source"]}
+                rows={Object.entries(a.training.segment_thresholds as Record<string, Report>).map(([name, r]) => [
+                  humanize(name), formatInt(r.requests), r.fraud,
+                  policy.segments[name].verify, policy.segments[name].block,
+                  r.fallback ? `global pair (${r.reason})` : `validated (${r.feasible_candidates} feasible pairs)`,
+                ])} />
             </div>
           </Card>
         </div>
@@ -265,6 +300,13 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
         <Stat label="Verify rate" value={formatPercent(full.verify_rate, 2)} tone="verify" hint={`legitimate false blocks ${formatPercent(full.legitimate_false_block_rate, 3)}`} />
         <Stat label="p95 latency" value={`${e.latency_ms.p95} ms`} hint={`${e.latency_ms.requests_timed} single requests, in process`} />
       </Card>
+      {e.confidence_intervals ? (
+        <p className="mt-3 text-[13px] text-label-2">
+          95% intervals: recall {formatPercent(e.confidence_intervals.recall_verify_or_block[0])}–{formatPercent(e.confidence_intervals.recall_verify_or_block[1])},
+          precision {formatPercent(e.confidence_intervals.precision_verify_or_block[0])}–{formatPercent(e.confidence_intervals.precision_verify_or_block[1])},
+          verify rate {formatPercent(e.confidence_intervals.verify_rate[0], 2)}–{formatPercent(e.confidence_intervals.verify_rate[1], 2)} ({e.confidence_intervals.method}).
+        </p>
+      ) : null}
       {e.score_bands ? <ScoreBandsCard bands={e.score_bands} verify={e.operating_point.verify} block={e.operating_point.block} /> : null}
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Card>
@@ -305,7 +347,12 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
           <CardHeader title="Subsets and goals" />
           <div className="space-y-4 px-5 pb-5">
             <Table caption="Subsets" head={["Subset", "Requests", "Fraud recall", "Legit review", "Legit false block"]}
-              rows={[["Unusual legitimate", e.unusual_legitimate], ["Cold-start accounts", e.cold_start_accounts], ["Existing accounts", e.existing_accounts]].map(([label, s]) => [
+              rows={[
+                ["Unusual legitimate", e.unusual_legitimate], ["Cold-start accounts", e.cold_start_accounts], ["Existing accounts", e.existing_accounts],
+                ...(e.holdout_accounts ? [["Holdout accounts (never fitted)", e.holdout_accounts]] : []),
+                ...(e.drift_billers ? [["Payments to drift billers", e.drift_billers]] : []),
+                ...(e.unseen_scenario ? [["Unseen scenario: invoice redirect", e.unseen_scenario]] : []),
+              ].map(([label, s]) => [
                 label as string, formatInt((s as Report).requests), formatPercent((s as Report).verify_or_block?.recall), formatPercent((s as Report).legitimate_review_rate, 2), formatPercent((s as Report).legitimate_false_block_rate, 3),
               ])} />
             <ul className="space-y-1.5 text-[13px]">

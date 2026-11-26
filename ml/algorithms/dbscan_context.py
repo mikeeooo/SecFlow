@@ -6,7 +6,8 @@ new profile with this application-level heuristic:
 
 * profile has insufficient history               -> 0, status `insufficient_history`
 * profile within `eps` of any frozen core sample  -> 0, status `within_context`
-* profile beyond every core neighbourhood         -> 1, status `outside_context`
+* profile beyond every core neighbourhood         -> min(1, (d - eps) / eps), status `outside_context`
+  (d = distance to the nearest core; the score grows from 0 at the edge to 1 at twice eps)
 
 This is a context heuristic, not a fraud verdict. A model without core samples is a
 training failure, not a reason to assign maximum risk.
@@ -91,5 +92,7 @@ class DBSCANContext:
             elif distance <= self.eps:
                 results.append(ContextResult(0.0, "within_context", distance, cluster, cluster))
             else:
-                results.append(ContextResult(1.0, "outside_context", distance, None, cluster))
+                # Continuous: 0 at the neighbourhood edge, 1 at twice eps or further.
+                score = min(1.0, (distance - self.eps) / self.eps)
+                results.append(ContextResult(score, "outside_context", distance, None, cluster))
         return results

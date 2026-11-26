@@ -64,18 +64,23 @@ def summary(record: AssessmentRecord, party: PartyLookup) -> AssessmentSummary:
         assessment_status=result.policy.assessment_status,
         outcome=record.outcome,  # type: ignore[arg-type]
         review_status=review_status(record),  # type: ignore[arg-type]
+        segment=record.result.segment,  # type: ignore[arg-type]
         components=ComponentBrief(
             isolation_forest=_round(components.if_score) if components else None,
             lof=_round(components.lof_score) if components else None,
             dbscan=_round(components.context.score) if components else None,
             rules=_round(result.rules.score),
         ),
+        contributions=ComponentBrief(
+            **{name: _round(risk.contributions[name], 3) if risk else None for name in ComponentBrief.model_fields}
+        ),
         evidence_ids=list(result.policy.evidence_ids),
         corroborating_signals=list(result.policy.corroborating_signals),
     )
 
 
-def _component_details(record: AssessmentRecord, policy: Policy) -> list[ComponentView]:
+def _component_details(record: AssessmentRecord, policy: Policy, point: OperatingPoint) -> list[ComponentView]:
+    weights = point.weights or policy.weights  # the weights that produced the contributions
     result = record.result
     c = result.components
     contributions = result.risk.contributions if result.risk else {}
@@ -83,13 +88,13 @@ def _component_details(record: AssessmentRecord, policy: Policy) -> list[Compone
     if_score = c.if_score if c else None
     views.append(ComponentView(
         key="isolation_forest", label=COMPONENT_LABELS["isolation_forest"], score=_round(if_score),
-        weight=policy.weights["isolation_forest"], contribution=_round(contributions.get("isolation_forest"), 3),
+        weight=weights["isolation_forest"], contribution=_round(contributions.get("isolation_forest"), 3),
         raw=_round(c.if_raw) if c else None, status="scored" if c else "unavailable",
         detail=(f"More isolated than {if_score:.0%} of reference-period requests." if c else "Model not loaded."),
     ))
     lof_score = c.lof_score if c else None
     views.append(ComponentView(
-        key="lof", label=COMPONENT_LABELS["lof"], score=_round(lof_score), weight=policy.weights["lof"],
+        key="lof", label=COMPONENT_LABELS["lof"], score=_round(lof_score), weight=weights["lof"],
         contribution=_round(contributions.get("lof"), 3), raw=_round(c.lof_raw) if c else None,
         status="scored" if c else "unavailable",
         detail=(f"Local density lower than for {lof_score:.0%} of reference-period requests." if c else "Model not loaded."),
@@ -108,14 +113,14 @@ def _component_details(record: AssessmentRecord, policy: Policy) -> list[Compone
                               "insufficient history.")
     views.append(ComponentView(
         key="dbscan", label=COMPONENT_LABELS["dbscan"], score=_round(c.context.score) if c else None,
-        weight=policy.weights["dbscan"], contribution=_round(contributions.get("dbscan"), 3),
+        weight=weights["dbscan"], contribution=_round(contributions.get("dbscan"), 3),
         raw=_round(c.context.distance) if c and c.context.distance is not None else None,
         status=c.context.status if c else "unavailable",
         detail=context_detail,
     ))
     triggered = len(result.rules.triggered)
     views.append(ComponentView(
-        key="rules", label=COMPONENT_LABELS["rules"], score=_round(result.rules.score), weight=policy.weights["rules"],
+        key="rules", label=COMPONENT_LABELS["rules"], score=_round(result.rules.score), weight=weights["rules"],
         contribution=_round(contributions.get("rules"), 3), raw=None, status="scored",
         detail=f"{triggered} rule{'s' if triggered != 1 else ''} triggered; the rules score is the capped sum of their weights.",
     ))
@@ -145,20 +150,21 @@ def detail(
 ) -> AssessmentDetail:
     base = summary(record, party)
     result = record.result
+    verify, block = point.thresholds_for(result.segment)
     request = record.request
     return AssessmentDetail(
         **base.model_dump(),
         explanation=result.policy.explanation,
         status_notes=list(result.status_notes),
-        component_details=_component_details(record, policy),
+        component_details=_component_details(record, policy, point),
         reasons=[
             ReasonView(code=t.code, family=t.family, description=t.description, detail=t.detail, weight=t.weight,
                        corroborating=t.corroborating)
             for t in result.rules.triggered
         ],
         evidence=[evidence_view(e) for e in result.evidence],
-        thresholds=Thresholds(verify=point.verify, block=point.block, min_corroborating_families=policy.min_families,
-                              source=point.source),
+        thresholds=Thresholds(verify=verify, block=block, min_corroborating_families=policy.min_families,
+                              source=point.source, segment=result.segment),  # type: ignore[arg-type]
         model_version=model_version,
         policy_version=policy.version,
         operating_point_version=point.version,

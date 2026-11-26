@@ -50,6 +50,22 @@ def test_baseline_assessments_use_real_components_and_event_time_snapshots(clien
     assert first["risk_score"] == pytest.approx(sum(c["contribution"] for c in first["component_details"]), abs=0.02)
 
 
+def test_assessment_detail_uses_learned_weights_and_segment_thresholds(client: TestClient) -> None:
+    point = client.get("/api/health").json()["policy"]["operating_point"]
+    assert set(point["segments"]) == {"personal", "business"} and sum(point["weights"].values()) == pytest.approx(1.0)
+    for account_type in ("personal", "business"):
+        accounts = client.get("/api/accounts", params={"account_type": account_type, "page_size": 1}).json()["items"]
+        sender = accounts[0]["account_id"]
+        page = client.get("/api/transactions", params={"q": sender, "origin": "baseline", "page_size": 1}).json()
+        detail = client.get(f"/api/investigations/{page['items'][0]['request_id']}").json()["assessment"]
+        assert detail["segment"] == account_type
+        segment = point["segments"][account_type]
+        assert (detail["thresholds"]["verify"], detail["thresholds"]["block"]) == (segment["verify"], segment["block"])
+        assert detail["thresholds"]["segment"] == account_type
+        weights = {c["key"]: c["weight"] for c in detail["component_details"]}
+        assert weights == point["weights"]
+
+
 def test_filters_pagination_and_named_search(client: TestClient) -> None:
     verify = client.get("/api/transactions", params={"decision": "Verify", "page_size": 10, "page": 2}).json()
     assert verify["page"] == 2 and len(verify["items"]) == 10
@@ -221,9 +237,16 @@ def test_stream_lifecycle_is_backend_owned(client: TestClient) -> None:
 
 def test_algorithms_and_evaluation_endpoints(client: TestClient) -> None:
     algorithms = client.get("/api/algorithms").json()
-    assert algorithms["policy"]["weights"] == {"isolation_forest": 0.35, "lof": 0.25, "dbscan": 0.10, "rules": 0.30}
+    policy = algorithms["policy"]
+    assert policy["weights_source"] == "learned"
+    assert sum(policy["weights"].values()) == pytest.approx(1.0) and policy["weights"]["lof"] >= 0.05 - 1e-9
+    assert set(policy["segments"]) == {"personal", "business"}
     assert algorithms["model"]["selected_parameters"]["lof"]["n_neighbors"] in (20, 35, 50)
-    assert set(algorithms["distributions"]) == {"isolation_forest", "lof", "rules", "risk_score"}
+    assert set(algorithms["distributions"]) == {"isolation_forest", "lof", "dbscan", "rules", "risk_score"}
+    assert len(algorithms["distributions"]["dbscan"]) == algorithms["histogram_bins"]
+    assert len(algorithms["training"]["weights_search"]["top"]) == 10
+    assert {"subspace", "n_neighbors", "fit_rows_requested"} <= set(algorithms["training"]["search"]["lof"][0])
+    assert set(algorithms["training"]["segment_thresholds"]) == {"personal", "business"}
     evaluation = client.get("/api/evaluation")
     assert evaluation.status_code == 200
     assert evaluation.json()["model_version"] == algorithms["model"]["model_version"]

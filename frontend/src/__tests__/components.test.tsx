@@ -38,6 +38,27 @@ describe("RiskComposition", () => {
     expect(screen.getByText(/not a probability of fraud/)).toBeInTheDocument();
     expect(screen.getByText("15.0")).toBeInTheDocument();
   });
+
+  it("prints the learned weights it is given and the segment thresholds", () => {
+    render(
+      <RiskComposition
+        total={70}
+        verify={80}
+        block={93}
+        segment="personal"
+        details={[
+          { key: "isolation_forest", label: "Isolation Forest", score: 0.75, weight: 0.8, contribution: 60, raw: null, status: null, detail: "" },
+          { key: "lof", label: "Local Outlier Factor", score: 0.4, weight: 0.05, contribution: 2, raw: null, status: null, detail: "" },
+          { key: "dbscan", label: "DBSCAN context", score: 0.5, weight: 0, contribution: 0, raw: null, status: null, detail: "" },
+          { key: "rules", label: "Behaviour rules", score: 0.5, weight: 0.15, contribution: 7.5, raw: null, status: null, detail: "" },
+        ]}
+      />,
+    );
+    expect(screen.getByText(/0\.80 × 0\.75/)).toBeInTheDocument();
+    expect(screen.getByText(/0\.05 × 0\.40/)).toBeInTheDocument();
+    expect(screen.getByText("Verify 80")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /personal account thresholds: verify at 80, block at 93/i })).toBeInTheDocument();
+  });
 });
 
 describe("Investigation review", () => {
