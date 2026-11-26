@@ -135,8 +135,8 @@ def test_saved_bundle_round_trip_and_schema_metadata() -> None:
     bundle = load_bundle(settings.models_dir)
     point = load_operating_point(settings.models_dir, bundle.version)
     assert tuple(bundle.metadata["payment_features"]) == PAYMENT_FEATURES
-    assert bundle.metadata["fit_rows"]["isolation_forest"] == 60_000
-    assert bundle.metadata["fit_rows"]["score_mapping_reference"] == 10_000
+    assert 50_000 < bundle.metadata["fit_rows"]["isolation_forest"] < 60_000  # minus holdout accounts
+    assert 8_000 < bundle.metadata["fit_rows"]["score_mapping_reference"] < 10_000  # calibration minus holdout
     assert bundle.dbscan.core_samples is not None and len(bundle.dbscan.core_samples) > 0
     assert 0 < point.verify < point.block <= 100
     rows = np.zeros((3, len(PAYMENT_FEATURES)))

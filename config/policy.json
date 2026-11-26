@@ -13,8 +13,8 @@
     "block": 70
   },
   "threshold_search": {
-    "verify": {"start": 30, "stop": 80, "step": 1},
-    "block": {"start": 45, "stop": 98, "step": 1}
+    "verify": {"start": 30, "stop": 95, "step": 1},
+    "block": {"start": 45, "stop": 100, "step": 1}
   },
   "validation_goals": {
     "max_legitimate_false_block_rate": 0.001,
