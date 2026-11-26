@@ -18,10 +18,11 @@ from typing import Any
 from storage.history import HistoryIndex
 from storage.records import KEY_SCALE, Account, PaymentRequest
 
-FEATURE_VERSION = "features-1.0.0"
+FEATURE_VERSION = "features-1.1.0"
 HOUR = 3_600
 DAY = 86_400
 WINDOW_30D = 30 * DAY
+WINDOW_7D = 7 * DAY
 MAX_GAP_HOURS = 720.0
 SUFFICIENT_HISTORY = 5
 CONTEXT_MIN_HISTORY = 3
@@ -47,6 +48,10 @@ PAYMENT_FEATURES: tuple[str, ...] = (
     "weak_auth",
     "hour_deviation",
     "log_requests_30d",
+    "log_recipient_unique_senders_7d",
+    "log_recipient_inbound_24h",
+    "pair_requests_24h",
+    "recipient_new_global",
 )
 
 CONTEXT_FEATURES: tuple[str, ...] = (
@@ -138,11 +143,16 @@ def build_features(
     new_recipient = relationship_hours is None or relationship_hours < 24
 
     rec = history.recipient.get(request.recipient_id)
+    recipient_inbound24 = 0.0
+    recipient_senders7 = 0
     recipient_senders = 0
     recipient_days = 0.0
     if rec is not None:
         lo, hi = HistoryIndex.window(rec.keys, _key_at(t - DAY), key)
         recipient_senders = len({s for s in rec.senders[lo:hi] if s != request.sender_id})
+        recipient_inbound24 = rec.cum_amount[hi] - rec.cum_amount[lo]
+        lo7 = HistoryIndex.window(rec.keys, _key_at(t - WINDOW_7D), key)[0]
+        recipient_senders7 = len({s for s in rec.senders[lo7:hi] if s != request.sender_id})
         if rec.keys and rec.keys[0] < key:
             recipient_days = (t - rec.keys[0] // KEY_SCALE) / DAY
 
@@ -175,6 +185,12 @@ def build_features(
     device_age = min(device_age_hours, MAX_GAP_HOURS) if device_age_hours is not None else 0.0
     unique24 = len(set(recipients24))
 
+    # Globally new: nobody paid this recipient before, or the first payment by anyone is under 24 hours old.
+    first_any = history.recipient_first_key(request.recipient_id)
+    recipient_new_global = first_any is None or first_any >= key or (t - first_any // KEY_SCALE) < DAY
+    # Earlier payments by this sender to this recipient in 24 h, counted only while the relationship is new.
+    pair_requests24 = recipients24.count(request.recipient_id) if new_recipient else 0
+
     payment_vector = (
         log_amount,
         max(-6.0, min(zscore, 12.0)),
@@ -196,6 +212,10 @@ def build_features(
         AUTH_WEAKNESS.get(request.auth_method, 1.0),
         hour_dev,
         math.log1p(n30),
+        math.log1p(recipient_senders7),
+        math.log1p(recipient_inbound24),
+        float(pair_requests24),
+        1.0 if recipient_new_global else 0.0,
     )
 
     new_in_window = sum(
@@ -248,5 +268,9 @@ def build_features(
         "hour_deviation": round(hour_dev, 2),
         "context_devices_24h": len(devices24),
         "context_new_recipients_24h": new_in_window,
+        "recipient_unique_senders_7d": recipient_senders7,
+        "recipient_inbound_24h": round(recipient_inbound24, 2),
+        "pair_requests_24h": pair_requests24,
+        "recipient_new_global": recipient_new_global,
     }
     return FeatureSnapshot(payment_vector, context_vector, history_status, context_status, facts)

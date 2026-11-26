@@ -31,6 +31,7 @@ class _SenderSeries:
 class _RecipientSeries:
     keys: list[int] = field(default_factory=list)
     senders: list[str] = field(default_factory=list)
+    cum_amount: list[float] = field(default_factory=lambda: [0.0])  # prefix sums of attempted amounts
 
 
 @dataclass
@@ -81,6 +82,7 @@ class HistoryIndex:
         incoming = self.recipient.setdefault(request.recipient_id, _RecipientSeries())
         incoming.keys.append(key)
         incoming.senders.append(request.sender_id)
+        incoming.cum_amount.append(incoming.cum_amount[-1] + request.amount)
         self.pair_first.setdefault((request.sender_id, request.recipient_id), key)
         self.device_first.setdefault((request.sender_id, request.device_id), key)
 
@@ -130,6 +132,11 @@ class HistoryIndex:
     @staticmethod
     def window(keys: list[int], start_key: int, end_key: int) -> tuple[int, int]:
         return bisect_left(keys, start_key), bisect_left(keys, end_key)
+
+    def recipient_first_key(self, recipient: str) -> int | None:
+        """Ordering key of the first request by anyone to `recipient` (callers compare it with their own key)."""
+        series = self.recipient.get(recipient)
+        return series.keys[0] if series is not None and series.keys else None
 
     def first_pair_key(self, sender: str, recipient: str) -> int | None:
         return self.pair_first.get((sender, recipient))
