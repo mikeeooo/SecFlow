@@ -1,25 +1,25 @@
 # SecFlow
 
-SecFlow analyses instant-payment-style requests and explains what it decides. Each request gets
-an anomaly-risk index built from three scikit-learn algorithms (IsolationForest,
-LocalOutlierFactor, DBSCAN) and explicit behaviour rules. An evidence-first policy then turns
-that index into **Permit**, **Verify**, or **Block**, and every decision shows its arithmetic,
-reason codes, and where the action came from.
+SecFlow analizează cereri de plată de tip instant și explică ce decide. Fiecare cerere primește un
+indice de risc de anomalie construit din trei algoritmi scikit-learn (IsolationForest,
+LocalOutlierFactor, DBSCAN) și din reguli explicite de comportament. O politică de tip „mai întâi
+dovezile” transformă apoi acest indice în **Permit** (permite), **Verify** (verifică) sau **Block**
+(blochează), iar fiecare decizie își arată calculul, codurile de motiv și sursa acțiunii.
 
 ```text
 risk_score = 100 × (0.80 × IF + 0.05 × LOF + 0.00 × DBSCAN + 0.15 × rules)
 ```
 
-The weights are learned on the calibration period (exhaustive search on the simplex, LOF kept at
-≥ 0.05), and Verify/Block thresholds are chosen separately for personal and business accounts.
+Ponderile sunt învățate pe perioada de calibrare (căutare exhaustivă pe simplex, cu LOF menținut la
+≥ 0.05), iar pragurile Verify/Block sunt alese separat pentru conturile personale și cele de firmă.
 
-The score is a relative anomaly index, **not a probability of fraud**. A high score alone is never
-described as confirmed fraud.
+Scorul este un indice relativ de anomalie, **nu o probabilitate de fraudă**. Un scor mare, singur,
+nu este niciodată prezentat drept fraudă confirmată.
 
-## Quick start
+## Pornire rapidă
 
-Requirements: Python ≥ 3.12 with [uv](https://docs.astral.sh/uv/) (developed on Python 3.14.3) and
-Node.js ≥ 22.22 (developed on Node 24.8). No cloud services or credentials are needed.
+Cerințe: Python ≥ 3.12 cu [uv](https://docs.astral.sh/uv/) (dezvoltat pe Python 3.14.3) și
+Node.js ≥ 22.22 (dezvoltat pe Node 24.8). Nu sunt necesare servicii cloud sau credențiale.
 
 ```bash
 uv sync
@@ -29,8 +29,8 @@ uv sync
 npm --prefix frontend install
 ```
 
-The generated datasets, the trained model bundle, and the evaluation report are committed, so you
-can start the app straight away:
+Seturile de date generate, pachetul cu modelul antrenat și raportul de evaluare sunt incluse în
+repository, deci aplicația poate fi pornită imediat:
 
 ```bash
 uv run uvicorn backend.api:app --host 127.0.0.1 --port 8001
@@ -40,56 +40,57 @@ uv run uvicorn backend.api:app --host 127.0.0.1 --port 8001
 npm --prefix frontend run dev
 ```
 
-Open <http://localhost:5173>. Vite proxies `/api` to the backend on port 8001. The simulated
-transfer stream starts with the backend, so Live Transfers fills without opening the simulator.
+Deschide <http://localhost:5173>. Vite redirecționează `/api` către backend-ul de pe portul 8001.
+Fluxul simulat de transferuri pornește odată cu backend-ul, așa că pagina Live Transfers se
+populează fără a deschide simulatorul.
 
-To serve the production build from the backend process instead, run
-`npm --prefix frontend run build`, restart uvicorn, and open <http://127.0.0.1:8001>.
+Pentru a servi build-ul de producție direct din procesul backend, rulează
+`npm --prefix frontend run build`, repornește uvicorn și deschide <http://127.0.0.1:8001>.
 
-## Deploying on Vercel (Services)
+## Publicare pe Vercel (Services)
 
-`vercel.json` defines one Vercel project with two services:
+`vercel.json` definește un singur proiect Vercel cu două servicii:
 
-| Service | Root | What it is | Public path |
+| Serviciu | Rădăcină | Ce este | Cale publică |
 |---|---|---|---|
-| `app` | `.` | FastAPI backend (`backend.api:app`) | `/api/*` |
-| `frontend` | `frontend/` | Vite static build, with an SPA fallback to `index.html` | everything else |
+| `app` | `.` | Backend FastAPI (`backend.api:app`) | `/api/*` |
+| `frontend` | `frontend/` | Build static Vite, cu fallback SPA către `index.html` | restul căilor |
 
-The browser calls the backend on the same domain through relative `/api/...` URLs, so no service
-calls another server-side and no bindings are needed. The backend keeps its `/api` prefix because
-Vercel passes the original request path through. Offline-only files (the 88 MB training corpus,
-cached features, tests, docs, and the frontend source) are excluded from the backend function
-bundle.
+Browserul apelează backend-ul pe același domeniu prin URL-uri relative `/api/...`, deci niciun
+serviciu nu apelează alt server și nu sunt necesare legături între servicii. Backend-ul își
+păstrează prefixul `/api`, deoarece Vercel transmite calea originală a cererii. Fișierele folosite
+doar offline (corpusul de antrenare de 88 MB, caracteristicile din cache, testele, documentația și
+sursele frontend) sunt excluse din pachetul funcției backend.
 
-Run both services together locally with the Vercel CLI:
+Rulează ambele servicii local cu Vercel CLI:
 
 ```bash
 npx vercel dev -L
 ```
 
-On Vercel the backend runs as a function on Fluid compute. The process-memory caveat below matters
-more there: instances can be recycled or scaled out, so simulations, reviews, and the live stream
-are per instance and short-lived.
+Pe Vercel, backend-ul rulează ca funcție pe Fluid compute. Limitarea legată de memoria procesului
+(vezi mai jos) contează mai mult acolo: instanțele pot fi reciclate sau multiplicate, deci
+simulările, reviziile și fluxul live sunt per instanță și de scurtă durată.
 
-## Rebuilding everything from scratch
+## Reconstruirea completă
 
 ```bash
-uv run python -m backend.cli generate   # both seeded datasets, manifests, then validation
+uv run python -m backend.cli generate   # ambele seturi de date cu seed, manifeste, apoi validare
 ```
 
 ```bash
-uv run python -m backend.cli train      # fit on days 1-60, map + learn weights on 61-70, select on 71-80
+uv run python -m backend.cli train      # antrenare pe zilele 1-60, mapare + învățarea ponderilor pe 61-70, selecție pe 71-80
 ```
 
 ```bash
-uv run python -m backend.cli evaluate   # one frozen evaluation on days 81-100
+uv run python -m backend.cli evaluate   # o singură evaluare înghețată pe zilele 81-100
 ```
 
-`generate` is deterministic: the same seeds reproduce byte-identical files (checked by SHA-256 in
-`manifest.json`). `uv run python -m backend.cli validate` re-checks counts, partitions, campaign
-integrity, hashes, and cross-dataset fingerprints at any time.
+`generate` este determinist: aceleași seed-uri reproduc fișiere identice byte cu byte (verificat
+prin SHA-256 în `manifest.json`). `uv run python -m backend.cli validate` reverifică oricând
+numărătorile, partițiile, integritatea campaniilor, hash-urile și amprentele dintre seturile de date.
 
-## Checks
+## Verificări
 
 ```bash
 uv run pytest
@@ -111,78 +112,80 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run build
 ```
 
-## What is in the box
+## Ce conține proiectul
 
-| Path | Contents |
+| Cale | Conținut |
 |---|---|
-| `storage/generator.py`, `storage/identities.py` | Seeded generator for both datasets (400 named accounts) |
-| `storage/data/training/` | 100,000-request corpus (seed 42), labels, splits, evidence, manifest |
-| `storage/data/demo/` | Independent 10,000-request demonstration history (seed 43) |
-| `storage/history.py`, `storage/evidence.py`, `storage/memory.py` | Time-ordered history index, trusted evidence lookup, in-process state |
-| `ml/features.py` | The one leakage-safe feature function used offline and live |
-| `ml/algorithms/` | scikit-learn adapters: preprocessing, IF, LOF (novelty), DBSCAN context |
-| `ml/policy.py`, `config/policy.json` | Rules, pure score combination, evidence-first action table |
-| `ml/training.py`, `ml/evaluation.py` | Bounded search, threshold selection, frozen evaluation |
-| `ml/models/` | Model bundle, metadata, operating point, training report |
-| `artifacts/evaluation.{json,md}` | Measured evaluation output |
-| `backend/` | FastAPI app, service, stream producer, CLI, tests |
-| `frontend/` | React + TypeScript + Vite + Tailwind interface and tests |
-| `docs/` | Architecture, algorithms, dataset provenance, interface design |
+| `storage/generator.py`, `storage/identities.py` | Generator cu seed pentru ambele seturi de date (400 de conturi cu nume) |
+| `storage/data/training/` | Corpus de 100.000 de cereri (seed 42), etichete, partiții, dovezi, manifest |
+| `storage/data/demo/` | Istoric demonstrativ independent de 10.000 de cereri (seed 43) |
+| `storage/history.py`, `storage/evidence.py`, `storage/memory.py` | Index de istoric ordonat în timp, căutare de dovezi de încredere, stare în proces |
+| `ml/features.py` | Funcția unică de caracteristici, fără scurgeri de informație, folosită offline și live |
+| `ml/algorithms/` | Adaptoare scikit-learn: preprocesare, IF, LOF (novelty), context DBSCAN |
+| `ml/policy.py`, `config/policy.json` | Reguli, combinarea pură a scorurilor, tabelul de acțiuni bazat pe dovezi |
+| `ml/training.py`, `ml/evaluation.py` | Căutare delimitată, selecția pragurilor, evaluare înghețată |
+| `ml/models/` | Pachetul modelului, metadate, punct de operare, raport de antrenare |
+| `artifacts/evaluation.{json,md}` | Rezultatele măsurate ale evaluării |
+| `backend/` | Aplicația FastAPI, serviciul, producătorul de flux, CLI, teste |
+| `frontend/` | Interfața React + TypeScript + Vite + Tailwind și testele ei |
+| `docs/` | Arhitectură, algoritmi, proveniența datelor, designul interfeței |
 
-## Measured results (final test period, synthetic data)
+## Rezultate măsurate (perioada finală de test, date sintetice)
 
-These come from `artifacts/evaluation.md`. They describe this generated dataset only and are not
-evidence of real-world detection or fraud reduction.
+Provin din `artifacts/evaluation.md`. Descriu doar acest set de date generat și nu constituie dovezi
+de detecție sau de reducere a fraudei în lumea reală.
 
-| Metric | Value |
+| Metrică | Valoare |
 |---|---|
-| Fraud sent to Verify or Block | 76.2% (183 of 240; 95% CI 68.2–83.2%) |
-| Fraud blocked | 29.6% (71 of 240; 34 by confirmed evidence, 37 preventive) |
-| Block precision | 97.3% over 73 blocks (95% CI 90.6–99.3%; goal 99%: **not met**) |
-| Legitimate false-block rate | 0.01% (2 of 19,760) |
-| Verify rate | 5.89% (validation goal ≤ 5%: **not met** on test; 3.68% on validation) |
-| Model + rules only, Verify or Block | 75.0% |
-| Unseen scenario `invoice_redirect` | 12.5% flagged (5 of 40) |
-| Holdout accounts (never fitted on) | 70.4% fraud recall, 2.7% of legitimate requests reviewed |
-| Single-request latency | p50 5.5 ms, p95 6.2 ms (in process) |
+| Fraude trimise la Verify sau Block | 76,2% (183 din 240; IÎ 95% 68,2–83,2%) |
+| Fraude blocate | 29,6% (71 din 240; 34 prin dovezi confirmate, 37 preventiv) |
+| Precizia blocărilor | 97,3% din 73 de blocări (IÎ 95% 90,6–99,3%; obiectiv 99%: **neatins**) |
+| Rata de blocări false pentru cereri legitime | 0,01% (2 din 19.760) |
+| Rata Verify | 5,89% (obiectiv de validare ≤ 5%: **neatins** pe test; 3,68% pe validare) |
+| Doar model + reguli, Verify sau Block | 75,0% |
+| Scenariu nevăzut `invoice_redirect` | 12,5% semnalate (5 din 40) |
+| Conturi holdout (nefolosite la antrenare) | 70,4% recall pe fraude, 2,7% din cererile legitime revizuite |
+| Latența unei cereri | p50 5,5 ms, p95 6,2 ms (în proces) |
 
-### What the risk percentage is worth
+### Ce valoare are procentul de risc
 
-The score ranks how unusual a request is; its yield is measured per score band on the labelled test
-period (`score_bands` in `artifacts/evaluation.json`, shown on every investigation and on Algorithm
-Results):
+Scorul ordonează cât de neobișnuită este o cerere; randamentul lui este măsurat pe intervale de scor
+în perioada de test etichetată (`score_bands` în `artifacts/evaluation.json`, afișat la fiecare
+investigație și în Algorithm Results):
 
-| Score band | Requests | Fraud | Observed fraud rate | Zone |
+| Interval de scor | Cereri | Fraude | Rata de fraudă observată | Zonă |
 |---|---:|---:|---:|---|
-| 0–50 | 10,955 | 0 | 0% | Permit |
-| 50–70 | 4,645 | 2 | 0.04% | Permit |
-| 70–80 | 2,448 | 22 | 0.9% | Permit |
-| 80–83 | 809 | 15 | 1.9% | Verify (personal) |
-| 83–90 | 946 | 74 | 7.8% | Verify |
-| 90–99 | 173 | 104 | 60.1% | Verify / Block |
-| 99–100 | 24 | 23 | 95.8% | Block zone |
+| 0–50 | 10.955 | 0 | 0% | Permit |
+| 50–70 | 4.645 | 2 | 0,04% | Permit |
+| 70–80 | 2.448 | 22 | 0,9% | Permit |
+| 80–83 | 809 | 15 | 1,9% | Verify (personal) |
+| 83–90 | 946 | 74 | 7,8% | Verify |
+| 90–99 | 173 | 104 | 60,1% | Verify / Block |
+| 99–100 | 24 | 23 | 95,8% | Zona Block |
 
-Base fraud rate is 1.2%, so a request scoring 90–99 is about 50× more likely to be fraud than an
-average one. Flagging everything from 83 up catches 83.8% of fraud while touching 5.71% of traffic.
+Rata de bază a fraudei este 1,2%, deci o cerere cu scor 90–99 are o probabilitate de aproximativ 50×
+mai mare de a fi fraudă decât una medie. Semnalarea tuturor cererilor de la 83 în sus prinde 83,8%
+din fraude, atingând 5,71% din trafic.
 
-See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for the per-component and per-scenario breakdown and
-the tradeoffs behind these numbers.
+Vezi [docs/ALGORITHMS.md](docs/ALGORITHMS.md) pentru detalierea pe componente și pe scenarii și
+pentru compromisurile din spatele acestor cifre.
 
-## Limitations to know before you rely on it
+## Limitări de știut înainte de utilizare
 
-- **Process memory.** Simulations and the live stream live in one backend process. A restart
-  discards them; the baseline files and models remain.
-- **Review history is durable.** Every approve or reject is written to
-  `storage/state/review_history.sqlite3` (override with `SECFLOW_STATE_DIR`; on Vercel it goes to
-  `/tmp`, which is per instance). After a restart, reviews of baseline requests are re-applied and
-  the Review History page still lists every decision, including reviews of simulated requests. Multiple workers or instances
-  would each hold separate, unshared state. Run a single process (`uvicorn` without `--workers`).
-- **Synthetic everything.** Accounts, counterparties, payments, and security evidence are
-  generated. Names are plausible but belong to no verified person or business.
-- **The demo history is sparser** (100 requests per day versus 1,000 in the training corpus), so
-  its Verify share (≈19%) is higher than the test-period rate: IsolationForest, which carries most
-  of the learned weight, reads the sparse history as unusual. It is product history, not a
-  benchmark.
-- **Preventive blocks are rare by design.** The validated operating point keeps ambiguous
-  high-risk cases in Verify instead of blocking them; see the tradeoff in the docs.
-- **No authentication.** The reviewer name is a display value for this local workflow.
+- **Memoria procesului.** Simulările și fluxul live trăiesc într-un singur proces backend. O
+  repornire le șterge; fișierele de bază și modelele rămân.
+- **Istoricul reviziilor este persistent.** Fiecare aprobare sau respingere este scrisă în
+  `storage/state/review_history.sqlite3` (se poate schimba cu `SECFLOW_STATE_DIR`; pe Vercel ajunge
+  în `/tmp`, care este per instanță). După o repornire, reviziile cererilor de bază sunt reaplicate,
+  iar pagina Review History listează în continuare toate deciziile, inclusiv reviziile cererilor
+  simulate. Mai mulți workeri sau mai multe instanțe ar avea fiecare o stare separată, nepartajată.
+  Rulează un singur proces (`uvicorn` fără `--workers`).
+- **Totul este sintetic.** Conturile, contrapărțile, plățile și dovezile de securitate sunt
+  generate. Numele sunt plauzibile, dar nu aparțin niciunei persoane sau firme verificate.
+- **Istoricul demo este mai rar** (100 de cereri pe zi față de 1.000 în corpusul de antrenare), deci
+  ponderea Verify (≈19%) este mai mare decât rata din perioada de test: IsolationForest, care are cea
+  mai mare parte din pondere, interpretează istoricul rar ca neobișnuit. Este istoric de produs, nu
+  un benchmark.
+- **Blocările preventive sunt rare intenționat.** Punctul de operare validat păstrează cazurile
+  ambigue cu risc mare în Verify în loc să le blocheze; vezi compromisul descris în documentație.
+- **Fără autentificare.** Numele revizorului este doar o valoare afișată pentru acest flux local.
