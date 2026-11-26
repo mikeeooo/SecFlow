@@ -44,9 +44,14 @@ export interface AssessmentSummary {
   outcome: Outcome;
   review_status: ReviewStatus;
   components: ComponentBrief;
+  contributions: ComponentBrief;
+  segment: Segment;
   evidence_ids: string[];
   corroborating_signals: string[];
 }
+
+export type Segment = "personal" | "business";
+export type Weights = Record<ComponentKey, number>;
 
 export interface ComponentView {
   key: ComponentKey;
@@ -85,6 +90,7 @@ export interface Thresholds {
   block: number;
   min_corroborating_families: number;
   source: string;
+  segment: Segment;
 }
 
 export interface AssessmentDetail extends AssessmentSummary {
@@ -320,7 +326,16 @@ export interface Health {
   started_at: string;
   data: { source: string; dataset: string; requests: number; accounts: number; generator_version: string; seed: number };
   model: { loaded: boolean; version: string | null; error: string | null };
-  policy: { version: string; operating_point: { verify: number; block: number; source: string } };
+  policy: {
+    version: string;
+    operating_point: {
+      verify: number;
+      block: number;
+      source: string;
+      weights: Weights;
+      segments: Record<Segment, { verify: number; block: number }>;
+    };
+  };
   state: { kind: string; simulations: number; reviews: number; persisted: boolean; shared_across_workers: boolean; note: string };
   stream: StreamStatus;
   simulation_time: string;

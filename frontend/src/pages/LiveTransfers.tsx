@@ -2,7 +2,7 @@ import { ArrowRight, WifiOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useHealth } from "../api/hooks";
-import type { AssessmentSummary, ComponentView } from "../api/types";
+import type { AssessmentSummary, ComponentView, Weights } from "../api/types";
 import { DecisionBadge } from "../components/DecisionBadge";
 import { COMPONENTS, ComponentMiniBar, RiskComposition } from "../components/RiskComposition";
 import { StreamControls } from "../components/StreamControls";
@@ -11,11 +11,11 @@ import { Card, CardHeader, Chip, KeyValue, PageHeader, cx } from "../components/
 import { FAMILY_TEXT, OUTCOME_TEXT, SOURCE_TEXT, formatDateTime, formatMoney, formatTime } from "../lib/format";
 import { useLiveFeed } from "../lib/useLiveFeed";
 
-function detailsFrom(item: AssessmentSummary): ComponentView[] {
-  return COMPONENTS.map((c) => {
-    const score = item.components[c.key];
-    return { key: c.key, label: c.label, score, weight: c.weight, contribution: score == null ? null : 100 * c.weight * score, raw: null, status: null, detail: "" };
-  });
+function detailsFrom(item: AssessmentSummary, weights: Weights): ComponentView[] {
+  return COMPONENTS.map((c) => ({
+    key: c.key, label: c.label, score: item.components[c.key], weight: weights[c.key],
+    contribution: item.contributions[c.key], raw: null, status: null, detail: "",
+  }));
 }
 
 export function LiveTransfersPage() {
@@ -60,7 +60,7 @@ export function LiveTransfersPage() {
                     <span className="tabular text-right font-semibold">{formatMoney(item.amount)}</span>
                     <span className="tabular truncate text-[12px] text-label-2">{formatTime(item.event_time)} · {item.producer === "manual" ? "simulator" : "stream"}</span>
                     <span className="flex items-center justify-end gap-3">
-                      <span className="hidden sm:block"><ComponentMiniBar components={item.components} score={item.risk_score} /></span>
+                      <span className="hidden sm:block"><ComponentMiniBar contributions={item.contributions} score={item.risk_score} /></span>
                       <DecisionBadge size="sm" label={item.decision_label} />
                     </span>
                   </button>
@@ -95,7 +95,15 @@ export function LiveTransfersPage() {
                   <div className="flex flex-wrap gap-1.5">{selected.corroborating_signals.map((f) => <Chip key={f} tone="accent">{FAMILY_TEXT[f] ?? f}</Chip>)}</div>
                 ) : null}
                 {selected.evidence_ids.length ? <p className="text-[13px] text-label-2">Evidence {selected.evidence_ids.join(", ")}</p> : null}
-                {point ? <RiskComposition details={detailsFrom(selected)} total={selected.risk_score} verify={point.verify} block={point.block} /> : null}
+                {point ? (
+                  <RiskComposition
+                    details={detailsFrom(selected, point.weights)}
+                    total={selected.risk_score}
+                    verify={point.segments[selected.segment].verify}
+                    block={point.segments[selected.segment].block}
+                    segment={selected.segment}
+                  />
+                ) : null}
                 <Link to={`/investigations/${encodeURIComponent(selected.request_id)}`} className="inline-flex items-center gap-1 text-[15px] font-medium text-accent">
                   Open investigation <ArrowRight aria-hidden className="size-4" />
                 </Link>

@@ -280,7 +280,7 @@ function ResultCard({ result }: { result: AssessmentDetail }) {
         </p>
       </div>
       <div className="border-t border-separator p-5">
-        <RiskComposition details={result.component_details} total={result.risk_score} verify={result.thresholds.verify} block={result.thresholds.block} />
+        <RiskComposition details={result.component_details} total={result.risk_score} verify={result.thresholds.verify} block={result.thresholds.block} segment={result.thresholds.segment} />
       </div>
       {result.reasons.length ? (
         <div className="border-t border-separator px-5 py-4">
