@@ -1,7 +1,7 @@
 # Datasets and provenance
 
 Both datasets are **fully synthetic**, produced by `storage/generator.py`
-(`secflow-generator-1.0.0`, schema 1.0). No real person, business, payment, or fraud case is
+(`secflow-generator-1.1.0`, schema 1.0). No real person, business, payment, or fraud case is
 represented. Reproducing the requested counts does not reproduce any earlier, lost dataset byte for
 byte.
 
@@ -13,9 +13,9 @@ byte.
 | Seed | 42 | 43 |
 | Period | 6 Apr – 14 Jul 2026 (100 days, 1,000 requests per day) | 20 Jul – 27 Oct 2026 (100 days, 100 requests per day) |
 | Requests | 100,000 | 10,000 |
-| Fraud / legitimate | 1,000 / 99,000 | 100 / 9,900 |
+| Fraud / legitimate | 1,040 / 98,960 | 120 / 9,880 |
 | Unusual legitimate | 5,000 | 500 |
-| Per fraud scenario | 200 | 20 |
+| Per fraud scenario | 200 (+ 40 `invoice_redirect`, test only) | 20 (+ 20 `invoice_redirect`) |
 | Used for | Fitting, calibration, selection, evaluation | Product history, simulator and live-stream context only |
 
 Both datasets share the same 400 accounts, with identical IDs, names, and creation times; the
@@ -30,14 +30,15 @@ to select parameters or report performance.
 | train | 1–60 | 60,000 | 600 (120 per scenario) | 3,000 |
 | calibration | 61–70 | 10,000 | 100 (20 per scenario) | 500 |
 | validation | 71–80 | 10,000 | 100 (20 per scenario) | 500 |
-| test | 81–100 | 20,000 | 200 (40 per scenario) | 1,000 |
+| test | 81–100 | 20,000 | 240 (40 per scenario, including `invoice_redirect`) | 1,000 |
 
 Partitions are whole days, and every campaign stays inside one day, so it stays inside one
 partition (tested).
 
 Forty personal accounts are created during the test period and have no earlier activity. They form
-the cold-start subset. Other test accounts have legitimate earlier history, so this is an
-existing-customer temporal test, not an account-disjoint benchmark.
+the cold-start subset. Other test accounts have legitimate earlier history. Training also removes
+forty established holdout accounts (seeded, chosen without labels) from every fitting and selection
+row, so the test period reports an account-disjoint subset for them.
 
 ## Behaviour
 
@@ -52,7 +53,7 @@ devices (some after failed sign-ins), travel, payroll bursts (new hires stay on 
 repeated household payments, business settlements, new recipients, group payments where several
 accounts pay one new payee, and account recovery after several failed sign-ins.
 
-**Fraud (5 × 200):**
+**Fraud (5 × 200, plus 40 unseen):**
 
 - `account_takeover`: new device, sign-in failures, foreign sessions, abrupt amounts. 20% are subtle
   (known device, no failures, ordinary amounts).
@@ -62,10 +63,20 @@ accounts pay one new payee, and account recovery after several failed sign-ins.
   and half of those go to an established counterparty.
 - `coordinated`: several accounts paying one new beneficiary within hours; 25% are spread out with
   varied amounts.
+- `invoice_redirect` (**test period and demo only**, never in train, calibration or validation): a
+  business pays a brand-new fake supplier an amount close to one of its usual supplier invoices,
+  from a known device with strong sign-in. About half of the campaigns have 2–3 business victims
+  paying the same fake supplier within a day.
+
+**Drift in the test period (days 81–100).** Routine amounts are 12% higher, and three new billers
+(`CP-00651`–`CP-00653`) appear. Thirty percent of accounts adopt one of them, each starting on a
+random day between 81 and 100. These legitimate new beneficiaries stress the beneficiary rules and
+features. The demonstration dataset uses the drifted amount level and knows the three billers from
+its first day.
 
 No single field identifies fraud. Fraud uses every authentication method that legitimate traffic
 uses, over 1,000 legitimate requests follow failed sign-ins, legitimate traffic also pays brand-new
-payees, and 240 fraud requests are labelled `is_anomaly = false` (more than 50 is asserted in the tests).
+payees, and 276 fraud requests are labelled `is_anomaly = false` (more than 50 is asserted in the tests).
 
 ## Files
 
@@ -101,7 +112,7 @@ It is attached to a documented subset of campaigns:
 | Social engineering, new payee | Beneficiary | 15% | Before the campaign |
 | Coordinated | Beneficiary | 40% | Before or during the campaign |
 
-Most fraud therefore has no evidence. In the test period 20 of 200 fraud requests were covered.
+Most fraud therefore has no evidence. In the test period 34 of 240 fraud requests were covered.
 
 Each dataset also includes ten fixtures that must never block: two each of expired, retracted,
 future-recorded, pending-review, and untrusted-source evidence. All of them point at popular billers
