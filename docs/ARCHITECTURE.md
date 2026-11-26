@@ -7,7 +7,7 @@
 │              (JSONL + manifest, hashes)    │      │          + policy + operating point + evidence       │
 │ train    ─► replay ─► features ─► fit IF,  │      │          replay 10,000 baseline requests (batch)     │
 │              LOF, DBSCAN on days 1-60      │─────►│                                                      │
-│              CDF maps on days 61-70        │ ml/  │ request ─► append session events to history overlay  │
+│              CDF maps + weights, 61-70     │ ml/  │ request ─► append session events to history overlay  │
 │              select params/thresholds 71-80│models│          ─► build_features (history < key)           │
 │ evaluate ─► frozen pipeline on days 81-100 │      │          ─► IF, LOF, DBSCAN context (once each)      │
 │              ─► artifacts/evaluation.*     │      │          ─► rules ─► combine ─► evidence ─► action   │
@@ -31,9 +31,9 @@ of the demo history, and the offline evaluation all call it.
 2. `ModelBundle.score_batch` runs the preprocessor, IsolationForest, LOF and the DBSCAN context
    adapter exactly once per row.
 3. `evaluate_rules` turns observed facts into reason codes, weights, and corroboration families.
-4. `combine_scores` is a pure function of the four component values.
+4. `combine_scores` is a pure function of the four component values and the learned weights.
 5. `EvidenceStore.active_for` returns trusted evidence active at the request time.
-6. `decide_action` applies the evidence-first action table.
+6. `decide_action` applies the evidence-first action table with the sender segment's thresholds.
 
 ## Ordering and leakage control
 

@@ -7,8 +7,11 @@ that index into **Permit**, **Verify**, or **Block**, and every decision shows i
 reason codes, and where the action came from.
 
 ```text
-risk_score = 100 × (0.35 × IF + 0.25 × LOF + 0.10 × DBSCAN + 0.30 × rules)
+risk_score = 100 × (0.80 × IF + 0.05 × LOF + 0.00 × DBSCAN + 0.15 × rules)
 ```
+
+The weights are learned on the calibration period (exhaustive search on the simplex, LOF kept at
+≥ 0.05), and Verify/Block thresholds are chosen separately for personal and business accounts.
 
 The score is a relative anomaly index, **not a probability of fraud**. A high score alone is never
 described as confirmed fraud.
@@ -75,7 +78,7 @@ uv run python -m backend.cli generate   # both seeded datasets, manifests, then 
 ```
 
 ```bash
-uv run python -m backend.cli train      # fit on days 1-60, map on 61-70, select on 71-80
+uv run python -m backend.cli train      # fit on days 1-60, map + learn weights on 61-70, select on 71-80
 ```
 
 ```bash
@@ -133,13 +136,15 @@ evidence of real-world detection or fraud reduction.
 
 | Metric | Value |
 |---|---|
-| Fraud sent to Verify or Block | 70.5% (141 of 200) |
-| Fraud blocked | 11.5% (23 of 200; 20 by confirmed evidence, 3 preventive) |
-| Block precision | 100% over 23 blocks (95% CI 85.7–100%) |
-| Legitimate false-block rate | 0.0% of 19,800 |
-| Verify rate | 5.74% (validation goal ≤ 5%: **not met** on test; 4.94% on validation) |
-| Model + rules only, Verify or Block | 65.5% |
-| Single-request latency | p50 3.5 ms, p95 4.2 ms (in process) |
+| Fraud sent to Verify or Block | 76.2% (183 of 240; 95% CI 68.2–83.2%) |
+| Fraud blocked | 29.6% (71 of 240; 34 by confirmed evidence, 37 preventive) |
+| Block precision | 97.3% over 73 blocks (95% CI 90.6–99.3%; goal 99%: **not met**) |
+| Legitimate false-block rate | 0.01% (2 of 19,760) |
+| Verify rate | 5.89% (validation goal ≤ 5%: **not met** on test; 3.68% on validation) |
+| Model + rules only, Verify or Block | 75.0% |
+| Unseen scenario `invoice_redirect` | 12.5% flagged (5 of 40) |
+| Holdout accounts (never fitted on) | 70.4% fraud recall, 2.7% of legitimate requests reviewed |
+| Single-request latency | p50 5.5 ms, p95 6.2 ms (in process) |
 
 ### What the risk percentage is worth
 
@@ -149,15 +154,16 @@ Results):
 
 | Score band | Requests | Fraud | Observed fraud rate | Zone |
 |---|---:|---:|---:|---|
-| 0–40 | 12,803 | 23 | ≤ 0.4% | Permit |
-| 40–61 | 6,046 | 46 | 0.6–1.0% | Permit |
-| 61–70 | 751 | 33 | 4.4% | Verify |
-| 70–80 | 297 | 48 | 16.2% | Verify |
-| 80–90 | 82 | 29 | 35.4% | Verify |
-| 90–100 | 21 | 21 | 100% | Verify / Block |
+| 0–50 | 10,955 | 0 | 0% | Permit |
+| 50–70 | 4,645 | 2 | 0.04% | Permit |
+| 70–80 | 2,448 | 22 | 0.9% | Permit |
+| 80–83 | 809 | 15 | 1.9% | Verify (personal) |
+| 83–90 | 946 | 74 | 7.8% | Verify |
+| 90–99 | 173 | 104 | 60.1% | Verify / Block |
+| 99–100 | 24 | 23 | 95.8% | Block zone |
 
-Base fraud rate is 1.0%, so a request scoring 80–90 is about 35× more likely to be fraud than an
-average one. Flagging everything from 61 up catches 65.5% of fraud while touching 5.75% of traffic.
+Base fraud rate is 1.2%, so a request scoring 90–99 is about 50× more likely to be fraud than an
+average one. Flagging everything from 83 up catches 83.8% of fraud while touching 5.71% of traffic.
 
 See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for the per-component and per-scenario breakdown and
 the tradeoffs behind these numbers.
@@ -174,7 +180,8 @@ the tradeoffs behind these numbers.
 - **Synthetic everything.** Accounts, counterparties, payments, and security evidence are
   generated. Names are plausible but belong to no verified person or business.
 - **The demo history is sparser** (100 requests per day versus 1,000 in the training corpus), so
-  its Verify share (≈10%) is higher than the test-period rate. It is product history, not a
+  its Verify share (≈19%) is higher than the test-period rate: IsolationForest, which carries most
+  of the learned weight, reads the sparse history as unusual. It is product history, not a
   benchmark.
 - **Preventive blocks are rare by design.** The validated operating point keeps ambiguous
   high-risk cases in Verify instead of blocking them; see the tradeoff in the docs.
