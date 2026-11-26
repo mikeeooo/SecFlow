@@ -111,7 +111,10 @@ def _component_matrix(results: Sequence[AssessmentResult]) -> np.ndarray:
 
 
 def _decide_without_evidence(results: Sequence[AssessmentResult], policy: Policy, point) -> list[str]:
-    return [decide_action(r.risk, r.rules, [], r.policy.assessment_status, point, policy).decision for r in results]
+    return [
+        decide_action(r.risk, r.rules, [], r.policy.assessment_status, point, policy, r.segment).decision
+        for r in results
+    ]
 
 
 def score_bands(risk: np.ndarray, y: np.ndarray, codes: np.ndarray,

@@ -102,6 +102,34 @@ def test_dbscan_continuous_score() -> None:
     assert (results[4].score, results[4].status) == (0.0, "insufficient_history")
 
 
+def _write_point(directory: Path, **overrides) -> None:
+    import json
+
+    raw = {"verify_threshold": 55.0, "block_threshold": 92.0, "source": "validated", "version": "op-x",
+           "model_version": "m-1", "weights": {"isolation_forest": 0.4, "lof": 0.05, "dbscan": 0.15, "rules": 0.4},
+           "segments": {"personal": {"verify": 55.0, "block": 92.0}, "business": {"verify": 60.0, "block": 95.0}}}
+    raw.update(overrides)
+    raw = {k: v for k, v in raw.items() if v is not None}
+    (directory / "operating_point.json").write_text(json.dumps(raw))
+
+
+def test_load_operating_point_reads_weights_and_segments(tmp_path: Path) -> None:
+    _write_point(tmp_path)
+    point = load_operating_point(tmp_path, "m-1")
+    assert point.weights == {"isolation_forest": 0.4, "lof": 0.05, "dbscan": 0.15, "rules": 0.4}
+    assert point.thresholds_for("business") == (60.0, 95.0)
+    assert point.thresholds_for("personal") == (55.0, 92.0)
+
+
+def test_load_operating_point_rejects_file_without_weights(tmp_path: Path) -> None:
+    _write_point(tmp_path, weights=None)
+    with pytest.raises(BundleError):
+        load_operating_point(tmp_path, "m-1")
+    _write_point(tmp_path, segments=None)
+    with pytest.raises(BundleError):
+        load_operating_point(tmp_path, "m-1")
+
+
 def test_saved_bundle_round_trip_and_schema_metadata() -> None:
     settings = load_settings()
     bundle = load_bundle(settings.models_dir)

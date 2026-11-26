@@ -9,6 +9,7 @@ import pytest
 
 from config.settings import load_settings
 from ml.policy import (
+    SEGMENTS,
     ComponentScores,
     OperatingPoint,
     RuleResult,
@@ -20,9 +21,10 @@ from ml.policy import (
     decide_arrays,
     evaluate_rules,
     load_policy,
+    segment_of,
 )
 from storage.evidence import EvidenceStore, SecurityEvidence, StatusChange
-from storage.records import PaymentRequest
+from storage.records import Account, PaymentRequest
 
 POLICY = load_policy(load_settings().policy_path)
 OP = OperatingPoint(verify=40.0, block=70.0, source="test", version="op-test")
@@ -256,3 +258,76 @@ def test_repeat_new_beneficiary_does_not_corroborate() -> None:
     result = evaluate_rules({**BASE_FACTS, "new_recipient": True, "pair_requests_24h": 2}, "sufficient", POLICY)
     assert "REPEAT_NEW_BENEFICIARY" in {t.code for t in result.triggered}
     assert "beneficiary_risk" not in result.corroborating_families
+
+
+# -- learned weights and per-segment thresholds ------------------------------------------------
+
+SEGMENTED = OperatingPoint(verify=40.0, block=70.0, source="test", version="op-seg",
+                           weights={"isolation_forest": 0.5, "lof": 0.05, "dbscan": 0.05, "rules": 0.4},
+                           segments={"personal": (60.0, 90.0), "business": (70.0, 95.0)})
+
+
+def _risk_at(total: float):
+    # all four components equal -> risk == 100 * value whatever the weights
+    return combine_scores(components(total / 100, total / 100, total / 100, total / 100), POLICY.weights)
+
+
+def test_thresholds_for_falls_back_to_global() -> None:
+    assert OP.thresholds_for("business") == (40.0, 70.0)
+    assert SEGMENTED.thresholds_for("business") == (70.0, 95.0)
+    assert SEGMENTED.thresholds_for("unknown") == (40.0, 70.0)
+
+
+def test_segment_of_unknown_or_missing_account_is_personal() -> None:
+    assert segment_of(None) == "personal"
+    assert segment_of(Account("A", "n", "personal", "DE", 0)) == "personal"
+    assert segment_of(Account("B", "n", "business", "DE", 0)) == "business"
+    assert segment_of(Account("C", "n", "charity", "DE", 0)) == "personal"
+    assert SEGMENTS == ("personal", "business")
+
+
+def test_decide_action_uses_segment_thresholds() -> None:
+    rules = rules_with()
+    personal = decide_action(_risk_at(65.0), rules, [], "assessed", SEGMENTED, POLICY, segment="personal")
+    business = decide_action(_risk_at(65.0), rules, [], "assessed", SEGMENTED, POLICY, segment="business")
+    assert (personal.decision, business.decision) == ("Verify", "Permit")
+    assert "personal" in personal.explanation and "business" in business.explanation
+
+
+def test_decide_arrays_matches_decide_action_with_per_row_thresholds() -> None:
+    rng = np.random.default_rng(3)
+    segments = np.array(["personal", "business"] * 50)
+    risk = rng.uniform(0, 100, 100)
+    risk[:4] = [60.0, 70.0, 90.0, 95.0]  # exactly at segment thresholds
+    families = rng.integers(0, 3, 100)
+    verify = np.array([SEGMENTED.thresholds_for(s)[0] for s in segments])
+    block = np.array([SEGMENTED.thresholds_for(s)[1] for s in segments])
+    no = np.zeros(100, dtype=bool)
+    vector = decide_arrays(risk, families, no, no, verify, block, POLICY.min_families)
+    codes = {"Permit": 0, "Verify": 1, "Block": 2}
+    for i in range(100):
+        fam = tuple(f"f{j}" for j in range(families[i]))
+        rules = RuleResult(0.0, (), fam)
+        breakdown = _risk_at(float(risk[i]))
+        got = decide_action(breakdown, rules, [], "assessed", SEGMENTED, POLICY, segment=str(segments[i])).decision
+        assert codes[got] == vector[i], i
+
+
+def test_combination_uses_learned_weights_and_contributions_sum() -> None:
+    from ml.algorithms.dbscan_context import ContextResult
+    from ml.assess import finalize
+    from ml.features import FeatureSnapshot
+    from ml.model import ModelComponents
+    from storage.evidence import EvidenceStore
+
+    request = PaymentRequest("R1", T, "ACC-1", "CP-1", "counterparty", 50.0, "EUR", "mobile_app", "D", "S",
+                             "biometric", "DE")
+    snapshot = FeatureSnapshot((0.0,) * 24, (0.0,) * 8, "sufficient", "ok", {**BASE_FACTS})
+    comps = ModelComponents(0.0, 0.8, 0.0, 0.2, ContextResult(0.5, "outside_context", 1.0, None, 0))
+    result = finalize(request, snapshot, comps, EvidenceStore([], POLICY.trusted_sources, POLICY.blocking_types),
+                      POLICY, SEGMENTED, "business")
+    assert result.segment == "business"
+    expected = {"isolation_forest": 100 * 0.5 * 0.8, "lof": 100 * 0.05 * 0.2, "dbscan": 100 * 0.05 * 0.5}
+    for name, value in expected.items():
+        assert result.risk.contributions[name] == pytest.approx(value)
+    assert result.risk.total == pytest.approx(sum(result.risk.contributions.values()))
