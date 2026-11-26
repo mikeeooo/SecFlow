@@ -143,8 +143,10 @@ class AssessmentSummary(BaseModel):
     outcome: Outcome
     review_status: Literal["not_applicable", "pending", "approved", "rejected"]
     components: ComponentBrief
+    contributions: ComponentBrief  # weighted parts of risk_score (learned weights x component)
     evidence_ids: list[str]
     corroborating_signals: list[str]
+    segment: Literal["personal", "business"] = "personal"
 
 
 class Thresholds(BaseModel):
@@ -152,6 +154,7 @@ class Thresholds(BaseModel):
     block: float
     min_corroborating_families: int
     source: str
+    segment: Literal["personal", "business"] = "personal"
 
 
 class ScoreBand(BaseModel):

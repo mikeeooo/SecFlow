@@ -8,7 +8,7 @@ import pytest
 from config.settings import load_settings
 from ml.algorithms.dbscan_context import DBSCANContext, EmptyCoreError
 from ml.algorithms.isolation_forest import IsolationForestDetector
-from ml.algorithms.local_outlier_factor import LocalOutlierFactorDetector
+from ml.algorithms.local_outlier_factor import LOF_SUBSPACES, LocalOutlierFactorDetector
 from ml.algorithms.preprocessing import EmpiricalScoreMapping, FeaturePreprocessor
 from ml.features import PAYMENT_FEATURES
 from ml.model import BundleError, load_bundle, load_operating_point
@@ -57,11 +57,77 @@ def test_dbscan_context_near_core_outside_insufficient_and_empty() -> None:
     context = DBSCANContext(eps=0.5, min_samples=5).fit(NORMAL)
     results = context.score(np.vstack([NORMAL[:1], OUTLIER, OUTLIER]), ["ok", "ok", "insufficient_history"])
     assert (results[0].score, results[0].status) == (0.0, "within_context")
-    assert (results[1].score, results[1].status) == (1.0, "outside_context")
+    assert results[1].status == "outside_context" and results[1].score > 0
     assert (results[2].score, results[2].status) == (0.0, "insufficient_history")
     sparse = np.arange(20, dtype=float).reshape(-1, 1) * 100
     with pytest.raises(EmptyCoreError):
         DBSCANContext(eps=0.01, min_samples=5).fit(sparse)
+
+
+def test_lof_uses_only_selected_columns() -> None:
+    detector = LocalOutlierFactorDetector(n_neighbors=20, columns=(0, 1)).fit(NORMAL)
+    probe = RNG.normal(0, 1, size=(50, 4))
+    changed = probe.copy()
+    changed[:, 2:] += 100.0  # columns the detector does not use
+    np.testing.assert_array_equal(detector.raw_scores(probe), detector.raw_scores(changed))
+    assert detector.params["columns"] == (0, 1)
+
+
+def test_lof_fit_rows_subsample_is_seeded() -> None:
+    a = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=500).fit(NORMAL)
+    b = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=500).fit(NORMAL)
+    assert a.model.n_samples_fit_ == 500
+    np.testing.assert_array_equal(a.raw_scores(NORMAL[:100]), b.raw_scores(NORMAL[:100]))
+    assert a.training_diagnostics()["fit_rows"] == 500
+    full = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=5_000).fit(NORMAL)
+    assert full.model.n_samples_fit_ == 2_000
+
+
+def test_lof_subspaces_name_known_payment_features() -> None:
+    assert set(LOF_SUBSPACES) == {"amount", "amount_velocity", "amount_velocity_beneficiary", "full"}
+    assert LOF_SUBSPACES["full"] == PAYMENT_FEATURES
+    assert LOF_SUBSPACES["amount"] == ("log_amount", "amount_zscore_30d", "log_amount_to_prior_max_30d")
+    for names in LOF_SUBSPACES.values():
+        assert set(names) <= set(PAYMENT_FEATURES)
+
+
+def test_dbscan_continuous_score() -> None:
+    context = DBSCANContext(eps=0.5, min_samples=5).fit(np.zeros((10, 1)))  # all cores at 0, identity scaling
+    probes = np.array([[0.2], [0.75], [1.0], [5.0], [5.0]])
+    results = context.score(probes, ["ok", "ok", "ok", "ok", "insufficient_history"])
+    assert (results[0].score, results[0].status) == (0.0, "within_context")
+    assert results[1].status == "outside_context" and results[1].score == pytest.approx(0.5)
+    assert (results[2].score, results[2].status) == (1.0, "outside_context")
+    assert (results[3].score, results[3].status) == (1.0, "outside_context")
+    assert (results[4].score, results[4].status) == (0.0, "insufficient_history")
+
+
+def _write_point(directory: Path, **overrides) -> None:
+    import json
+
+    raw = {"verify_threshold": 55.0, "block_threshold": 92.0, "source": "validated", "version": "op-x",
+           "model_version": "m-1", "weights": {"isolation_forest": 0.4, "lof": 0.05, "dbscan": 0.15, "rules": 0.4},
+           "segments": {"personal": {"verify": 55.0, "block": 92.0}, "business": {"verify": 60.0, "block": 95.0}}}
+    raw.update(overrides)
+    raw = {k: v for k, v in raw.items() if v is not None}
+    (directory / "operating_point.json").write_text(json.dumps(raw))
+
+
+def test_load_operating_point_reads_weights_and_segments(tmp_path: Path) -> None:
+    _write_point(tmp_path)
+    point = load_operating_point(tmp_path, "m-1")
+    assert point.weights == {"isolation_forest": 0.4, "lof": 0.05, "dbscan": 0.15, "rules": 0.4}
+    assert point.thresholds_for("business") == (60.0, 95.0)
+    assert point.thresholds_for("personal") == (55.0, 92.0)
+
+
+def test_load_operating_point_rejects_file_without_weights(tmp_path: Path) -> None:
+    _write_point(tmp_path, weights=None)
+    with pytest.raises(BundleError):
+        load_operating_point(tmp_path, "m-1")
+    _write_point(tmp_path, segments=None)
+    with pytest.raises(BundleError):
+        load_operating_point(tmp_path, "m-1")
 
 
 def test_saved_bundle_round_trip_and_schema_metadata() -> None:
@@ -69,8 +135,8 @@ def test_saved_bundle_round_trip_and_schema_metadata() -> None:
     bundle = load_bundle(settings.models_dir)
     point = load_operating_point(settings.models_dir, bundle.version)
     assert tuple(bundle.metadata["payment_features"]) == PAYMENT_FEATURES
-    assert bundle.metadata["fit_rows"]["isolation_forest"] == 60_000
-    assert bundle.metadata["fit_rows"]["score_mapping_reference"] == 10_000
+    assert 50_000 < bundle.metadata["fit_rows"]["isolation_forest"] < 60_000  # minus holdout accounts
+    assert 8_000 < bundle.metadata["fit_rows"]["score_mapping_reference"] < 10_000  # calibration minus holdout
     assert bundle.dbscan.core_samples is not None and len(bundle.dbscan.core_samples) > 0
     assert 0 < point.verify < point.block <= 100
     rows = np.zeros((3, len(PAYMENT_FEATURES)))
@@ -97,7 +163,96 @@ def test_training_never_fit_on_held_out_partitions() -> None:
     settings = load_settings()
     report = json.loads((settings.models_dir / "training_report.json").read_text())
     meta = json.loads((settings.models_dir / "metadata.json").read_text())
-    assert meta["fit_rows"]["preprocessing"] == 60_000
+    assert 50_000 < meta["fit_rows"]["preprocessing"] < 60_000  # train days minus holdout accounts
     assert meta["fit_rows"]["dbscan"] <= 60_000
     assert report["operating_point"]["source"].startswith("validated")
-    assert all(r["fit_rows"] == 60_000 for r in report["search"]["lof"])
+    assert len(report["search"]["lof"]) == 24
+
+
+# -- training integration (runs train_models on the generated corpus) -------------------------
+
+
+def _train_rows_without(training_dir: Path, excluded: set[str]) -> int:
+    from storage.dataset import load_splits, read_jsonl
+
+    splits = load_splits(training_dir)
+    return sum(
+        1 for r in read_jsonl(training_dir / "requests.jsonl")
+        if splits[r["request_id"]] == "train" and r["sender_id"] not in excluded
+    )
+
+
+def test_holdout_accounts_never_in_fit_rows(trained: dict) -> None:
+    import json
+
+    report = trained["report"]
+    holdout = set(report["holdout_accounts"]["account_ids"])
+    manifest = json.loads((trained["training_dir"] / "manifest.json").read_text())
+    assert len(holdout) == 40
+    assert holdout.isdisjoint(manifest["cold_start"]["account_ids"])
+    meta = json.loads((trained["models_dir"] / "metadata.json").read_text())
+    expected = _train_rows_without(trained["training_dir"], holdout)
+    assert meta["fit_rows"]["preprocessing"] == meta["fit_rows"]["isolation_forest"] == expected
+
+
+def test_weights_learned_on_calibration_not_validation(trained: dict) -> None:
+    import json
+
+    search = trained["report"]["weights_search"]
+    assert search["partition"] == "calibration"
+    assert search["candidates"] == 1540
+    point = json.loads((trained["models_dir"] / "operating_point.json").read_text())
+    assert point["weights"] == search["selected"]
+    assert sum(point["weights"].values()) == pytest.approx(1.0)
+    assert point["weights"]["lof"] >= 0.05 - 1e-9
+    assert set(point["segments"]) == {"personal", "business"}
+
+
+def test_lof_grid_covers_subspaces_k_and_fit_rows(trained: dict) -> None:
+    records = trained["report"]["search"]["lof"]
+    grid = {(r["subspace"], r["n_neighbors"], r["fit_rows_requested"]) for r in records}
+    assert len(records) == len(grid) == 24
+    assert {r["subspace"] for r in records} == {"amount", "amount_velocity", "amount_velocity_beneficiary", "full"}
+    assert {r["n_neighbors"] for r in records} == {20, 35, 50}
+    assert {r["fit_rows_requested"] for r in records} == {20_000, "all"}
+    selected = trained["report"]["selected_parameters"]["lof"]
+    assert selected["subspace"] in LOF_SUBSPACES
+
+
+def test_segment_fallback_reported_when_infeasible() -> None:
+    from ml.policy import load_policy
+    from ml.training import select_segment_points
+
+    policy = load_policy(load_settings().policy_path)
+    rng = np.random.default_rng(5)
+    n = 4_000
+    segments = np.array(["personal"] * 2_000 + ["business"] * 2_000)
+    y = np.zeros(n, dtype=bool)
+    y[rng.choice(2_000, 40, replace=False)] = True  # personal fraud
+    risk = np.where(y, 85.0, rng.uniform(0, 40, n))
+    risk[2_000:] = 99.0  # business: every row maximal, half of them fraud -> no feasible pair
+    y[2_000:3_000] = True
+    families = np.full(n, 3)
+    unsafe = np.zeros(n, dtype=bool)
+    point, report = select_segment_points(risk, families, unsafe, y, segments, policy)
+    assert report["segments"]["business"]["fallback"] is True
+    assert point.thresholds_for("business") == (point.verify, point.block)
+    assert report["segments"]["personal"]["fallback"] is False
+    assert point.thresholds_for("personal") == (
+        report["segments"]["personal"]["chosen"]["verify_threshold"],
+        report["segments"]["personal"]["chosen"]["block_threshold"],
+    )
+
+
+def test_segment_without_fraud_falls_back() -> None:
+    from ml.policy import load_policy
+    from ml.training import select_segment_points
+
+    policy = load_policy(load_settings().policy_path)
+    segments = np.array(["personal"] * 1_000 + ["business"] * 1_000)
+    y = np.zeros(2_000, dtype=bool)
+    y[:20] = True
+    risk = np.where(y, 90.0, 10.0)
+    _, report = select_segment_points(risk, np.full(2_000, 3), np.zeros(2_000, dtype=bool), y, segments, policy)
+    assert report["segments"]["business"]["fallback"] is True
+    assert "no fraud" in report["segments"]["business"]["reason"]

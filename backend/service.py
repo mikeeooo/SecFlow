@@ -39,7 +39,7 @@ from backend.schemas import (
 from config.settings import Settings
 from ml.assess import assess_batch, assess_one, build_evidence_store
 from ml.model import BundleError, ModelBundle, load_bundle, load_operating_point
-from ml.policy import OperatingPoint, load_policy
+from ml.policy import SEGMENTS, OperatingPoint, load_policy
 from storage.dataset import Dataset, load_dataset
 from storage.history import HistoryIndex
 from storage.memory import (
@@ -614,6 +614,7 @@ class SecFlowService:
             "isolation_forest": histogram([r.result.components.if_score for r in scored]),
             "lof": histogram([r.result.components.lof_score for r in scored]),
             "rules": histogram([r.result.rules.score for r in records]),
+            "dbscan": histogram([r.result.components.context.score for r in scored]),
             "risk_score": np.histogram([r.result.risk.total for r in scored if r.result.risk], bins=HISTOGRAM_BINS,
                                        range=(0, 100))[0].tolist(),
         }
@@ -628,7 +629,9 @@ class SecFlowService:
             "model_error": self.model_error,
             "policy": {
                 "version": self.policy.version,
-                "weights": dict(self.policy.weights),
+                "weights": dict(self.operating_point.weights or self.policy.weights),
+                "weights_source": "learned" if self.operating_point.weights else "policy_fallback",
+                "segments": self._segment_view(),
                 "operating_point": {"verify": self.operating_point.verify, "block": self.operating_point.block,
                                     "source": self.operating_point.source, "version": self.operating_point.version},
                 "min_corroborating_families": self.policy.min_families,
@@ -655,6 +658,12 @@ class SecFlowService:
                                         ("chosen", "candidates_evaluated", "feasible_candidates", "frontier",
                                          "initial_candidate")},
                 "search": training["search"],
+                "weights_search": {k: training["weights_search"][k] for k in
+                                   ("partition", "candidates", "best_average_precision", "selected", "top", "rows",
+                                    "fraud")},
+                "segment_thresholds": training["segment_thresholds"],
+                "holdout_accounts": training["holdout_accounts"]["count"],
+                "calibration_component_average_precision": training["calibration_component_average_precision"],
             },
         }
 
@@ -668,6 +677,10 @@ class SecFlowService:
 
     def evaluation(self) -> dict[str, Any] | None:
         return self._evaluation
+
+    def _segment_view(self) -> dict[str, dict[str, float]]:
+        point = self.operating_point
+        return {s: dict(zip(("verify", "block"), point.thresholds_for(s), strict=True)) for s in SEGMENTS}
 
     def health(self, stream: dict[str, Any]) -> dict[str, Any]:
         manifest = self.dataset.manifest
@@ -696,7 +709,9 @@ class SecFlowService:
             "policy": {
                 "version": self.policy.version,
                 "operating_point": {"verify": self.operating_point.verify, "block": self.operating_point.block,
-                                    "source": self.operating_point.source},
+                                    "source": self.operating_point.source,
+                                    "weights": dict(self.operating_point.weights or self.policy.weights),
+                                    "segments": self._segment_view()},
             },
             "state": {
                 "kind": "process_memory",

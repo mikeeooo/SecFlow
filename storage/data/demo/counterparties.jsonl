@@ -648,417 +648,467 @@
 {"counterparty_id":"CP-00648","display_name":"Moonridge Property Management","kind":"business","category":"housing"}
 {"counterparty_id":"CP-00649","display_name":"Oakmont Veterinary Practice","kind":"business","category":"health"}
 {"counterparty_id":"CP-00650","display_name":"Silverline Logistics","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00001","display_name":"Clearwater Cafe","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00002","display_name":"Sami Vieira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00003","display_name":"Mateo Rossi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00004","display_name":"Quentin Rahman","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00005","display_name":"Vera Barbieri","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00006","display_name":"Viktor Martins","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00007","display_name":"Riverside Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00008","display_name":"Alma Castellano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00009","display_name":"Eastgate Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00010","display_name":"Farah Ozturk","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00011","display_name":"Yannick Wagner","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00012","display_name":"Yannick Keller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00013","display_name":"Summit Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00014","display_name":"Cedar Point Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00015","display_name":"Seabright Cafe","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00016","display_name":"Ines Pinto","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00017","display_name":"Freya Hansen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00018","display_name":"Lucia Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00019","display_name":"Noor Mancini","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00020","display_name":"Fatima Molnar","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00021","display_name":"Kasper Kaya","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00022","display_name":"Benedikt Farouk","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00023","display_name":"Kenji Engel","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00024","display_name":"Bruno Arslan","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00025","display_name":"Ironwood Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00026","display_name":"Silverline Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00027","display_name":"Cedar Point Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00028","display_name":"Pinecrest Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00029","display_name":"Joaquim Marino","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00030","display_name":"Priya Ortega","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00031","display_name":"Felix Lehmann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00032","display_name":"Leila Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00033","display_name":"Benedikt Ivanova","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00034","display_name":"Gustavo Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00035","display_name":"Selin Lambert","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00036","display_name":"Paula Bianchi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00037","display_name":"Clearwater Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00038","display_name":"Felix Esposito","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00039","display_name":"Hana Valdivia","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00040","display_name":"Bluegate Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00041","display_name":"Mei Dahl","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00042","display_name":"Sakura Lopes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00043","display_name":"Zara Rocha","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00044","display_name":"Mihai Laurent","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00045","display_name":"Valentina Toth","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00046","display_name":"Yara Esposito","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00047","display_name":"Ilse Krause","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00048","display_name":"Kofi Castellano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00049","display_name":"Kwame Okafor","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00050","display_name":"Leila Popescu","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00051","display_name":"Omar Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00052","display_name":"Sven Romano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00053","display_name":"Moonridge Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00054","display_name":"Wiktor Kaminski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00055","display_name":"Ines Bianchi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00056","display_name":"Luca Bergstrom","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00057","display_name":"Westbrook Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00058","display_name":"Larkspur Veterinary Practice","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00059","display_name":"Old Mill Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00060","display_name":"Benedikt Ibrahim","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00061","display_name":"Mei Moreau","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00062","display_name":"Amara Zimmermann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00063","display_name":"Sunfield Logistics","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00064","display_name":"Astrid Larsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00065","display_name":"Noor Martins","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00066","display_name":"Gabriel Okafor","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00067","display_name":"Yusuf Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00068","display_name":"Elsa Valdivia","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00069","display_name":"Kestrel Logistics","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00070","display_name":"Lakeside Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00071","display_name":"Brightwater Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00072","display_name":"Omar Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00073","display_name":"Alma Lewandowski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00074","display_name":"Hillview Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00075","display_name":"Tariq Richter","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00076","display_name":"Carmen Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00077","display_name":"Leyla Varga","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00078","display_name":"Pablo Novak","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00079","display_name":"Otto Novak","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00080","display_name":"Ashford Logistics","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00081","display_name":"Greenfield Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00082","display_name":"Luca Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00083","display_name":"Beatriz Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00084","display_name":"Stonebridge Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00085","display_name":"Kestrel Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00086","display_name":"Lakeside Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00087","display_name":"Sunfield Veterinary Practice","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00088","display_name":"Ilse Andersen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00089","display_name":"Maren Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00090","display_name":"Ines Zimmermann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00091","display_name":"Yara Nunes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00092","display_name":"Pablo Vieira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00093","display_name":"Bluegate Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00094","display_name":"Vera Moreau","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00095","display_name":"Northwind Travel","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00096","display_name":"Sven Sorensen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00097","display_name":"Ulrich Schmidt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00098","display_name":"Milan Moreau","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00099","display_name":"Seabright Travel","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00100","display_name":"Ines Lopes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00101","display_name":"Greenfield Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00102","display_name":"Petra Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00103","display_name":"Anouk Petrov","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00104","display_name":"Dalia Romano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00105","display_name":"Anton Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00106","display_name":"Ingrid Mazur","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00107","display_name":"Chiara Varga","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00108","display_name":"Westbrook Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00109","display_name":"Felix Arslan","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00110","display_name":"Ravi Rocha","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00111","display_name":"Matteo Hoffmann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00112","display_name":"Nils Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00113","display_name":"Xenia Kovacs","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00114","display_name":"Leila Lindqvist","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00115","display_name":"Seabright Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00116","display_name":"Henrik Szabo","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00117","display_name":"Ilse Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00118","display_name":"Greta Wolff","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00119","display_name":"Priya Holm","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00120","display_name":"Teodor Yilmaz","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00121","display_name":"Sami Hansen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00122","display_name":"Pinecrest Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00123","display_name":"Nikolai Rocha","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00124","display_name":"Fatima Dubois","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00125","display_name":"Xenia Lehmann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00126","display_name":"Pinecrest Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00127","display_name":"Fairhaven Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00128","display_name":"Silverline Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00129","display_name":"Fairhaven Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00130","display_name":"Maple Row Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00131","display_name":"Harbor Lane Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00132","display_name":"Larkspur Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00133","display_name":"Magdalena Krause","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00134","display_name":"Vincent Jansen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00135","display_name":"Camille Wagner","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00136","display_name":"Silverline Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00137","display_name":"Rosa Molnar","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00138","display_name":"Diego Varga","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00139","display_name":"Alma Moller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00140","display_name":"Greenfield Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00141","display_name":"Ironwood Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00142","display_name":"Greta Frank","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00143","display_name":"Bruno Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00144","display_name":"Yannick Schmidt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00145","display_name":"Ayla Lund","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00146","display_name":"Joaquim Valdivia","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00147","display_name":"Marta Sorensen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00148","display_name":"Chiara Toth","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00149","display_name":"Summit Grocers","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00150","display_name":"Pablo Rocha","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00151","display_name":"Fairhaven Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00152","display_name":"Bluegate Cafe","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00153","display_name":"Sofia Farouk","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00154","display_name":"Mei Krause","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00155","display_name":"Yusuf Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00156","display_name":"Nikolai Abara","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00157","display_name":"Greenfield Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00158","display_name":"Zofia Abara","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00159","display_name":"Sunfield Grocers","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00160","display_name":"Brightwater Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00161","display_name":"Greenfield Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00162","display_name":"Ines Santos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00163","display_name":"Tomasz Silva","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00164","display_name":"Westbrook Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00165","display_name":"Wiktor Nielsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00166","display_name":"Stonebridge Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00167","display_name":"Fairhaven Veterinary Practice","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00168","display_name":"Silverline Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00169","display_name":"Pinecrest Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00170","display_name":"Hillview Utilities","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00171","display_name":"Maple Row Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00172","display_name":"Leyla Demir","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00173","display_name":"Greta Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00174","display_name":"Magdalena Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00175","display_name":"Kenji Mensah","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00176","display_name":"Astrid Keller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00177","display_name":"Emre Richter","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00178","display_name":"Thea Richter","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00179","display_name":"Bluegate Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00180","display_name":"Greenfield Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00181","display_name":"Alma Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00182","display_name":"Emre Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00183","display_name":"Otto Zimmermann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00184","display_name":"Oskar Wojcik","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00185","display_name":"Irene Lewandowski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00186","display_name":"Rosa Rocha","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00187","display_name":"Cedar Point Grocers","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00188","display_name":"Bianca Nakamura","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00189","display_name":"Anouk Hansen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00190","display_name":"Ironwood Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00191","display_name":"Amara Aksoy","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00192","display_name":"Samir Eriksson","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00193","display_name":"Priya Bergstrom","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00194","display_name":"Riverside Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00195","display_name":"Fairhaven Travel","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00196","display_name":"Brightwater Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00197","display_name":"Silverline Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00198","display_name":"Karim Larsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00199","display_name":"Marco Valdivia","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00200","display_name":"Elena Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00201","display_name":"Clearwater Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00202","display_name":"Amara Pinto","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00203","display_name":"Harbor Lane Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00204","display_name":"Silverline Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00205","display_name":"Brightwater Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00206","display_name":"Stonebridge Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00207","display_name":"Fairhaven Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00208","display_name":"Carmen Kowalski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00209","display_name":"Selin Alves","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00210","display_name":"Kestrel Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00211","display_name":"Eastgate Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00212","display_name":"Anouk Ortega","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00213","display_name":"Leona Ortega","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00214","display_name":"Harbor Lane Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00215","display_name":"Chiara Lopes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00216","display_name":"Kenji Kovacs","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00217","display_name":"Hillview Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00218","display_name":"Freya Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00219","display_name":"Hillview Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00220","display_name":"Julia Vogel","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00221","display_name":"Redwood Cafe","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00222","display_name":"Ines Kaminski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00223","display_name":"Xenia Dubois","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00224","display_name":"Lakeside Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00225","display_name":"Brightwater Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00226","display_name":"Aisha Vogel","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00227","display_name":"Copperleaf Travel","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00228","display_name":"Maple Row Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00229","display_name":"Northwind Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00230","display_name":"Lucia Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00231","display_name":"Lakeside Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00232","display_name":"Elena Brandt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00233","display_name":"Karim Wagner","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00234","display_name":"Ashford Veterinary Practice","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00235","display_name":"Old Mill Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00236","display_name":"Summit Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00237","display_name":"Matteo Hartmann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00238","display_name":"Paula Holm","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00239","display_name":"Malik Svensson","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00240","display_name":"Teodor Rahman","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00241","display_name":"Maple Row Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00242","display_name":"Leyla Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00243","display_name":"Yannick Richter","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00244","display_name":"Clara Dumont","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00245","display_name":"Ayla Eriksson","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00246","display_name":"Irene Bianchi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00247","display_name":"Ravi Greco","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00248","display_name":"Emre Celik","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00249","display_name":"Eastgate Books","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00250","display_name":"Yannick Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00251","display_name":"Freya Bertrand","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00252","display_name":"Benedikt Horvath","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00253","display_name":"Hillview Insurance","kind":"business","category":"finance"}
-{"counterparty_id":"CP-D00254","display_name":"Pablo Fischer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00255","display_name":"Lina Romano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00256","display_name":"Cedar Point Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00257","display_name":"Fairhaven Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00258","display_name":"Fatima Toth","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00259","display_name":"Farah Wolff","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00260","display_name":"Omar Demir","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00261","display_name":"Lina Larsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00262","display_name":"Clara Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00263","display_name":"Lakeside Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00264","display_name":"Tariq Bergstrom","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00265","display_name":"Redwood Travel","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00266","display_name":"Lakeside Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00267","display_name":"Clearwater Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00268","display_name":"Farah Quist","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00269","display_name":"Gabriel Barbieri","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00270","display_name":"Bellhaven Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00271","display_name":"Pablo Bianchi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00272","display_name":"Bruno Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00273","display_name":"Bellhaven Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00274","display_name":"Yusuf Kaya","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00275","display_name":"Kestrel Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00276","display_name":"Kwame Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00277","display_name":"Bellhaven Energy","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00278","display_name":"Vincent Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00279","display_name":"Priya Chowdhury","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00280","display_name":"Emil Aydin","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00281","display_name":"Stefan Aydin","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00282","display_name":"Dmitri Sorensen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00283","display_name":"Yara Rossi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00284","display_name":"Priya Nielsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00285","display_name":"Bianca Marino","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00286","display_name":"Quentin Fischer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00287","display_name":"Selin Eriksson","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00288","display_name":"Tariq Moller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00289","display_name":"Farah Ortega","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00290","display_name":"Lukas Fontaine","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00291","display_name":"Anton Moller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00292","display_name":"Rebecca Ramos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00293","display_name":"Dalia Ozturk","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00294","display_name":"Northwind Language School","kind":"business","category":"education"}
-{"counterparty_id":"CP-D00295","display_name":"Jakob Ibrahim","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00296","display_name":"Aisha Greco","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00297","display_name":"Arjun Moller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00298","display_name":"Bluegate Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00299","display_name":"Moonridge Grocers","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00300","display_name":"Redwood Utilities","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00301","display_name":"Teodor Bauer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00302","display_name":"Copperleaf Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00303","display_name":"Bianca Molnar","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00304","display_name":"Kofi Richter","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00305","display_name":"Hillview Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00306","display_name":"Riverside Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00307","display_name":"Anton Nowak","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00308","display_name":"Joaquim Petrov","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00309","display_name":"Leona Santos","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00310","display_name":"Andrei Nowak","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00311","display_name":"Karim Krause","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00312","display_name":"Rania Demir","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00313","display_name":"Luca Lopes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00314","display_name":"Clearwater Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00315","display_name":"Andrei Toth","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00316","display_name":"Diego Nakamura","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00317","display_name":"Pieter Zimmermann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00318","display_name":"Andrei Keller","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00319","display_name":"Matteo Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00320","display_name":"Maren Lopes","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00321","display_name":"Sofia Weber","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00322","display_name":"Pinecrest Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00323","display_name":"Ashford Insurance","kind":"business","category":"finance"}
-{"counterparty_id":"CP-D00324","display_name":"Sami Molnar","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00325","display_name":"Ayla Ivanova","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00326","display_name":"Lukas Szabo","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00327","display_name":"Anouk Dubois","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00328","display_name":"Arjun Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00329","display_name":"Cedar Point Pharmacy","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00330","display_name":"Nikolai Jansen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00331","display_name":"Paula Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00332","display_name":"Petra Ricci","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00333","display_name":"Clara Achterberg","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00334","display_name":"Pinecrest Insurance","kind":"business","category":"finance"}
-{"counterparty_id":"CP-D00335","display_name":"Paula Rossi","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00336","display_name":"Stonebridge Utilities","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00337","display_name":"Beatriz Barbieri","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00338","display_name":"Greta Marino","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00339","display_name":"Nikolai Gallo","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00340","display_name":"Omar Varga","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00341","display_name":"Mateo Nakamura","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00342","display_name":"Amara Dumont","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00343","display_name":"Clara Moreau","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00344","display_name":"Ingrid Rahman","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00345","display_name":"Beatriz Laurent","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00346","display_name":"Beatriz Molnar","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00347","display_name":"Stefan Kovacs","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00348","display_name":"Lakeside Property Management","kind":"business","category":"housing"}
-{"counterparty_id":"CP-D00349","display_name":"Northwind Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00350","display_name":"Marta Delacroix","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00351","display_name":"Nora Costa","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00352","display_name":"Chiara Bauer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00353","display_name":"Elsa Wagner","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00354","display_name":"Nikolai Farouk","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00355","display_name":"Bellhaven Insurance","kind":"business","category":"finance"}
-{"counterparty_id":"CP-D00356","display_name":"Redwood Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00357","display_name":"Larkspur Accounting","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00358","display_name":"Stefan Aksoy","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00359","display_name":"Stonebridge Grocers","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00360","display_name":"Cedric Quist","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00361","display_name":"Andrei Mazur","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00362","display_name":"Westbrook Auto Repair","kind":"business","category":"services"}
-{"counterparty_id":"CP-D00363","display_name":"Fairhaven Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00364","display_name":"Harbor Lane Hardware","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00365","display_name":"Moonridge Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00366","display_name":"Diego Wagner","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00367","display_name":"Sven Holm","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00368","display_name":"Rui Bauer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00369","display_name":"Luca Mancini","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00370","display_name":"Seabright Bakery","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00371","display_name":"Kofi Varga","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00372","display_name":"Valentina Alves","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00373","display_name":"Stefan Conti","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00374","display_name":"Selin Wolff","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00375","display_name":"Rebecca Dahl","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00376","display_name":"Redwood Telecom","kind":"business","category":"utility"}
-{"counterparty_id":"CP-D00377","display_name":"Camille Gallo","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00378","display_name":"Leila Schmidt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00379","display_name":"Anton Lewandowski","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00380","display_name":"Ivan Alves","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00381","display_name":"Hedda Horvath","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00382","display_name":"Adrian Arslan","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00383","display_name":"Zara Fischer","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00384","display_name":"Nadia Celik","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00385","display_name":"Ironwood Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00386","display_name":"Astrid Laurent","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00387","display_name":"Fatima Dumont","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00388","display_name":"Greta Ibrahim","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00389","display_name":"Greta Vogel","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00390","display_name":"Sakura Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00391","display_name":"Leona Pereira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00392","display_name":"Brightwater Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00393","display_name":"Harbor Lane Fitness Club","kind":"business","category":"leisure"}
-{"counterparty_id":"CP-D00394","display_name":"Sofia Abara","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00395","display_name":"Carmen Bertrand","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00396","display_name":"Kwame Petrov","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00397","display_name":"Gabriel Ferreira","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00398","display_name":"Valentina Aydin","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00399","display_name":"Andrei Brandt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00400","display_name":"Anouk Ibrahim","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00401","display_name":"Magdalena Romano","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00402","display_name":"Simon Krause","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00403","display_name":"Tomasz Gallo","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00404","display_name":"Hillview Dental Clinic","kind":"business","category":"health"}
-{"counterparty_id":"CP-D00405","display_name":"Anouk Abara","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00406","display_name":"Rania Schmidt","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00407","display_name":"Stonebridge Furniture","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00408","display_name":"Yannick Svensson","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00409","display_name":"Northwind Cafe","kind":"business","category":"retail"}
-{"counterparty_id":"CP-D00410","display_name":"Hana Larsen","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00411","display_name":"Rebecca Zimmermann","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00412","display_name":"Rafael Holm","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00413","display_name":"Beatriz Aksoy","kind":"person","category":"individual"}
-{"counterparty_id":"CP-D00414","display_name":"Greenfield Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-00651","display_name":"Moonridge Broadband","kind":"business","category":"biller"}
+{"counterparty_id":"CP-00652","display_name":"Clearwater Water Services","kind":"business","category":"biller"}
+{"counterparty_id":"CP-00653","display_name":"Oakmont Streaming","kind":"business","category":"biller"}
+{"counterparty_id":"CP-D00001","display_name":"Clara Molnar","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00002","display_name":"Northwind Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00003","display_name":"Yannick Silva","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00004","display_name":"Ironwood Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00005","display_name":"Mateo Rossi","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00006","display_name":"Hedda Silva","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00007","display_name":"Amara Costa","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00008","display_name":"Westbrook Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00009","display_name":"Pablo Bertrand","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00010","display_name":"Stonebridge Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00011","display_name":"Joaquim Larsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00012","display_name":"Redwood Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00013","display_name":"Olga Moller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00014","display_name":"Anton Larsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00015","display_name":"Northwind Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00016","display_name":"Maple Row Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00017","display_name":"Liv Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00018","display_name":"Bruno Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00019","display_name":"Northwind Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00020","display_name":"Old Mill Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00021","display_name":"Pablo Kovacs","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00022","display_name":"Cedar Point Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00023","display_name":"Old Mill Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00024","display_name":"Zofia Martins","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00025","display_name":"Westbrook Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00026","display_name":"Felix Lehmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00027","display_name":"Harbor Lane Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00028","display_name":"Greenfield Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00029","display_name":"Silverline Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00030","display_name":"Irene Mendes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00031","display_name":"Bluegate Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00032","display_name":"Copperleaf Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00033","display_name":"Hillview Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00034","display_name":"Eastgate Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00035","display_name":"Riverside Utilities","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00036","display_name":"Noor Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00037","display_name":"Kestrel Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00038","display_name":"Seabright Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00039","display_name":"Leila Mensah","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00040","display_name":"Valentina Lopes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00041","display_name":"Aisha Keller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00042","display_name":"Omar Larsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00043","display_name":"Zofia Fischer","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00044","display_name":"Chiara Szabo","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00045","display_name":"Tariq Larsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00046","display_name":"Matteo Lambert","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00047","display_name":"Luca Delacroix","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00048","display_name":"Zofia Pinto","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00049","display_name":"Oakmont Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00050","display_name":"Copperleaf Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00051","display_name":"Amara Bauer","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00052","display_name":"Redwood Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00053","display_name":"Ilse Varga","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00054","display_name":"Greenfield Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00055","display_name":"Irene Wojcik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00056","display_name":"Nils Nielsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00057","display_name":"Brightwater Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00058","display_name":"Silverline Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00059","display_name":"Old Mill Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00060","display_name":"Malik Ibrahim","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00061","display_name":"Carmen Lewandowski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00062","display_name":"Mihai Lopes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00063","display_name":"Hillview Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00064","display_name":"Rui Oyelaran","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00065","display_name":"Riverside Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00066","display_name":"Vera Berg","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00067","display_name":"Greta Varga","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00068","display_name":"Henrik Lambert","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00069","display_name":"Lukas Sato","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00070","display_name":"Clearwater Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00071","display_name":"Kasper Greco","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00072","display_name":"Harbor Lane Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00073","display_name":"Lakeside Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00074","display_name":"Eastgate Veterinary Practice","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00075","display_name":"Simon Farouk","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00076","display_name":"Bellhaven Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00077","display_name":"Elsa Mancini","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00078","display_name":"Julia Ozturk","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00079","display_name":"Priya Ricci","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00080","display_name":"Priya Nakamura","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00081","display_name":"Ines Pereira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00082","display_name":"Otto Vieira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00083","display_name":"Tomasz Popescu","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00084","display_name":"Milan Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00085","display_name":"Ingrid Wojcik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00086","display_name":"Quentin Celik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00087","display_name":"Oakmont Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00088","display_name":"Daniela Vogel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00089","display_name":"Hana Rocha","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00090","display_name":"Jonas Romano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00091","display_name":"Simon Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00092","display_name":"Ayla Frank","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00093","display_name":"Fairhaven Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00094","display_name":"Zara Abara","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00095","display_name":"Kasper Lopes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00096","display_name":"Moonridge Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00097","display_name":"Kestrel Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00098","display_name":"Vincent Esposito","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00099","display_name":"Tariq Moller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00100","display_name":"Seabright Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00101","display_name":"Adrian Sato","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00102","display_name":"Kenji Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00103","display_name":"Leona Dubois","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00104","display_name":"Lakeside Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00105","display_name":"Ravi Lopes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00106","display_name":"Sunfield Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00107","display_name":"Ines Popescu","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00108","display_name":"Anton Mancini","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00109","display_name":"Pinecrest Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00110","display_name":"Cedar Point Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00111","display_name":"Fairhaven Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00112","display_name":"Luca Mancini","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00113","display_name":"Wiktor Martins","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00114","display_name":"Zara Mazur","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00115","display_name":"Lucia Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00116","display_name":"Ingrid Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00117","display_name":"Karim Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00118","display_name":"Riverside Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00119","display_name":"Ayla Kaya","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00120","display_name":"Bluegate Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00121","display_name":"Julia Barbieri","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00122","display_name":"Harbor Lane Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00123","display_name":"Leona Greco","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00124","display_name":"Jakob Pereira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00125","display_name":"Hedda Aydin","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00126","display_name":"Arjun Petrov","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00127","display_name":"Kasper Richter","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00128","display_name":"Stonebridge Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00129","display_name":"Xenia Eriksson","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00130","display_name":"Viktor Esposito","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00131","display_name":"Viktor Szabo","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00132","display_name":"Tomasz Holm","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00133","display_name":"Freya Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00134","display_name":"Malik Achterberg","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00135","display_name":"Copperleaf Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00136","display_name":"Astrid Quist","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00137","display_name":"Gustavo Castellano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00138","display_name":"Fatima Wagner","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00139","display_name":"Fairhaven Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00140","display_name":"Redwood Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00141","display_name":"Fairhaven Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00142","display_name":"Hillview Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00143","display_name":"Copperleaf Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00144","display_name":"Sunfield Pharmacy","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00145","display_name":"Irene Abara","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00146","display_name":"Anouk Moreau","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00147","display_name":"Larkspur Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00148","display_name":"Kestrel Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00149","display_name":"Ironwood Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00150","display_name":"Tanja Wolff","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00151","display_name":"Camille Wagner","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00152","display_name":"Fairhaven Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00153","display_name":"Joaquim Nakamura","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00154","display_name":"Adrian Varga","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00155","display_name":"Marta Holm","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00156","display_name":"Carmen Ferreira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00157","display_name":"Mihai Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00158","display_name":"Clearwater Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00159","display_name":"Brightwater Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00160","display_name":"Hillview Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00161","display_name":"Bellhaven Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00162","display_name":"Ines Toth","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00163","display_name":"Florian Sato","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00164","display_name":"Redwood Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00165","display_name":"Liv Varga","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00166","display_name":"Eastgate Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00167","display_name":"Riverside Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00168","display_name":"Amara Vogel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00169","display_name":"Lena Zimmermann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00170","display_name":"Yannick Rossi","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00171","display_name":"Ayla Nowak","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00172","display_name":"Samir Chowdhury","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00173","display_name":"Benedikt Okafor","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00174","display_name":"Mateo Haddad","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00175","display_name":"Karim Mensah","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00176","display_name":"Copperleaf Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00177","display_name":"Valentina Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00178","display_name":"Seabright Cafe","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00179","display_name":"Clearwater Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00180","display_name":"Bluegate Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00181","display_name":"Moonridge Veterinary Practice","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00182","display_name":"Milan Quist","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00183","display_name":"Kwame Hartmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00184","display_name":"Daniela Wolff","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00185","display_name":"Marco Wojcik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00186","display_name":"Malik Rocha","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00187","display_name":"Clearwater Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00188","display_name":"Jakob Ibrahim","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00189","display_name":"Lukas Ricci","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00190","display_name":"Ilse Aydin","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00191","display_name":"Benedikt Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00192","display_name":"Cedar Point Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00193","display_name":"Cedric Celik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00194","display_name":"Julia Szabo","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00195","display_name":"Brightwater Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00196","display_name":"Lakeside Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00197","display_name":"Olga Mensah","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00198","display_name":"Luca Tanaka","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00199","display_name":"Otto Abara","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00200","display_name":"Copperleaf Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00201","display_name":"Seabright Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00202","display_name":"Julia Chowdhury","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00203","display_name":"Chiara Oyelaran","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00204","display_name":"Rania Nowak","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00205","display_name":"Rui Valdivia","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00206","display_name":"Clara Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00207","display_name":"Irene Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00208","display_name":"Elsa Nunes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00209","display_name":"Elsa Lund","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00210","display_name":"Cedric Okafor","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00211","display_name":"Leona Fontaine","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00212","display_name":"Old Mill Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00213","display_name":"Fairhaven Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00214","display_name":"Ingrid Moller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00215","display_name":"Hillview Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00216","display_name":"Zara Aksoy","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00217","display_name":"Summit Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00218","display_name":"Westbrook Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00219","display_name":"Nikolai Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00220","display_name":"Felix Svensson","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00221","display_name":"Hugo Moreau","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00222","display_name":"Dalia Wojcik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00223","display_name":"Ashford Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00224","display_name":"Mihai Ricci","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00225","display_name":"Harbor Lane Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00226","display_name":"Riverside Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00227","display_name":"Fairhaven Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00228","display_name":"Summit Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00229","display_name":"Joaquim Marino","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00230","display_name":"Maple Row Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00231","display_name":"Riverside Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00232","display_name":"Sami Krause","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00233","display_name":"Camille Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00234","display_name":"Mateo Valdivia","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00235","display_name":"Lakeside Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00236","display_name":"Milan Engel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00237","display_name":"Mateo Ferreira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00238","display_name":"Bellhaven Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00239","display_name":"Matteo Mancini","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00240","display_name":"Luca Engel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00241","display_name":"Selin Berg","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00242","display_name":"Bluegate Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00243","display_name":"Hugo Strand","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00244","display_name":"Dmitri Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00245","display_name":"Pinecrest Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00246","display_name":"Quentin Chowdhury","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00247","display_name":"Ashford Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00248","display_name":"Luca Yilmaz","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00249","display_name":"Ilse Weber","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00250","display_name":"Clara Andersen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00251","display_name":"Bellhaven Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00252","display_name":"Brightwater Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00253","display_name":"Astrid Bianchi","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00254","display_name":"Old Mill Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00255","display_name":"Silverline Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00256","display_name":"Lena Alves","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00257","display_name":"Copperleaf Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00258","display_name":"Pieter Alves","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00259","display_name":"Amara Santos","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00260","display_name":"Bluegate Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00261","display_name":"Pinecrest Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00262","display_name":"Emil Ozturk","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00263","display_name":"Viktor Lopes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00264","display_name":"Joaquim Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00265","display_name":"Anouk Lund","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00266","display_name":"Summit Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00267","display_name":"Harbor Lane Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00268","display_name":"Elsa Achterberg","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00269","display_name":"Ingrid Schmidt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00270","display_name":"Leona Fischer","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00271","display_name":"Northwind Utilities","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00272","display_name":"Maple Row Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00273","display_name":"Lakeside Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00274","display_name":"Summit Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00275","display_name":"Clearwater Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00276","display_name":"Summit Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00277","display_name":"Camille Valdivia","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00278","display_name":"Oakmont Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00279","display_name":"Larkspur Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00280","display_name":"Milan Mensah","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00281","display_name":"Julia Haddad","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00282","display_name":"Priya Dahl","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00283","display_name":"Benedikt Vogel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00284","display_name":"Ayla Costa","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00285","display_name":"Vera Chowdhury","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00286","display_name":"Otto Lehmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00287","display_name":"Vera Silva","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00288","display_name":"Hillview Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00289","display_name":"Copperleaf Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00290","display_name":"Diego Silva","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00291","display_name":"Magdalena Ricci","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00292","display_name":"Redwood Utilities","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00293","display_name":"Maren Horvath","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00294","display_name":"Liv Bergstrom","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00295","display_name":"Clearwater Cafe","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00296","display_name":"Leila Barbieri","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00297","display_name":"Gabriel Frank","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00298","display_name":"Lakeside Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00299","display_name":"Adrian Brandt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00300","display_name":"Yusuf Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00301","display_name":"Magdalena Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00302","display_name":"Stefan Bianchi","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00303","display_name":"Bianca Sato","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00304","display_name":"Quentin Fischer","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00305","display_name":"Silverline Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00306","display_name":"Cedar Point Pharmacy","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00307","display_name":"Rania Weber","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00308","display_name":"Lena Lambert","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00309","display_name":"Tomasz Dahl","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00310","display_name":"Pablo Molnar","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00311","display_name":"Westbrook Auto Repair","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00312","display_name":"Thea Okafor","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00313","display_name":"Kwame Hansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00314","display_name":"Luca Eriksson","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00315","display_name":"Lukas Alves","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00316","display_name":"Hugo Costa","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00317","display_name":"Marco Jansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00318","display_name":"Greenfield Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00319","display_name":"Brightwater Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00320","display_name":"Aisha Bergstrom","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00321","display_name":"Elsa Marino","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00322","display_name":"Lakeside Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00323","display_name":"Camille Svensson","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00324","display_name":"Wiktor Yilmaz","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00325","display_name":"Farah Mazur","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00326","display_name":"Pablo Oyelaran","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00327","display_name":"Bluegate Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00328","display_name":"Daniela Sorensen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00329","display_name":"Northwind Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00330","display_name":"Ravi Lehmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00331","display_name":"Marta Hoffmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00332","display_name":"Matteo Castellano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00333","display_name":"Sven Toth","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00334","display_name":"Harbor Lane Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00335","display_name":"Nadia Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00336","display_name":"Benedikt Barbieri","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00337","display_name":"Xenia Yilmaz","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00338","display_name":"Anouk Ivanova","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00339","display_name":"Greenfield Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00340","display_name":"Gabriel Holm","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00341","display_name":"Wiktor Petrov","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00342","display_name":"Hana Toth","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00343","display_name":"Amara Andersen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00344","display_name":"Dalia Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00345","display_name":"Yara Hansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00346","display_name":"Wiktor Horvath","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00347","display_name":"Nils Popescu","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00348","display_name":"Teodor Bianchi","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00349","display_name":"Rosa Castellano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00350","display_name":"Tomasz Rahman","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00351","display_name":"Pablo Dubois","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00352","display_name":"Aisha Mazur","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00353","display_name":"Hillview Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00354","display_name":"Ayla Tanaka","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00355","display_name":"Diego Nakamura","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00356","display_name":"Hana Moreau","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00357","display_name":"Julia Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00358","display_name":"Dmitri Arslan","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00359","display_name":"Cedric Lehmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00360","display_name":"Olga Berg","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00361","display_name":"Aisha Eriksson","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00362","display_name":"Leyla Dubois","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00363","display_name":"Samir Andersen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00364","display_name":"Selin Tanaka","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00365","display_name":"Sakura Yilmaz","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00366","display_name":"Zara Horvath","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00367","display_name":"Pinecrest Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00368","display_name":"Copperleaf Veterinary Practice","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00369","display_name":"Leona Quist","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00370","display_name":"Lena Quist","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00371","display_name":"Lena Kovacs","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00372","display_name":"Omar Ramos","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00373","display_name":"Redwood Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00374","display_name":"Hillview Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00375","display_name":"Stonebridge Utilities","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00376","display_name":"Dmitri Keller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00377","display_name":"Greta Ivanova","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00378","display_name":"Kofi Ibrahim","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00379","display_name":"Dalia Hoffmann","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00380","display_name":"Silverline Property Management","kind":"business","category":"housing"}
+{"counterparty_id":"CP-D00381","display_name":"Lakeside Dental Clinic","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00382","display_name":"Nadia Barbieri","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00383","display_name":"Emil Bertrand","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00384","display_name":"Redwood Telecom","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00385","display_name":"Northwind Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00386","display_name":"Camille Popescu","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00387","display_name":"Greenfield Utilities","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00388","display_name":"Selin Hansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00389","display_name":"Fairhaven Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00390","display_name":"Ilse Mensah","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00391","display_name":"Hana Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00392","display_name":"Lina Delacroix","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00393","display_name":"Anouk Costa","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00394","display_name":"Andrei Mazur","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00395","display_name":"Bruno Andersen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00396","display_name":"Old Mill Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00397","display_name":"Kenji Szabo","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00398","display_name":"Viktor Nielsen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00399","display_name":"Dmitri Esposito","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00400","display_name":"Rania Celik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00401","display_name":"Ayla Hansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00402","display_name":"Silverline Hardware","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00403","display_name":"Joaquim Schmidt","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00404","display_name":"Ilse Barbieri","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00405","display_name":"Henrik Lund","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00406","display_name":"Leona Romano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00407","display_name":"Arjun Frank","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00408","display_name":"Bianca Weber","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00409","display_name":"Seabright Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00410","display_name":"Idris Dumont","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00411","display_name":"Marta Frank","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00412","display_name":"Mei Molnar","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00413","display_name":"Westbrook Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00414","display_name":"Nadia Fischer","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00415","display_name":"Hedda Pereira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00416","display_name":"Astrid Romano","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00417","display_name":"Leona Novak","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00418","display_name":"Oakmont Travel","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00419","display_name":"Jakob Frank","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00420","display_name":"Ashford Veterinary Practice","kind":"business","category":"health"}
+{"counterparty_id":"CP-D00421","display_name":"Valentina Valdivia","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00422","display_name":"Mei Vogel","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00423","display_name":"Arjun Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00424","display_name":"Nadia Richter","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00425","display_name":"Alma Popescu","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00426","display_name":"Florian Aydin","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00427","display_name":"Yara Keller","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00428","display_name":"Oakmont Bakery","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00429","display_name":"Amara Kaya","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00430","display_name":"Ingrid Conti","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00431","display_name":"Oskar Nunes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00432","display_name":"Ashford Insurance","kind":"business","category":"finance"}
+{"counterparty_id":"CP-D00433","display_name":"Nils Gallo","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00434","display_name":"Kestrel Logistics","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00435","display_name":"Yara Richter","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00436","display_name":"Harbor Lane Language School","kind":"business","category":"education"}
+{"counterparty_id":"CP-D00437","display_name":"Leona Celik","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00438","display_name":"Old Mill Furniture","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00439","display_name":"Maple Row Accounting","kind":"business","category":"services"}
+{"counterparty_id":"CP-D00440","display_name":"Malik Delacroix","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00441","display_name":"Felix Dumont","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00442","display_name":"Summit Fitness Club","kind":"business","category":"leisure"}
+{"counterparty_id":"CP-D00443","display_name":"Helena Tanaka","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00444","display_name":"Maren Laurent","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00445","display_name":"Moonridge Energy","kind":"business","category":"utility"}
+{"counterparty_id":"CP-D00446","display_name":"Kofi Krause","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00447","display_name":"Summit Books","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00448","display_name":"Alma Dahl","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00449","display_name":"Otto Mendes","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00450","display_name":"Wiktor Ivanova","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00451","display_name":"Lena Kowalski","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00452","display_name":"Elsa Pereira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00453","display_name":"Helena Esposito","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00454","display_name":"Northwind Cafe","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00455","display_name":"Anton Jansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00456","display_name":"Pablo Sorensen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00457","display_name":"Cedar Point Grocers","kind":"business","category":"retail"}
+{"counterparty_id":"CP-D00458","display_name":"Vera Vieira","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00459","display_name":"Lucia Nowak","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00460","display_name":"Jonas Jansen","kind":"person","category":"individual"}
+{"counterparty_id":"CP-D00461","display_name":"Yara Ibrahim","kind":"person","category":"individual"}

@@ -98,6 +98,11 @@ class ModelBundle:
                     "source": operating_point.source,
                     "version": operating_point.version,
                     "model_version": self.version,
+                    "weights": dict(operating_point.weights) if operating_point.weights else None,
+                    "segments": {
+                        name: {"verify": verify, "block": block}
+                        for name, (verify, block) in operating_point.segments.items()
+                    },
                 },
                 indent=2,
             )
@@ -133,7 +138,13 @@ def load_operating_point(directory: Path, model_version: str | None) -> Operatin
     raw = json.loads(path.read_text())
     if model_version is not None and raw.get("model_version") != model_version:
         raise BundleError("Operating point was selected for a different model version")
-    return OperatingPoint(float(raw["verify_threshold"]), float(raw["block_threshold"]), raw["source"], raw["version"])
+    if not isinstance(raw.get("weights"), dict) or not isinstance(raw.get("segments"), dict):
+        raise BundleError("Operating point predates learned weights and segment thresholds; retrain first")
+    segments = {name: (float(t["verify"]), float(t["block"])) for name, t in raw["segments"].items()}
+    return OperatingPoint(
+        float(raw["verify_threshold"]), float(raw["block_threshold"]), raw["source"], raw["version"],
+        weights={k: float(v) for k, v in raw["weights"].items()}, segments=segments,
+    )
 
 
 def sklearn_version() -> str:

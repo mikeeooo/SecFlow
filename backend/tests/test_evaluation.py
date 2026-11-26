@@ -10,7 +10,15 @@ import pytest
 from config.settings import load_settings
 from ml.algorithms.isolation_forest import IsolationForestDetector
 from ml.algorithms.local_outlier_factor import LocalOutlierFactorDetector
-from ml.evaluation import binary_metrics, policy_metrics, run_evaluation, score_bands, wilson_interval
+from ml.evaluation import (
+    binary_metrics,
+    cluster_bootstrap,
+    policy_metrics,
+    run_evaluation,
+    score_band_edges,
+    score_bands,
+    wilson_interval,
+)
 from ml.model import load_bundle
 
 
@@ -77,8 +85,8 @@ def test_each_component_scores_each_row_once(evaluations) -> None:
 
 def test_evaluation_uses_only_the_chronological_test_period(evaluations) -> None:
     first, _, _ = evaluations
-    assert first["test_requests"] == 20_000 and first["test_fraud"] == 200
-    assert first["splits"]["test"] == {"requests": 20_000, "fraud": 200, "fraud_share": 0.01}
+    assert first["test_requests"] == 20_000 and first["test_fraud"] == 240
+    assert first["splits"]["test"] == {"requests": 20_000, "fraud": 240, "fraud_share": 0.012}
     assert first["cold_start_accounts"]["accounts"] == 40
     assert first["unusual_legitimate"]["requests"] == 1_000
 
@@ -88,7 +96,7 @@ def test_reports_both_positive_views_and_separate_evidence_channel(evaluations) 
     for view in (first["combined_policy"], first["combined_policy_without_evidence"]):
         assert {"verify_or_block", "block_only"} <= set(view)
     channel = first["evidence_channel"]
-    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 200
+    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 240
     assert set(first["components"]) == {"isolation_forest", "lof", "dbscan", "rules", "combined_risk_score"}
 
 
@@ -114,3 +122,47 @@ def test_score_bands_cover_every_request_and_rise_with_the_score() -> None:
     assert report["bands"][-1]["requests"] >= 1  # a score of exactly 100 lands in the top band
     assert report["bands"][0]["recall_at_or_above"] == 1.0
     assert all(b["fraud"] == 0 for b in report["bands"][:5])  # bands below 50 hold no fraud
+
+
+def _two_campaigns() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    # two fraud campaigns of 5 rows (only the first is caught) plus 90 legitimate rows, 9 of them flagged
+    y = np.array([True] * 10 + [False] * 90)
+    codes = np.array([1] * 5 + [0] * 5 + [1] * 9 + [0] * 81)
+    clusters = np.array(["CMP-A"] * 5 + ["CMP-B"] * 5 + [f"R{i}" for i in range(90)])
+    return codes, y, clusters
+
+
+def test_cluster_bootstrap_resamples_campaigns_as_units() -> None:
+    codes, y, clusters = _two_campaigns()
+    ci = cluster_bootstrap(codes, y, clusters, n=500, seed=1)
+    assert set(ci) == {"precision_verify_or_block", "recall_verify_or_block", "verify_rate"}
+    low, high = ci["recall_verify_or_block"]
+    assert {low, high} <= {0.0, 0.5, 1.0}  # a campaign is either drawn whole or not at all
+    assert low < 0.5 < high
+    assert 0.0 <= ci["verify_rate"][0] <= ci["verify_rate"][1] <= 1.0
+
+
+def test_cluster_bootstrap_is_seeded() -> None:
+    codes, y, clusters = _two_campaigns()
+    assert cluster_bootstrap(codes, y, clusters, n=200, seed=3) == cluster_bootstrap(codes, y, clusters, n=200, seed=3)
+
+
+def test_score_band_edges_follow_operating_point() -> None:
+    edges = score_band_edges(58.0, 95.0)
+    assert 58.0 in edges and 95.0 in edges
+    assert list(edges) == sorted(set(edges))
+    assert edges[0] == 0.0 and edges[-1] == 100.0
+    assert score_band_edges(70.0, 90.0).count(70.0) == 1  # duplicates removed
+
+
+def test_evaluation_report_has_new_sections(evaluations) -> None:
+    first, _, _ = evaluations
+    for key in ("confidence_intervals", "holdout_accounts", "unseen_scenario", "drift_billers",
+                "segment_thresholds", "weights"):
+        assert key in first, key
+    assert first["holdout_accounts"]["requests"] > 0
+    assert first["unseen_scenario"]["requests"] == 40
+    assert first["drift_billers"]["requests"] > 0
+    assert set(first["segment_thresholds"]) == {"personal", "business"}
+    verify, block = first["operating_point"]["verify"], first["operating_point"]["block"]
+    assert verify in first["score_bands"]["edges"] and block in first["score_bands"]["edges"]

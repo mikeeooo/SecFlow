@@ -25,6 +25,7 @@ from ml.policy import (
     combine_scores,
     decide_action,
     evaluate_rules,
+    segment_of,
 )
 from storage.evidence import EvidenceStore, SecurityEvidence
 from storage.history import HistoryIndex
@@ -41,6 +42,7 @@ class AssessmentResult:
     evidence: tuple[SecurityEvidence, ...]
     policy: PolicyResult
     status_notes: tuple[str, ...]
+    segment: str = "personal"
 
 
 def finalize(
@@ -50,6 +52,7 @@ def finalize(
     evidence_store: EvidenceStore,
     policy: Policy,
     operating_point: OperatingPoint,
+    segment: str,
 ) -> AssessmentResult:
     rules = evaluate_rules(snapshot.facts, snapshot.history_status, policy)
     finite = all(math.isfinite(v) for v in snapshot.payment_vector + snapshot.context_vector)
@@ -60,11 +63,11 @@ def finalize(
     if components is not None and finite:
         risk = combine_scores(
             ComponentScores(components.if_score, components.lof_score, components.context.score, rules.score),
-            policy.weights,
+            operating_point.weights or policy.weights,
         )
     evidence = tuple(evidence_store.active_for(request))
-    decision = decide_action(risk, rules, evidence, status, operating_point, policy)
-    return AssessmentResult(request, snapshot, components, rules, risk, evidence, decision, tuple(notes))
+    decision = decide_action(risk, rules, evidence, status, operating_point, policy, segment)
+    return AssessmentResult(request, snapshot, components, rules, risk, evidence, decision, tuple(notes), segment)
 
 
 def assess_one(
@@ -79,7 +82,7 @@ def assess_one(
 ) -> AssessmentResult:
     snapshot = build_features(request, key, history, account)
     components = bundle.score(snapshot) if bundle is not None else None
-    return finalize(request, snapshot, components, evidence_store, policy, operating_point)
+    return finalize(request, snapshot, components, evidence_store, policy, operating_point, segment_of(account))
 
 
 def assess_batch(
@@ -106,7 +109,7 @@ def assess_batch(
     else:
         components = [None] * len(snapshots)
     return [
-        finalize(r, s, c, evidence_store, policy, operating_point)
+        finalize(r, s, c, evidence_store, policy, operating_point, segment_of(accounts.get(r.sender_id)))
         for r, s, c in zip(requests, snapshots, components, strict=True)
     ]
 

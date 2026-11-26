@@ -1,17 +1,14 @@
-import type { ComponentBrief, ComponentKey, ComponentView } from "../api/types";
+import type { ComponentBrief, ComponentKey, ComponentView, Segment } from "../api/types";
 import { formatScore } from "../lib/format";
 import { cx } from "./ui";
 
-export const COMPONENTS: { key: ComponentKey; short: string; label: string; weight: number; swatch: string }[] = [
-  { key: "isolation_forest", short: "IF", label: "Isolation Forest", weight: 0.35, swatch: "bg-c-if" },
-  { key: "lof", short: "LOF", label: "Local Outlier Factor", weight: 0.25, swatch: "bg-c-lof" },
-  { key: "dbscan", short: "DBSCAN", label: "DBSCAN context", weight: 0.1, swatch: "bg-c-dbscan" },
-  { key: "rules", short: "Rules", label: "Behaviour rules", weight: 0.3, swatch: "bg-c-rules" },
+// Weights are learned during training; every view takes them (or the contributions) from the API.
+export const COMPONENTS: { key: ComponentKey; short: string; label: string; swatch: string }[] = [
+  { key: "isolation_forest", short: "IF", label: "Isolation Forest", swatch: "bg-c-if" },
+  { key: "lof", short: "LOF", label: "Local Outlier Factor", swatch: "bg-c-lof" },
+  { key: "dbscan", short: "DBSCAN", label: "DBSCAN context", swatch: "bg-c-dbscan" },
+  { key: "rules", short: "Rules", label: "Behaviour rules", swatch: "bg-c-rules" },
 ];
-
-function contributions(components: ComponentBrief): { key: ComponentKey; value: number }[] {
-  return COMPONENTS.map((c) => ({ key: c.key, value: 100 * c.weight * (components[c.key] ?? 0) }));
-}
 
 /**
  * The signature element: the 0–100 anomaly-risk index drawn as the sum of its weighted parts,
@@ -22,20 +19,23 @@ export function RiskComposition({
   total,
   verify,
   block,
+  segment,
 }: {
   details: ComponentView[];
   total: number | null;
   verify: number;
   block: number;
+  segment?: Segment;
 }) {
   const parts = COMPONENTS.map((c) => {
     const detail = details.find((d) => d.key === c.key);
-    return { ...c, score: detail?.score ?? null, contribution: detail?.contribution ?? null };
+    return { ...c, weight: detail?.weight ?? 0, score: detail?.score ?? null, contribution: detail?.contribution ?? null };
   });
+  const thresholds = `${segment ? `${segment} account thresholds: ` : ""}verify at ${verify}, block at ${block}`;
   const summary =
     total == null
       ? "No risk score: the models are unavailable."
-      : `Risk ${formatScore(total)} of 100: ${parts.map((p) => `${p.label} ${formatScore(p.contribution)}`).join(", ")}. Verify at ${verify}, block at ${block}.`;
+      : `Risk ${formatScore(total)} of 100: ${parts.map((p) => `${p.label} ${formatScore(p.contribution)}`).join(", ")}. ${thresholds[0].toUpperCase()}${thresholds.slice(1)}.`;
   return (
     <figure className="@container m-0">
       <div className="flex items-baseline justify-between gap-3">
@@ -96,8 +96,8 @@ function Marker({ at, label, tone, border, align = "center" }: { at: number; lab
 }
 
 /** Compact four-part bar for tables and feeds. */
-export function ComponentMiniBar({ components, score }: { components: ComponentBrief; score: number | null }) {
-  const parts = contributions(components);
+export function ComponentMiniBar({ contributions, score }: { contributions: ComponentBrief; score: number | null }) {
+  const parts = COMPONENTS.map((c) => ({ key: c.key, value: contributions[c.key] ?? 0 }));
   const label =
     score == null
       ? "Risk score unavailable"

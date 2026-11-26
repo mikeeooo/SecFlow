@@ -28,7 +28,7 @@ export function AssessmentRow({ item, highlight, compact }: { item: AssessmentSu
         <div className="flex items-center justify-end gap-3">
           {!compact ? (
             <span className="hidden sm:block">
-              <ComponentMiniBar components={item.components} score={item.risk_score} />
+              <ComponentMiniBar contributions={item.contributions} score={item.risk_score} />
             </span>
           ) : null}
           <span className="flex items-center gap-1">

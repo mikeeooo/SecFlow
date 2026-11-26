@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import statistics
 from collections import Counter
+from dataclasses import asdict
 from pathlib import Path
 
 from storage.dataset import (
@@ -13,8 +16,25 @@ from storage.dataset import (
     validate_dataset,
 )
 from storage.evidence import EvidenceStore, evidence_from_row
-from storage.generator import DEMO_SPEC, FRAUD_CATEGORIES, TRAINING_SPEC, generate_dataset
+from storage.generator import (
+    DEMO_SPEC,
+    FRAUD_CATEGORIES,
+    TRAINING_SPEC,
+    _build_account_params,
+    _build_base_counterparties,
+    day_start_ts,
+    generate_dataset,
+)
+from storage.identities import build_accounts
 from storage.records import parse_ts
+
+# sha256 of the generator-only account parameters as produced by generator 1.0.0.
+ACCOUNT_PARAMS_SNAPSHOT = "bea5ee12d4d55aa37c69d08900bb15fb1bfa3bf66dadb600c77f20bcdc270fda"
+DRIFT_BILLERS = {"CP-00651", "CP-00652", "CP-00653"}
+
+
+def _day(spec, timestamp: str) -> int:
+    return (parse_ts(timestamp) - day_start_ts(spec.start, 1)) // 86_400 + 1
 
 
 def test_training_corpus_has_exact_counts(generated: dict[str, Path]) -> None:
@@ -22,30 +42,34 @@ def test_training_corpus_has_exact_counts(generated: dict[str, Path]) -> None:
     counts = manifest["counts"]
     assert counts["requests"] == 100_000
     assert counts["accounts"] == 400
-    assert counts["fraud"] == 1_000
-    assert counts["legitimate"] == 99_000
+    assert counts["fraud"] == 1_040
+    assert counts["legitimate"] == 98_960
     assert counts["unusual_legitimate"] == 5_000
-    assert counts["routine_legitimate"] == 94_000
+    assert counts["routine_legitimate"] == 93_960
     for category in FRAUD_CATEGORIES:
         assert counts["by_scenario"][category] == 200
+    assert counts["by_scenario"]["invoice_redirect"] == 40
     expected = {
         "train": (60_000, 600, 3_000),
         "calibration": (10_000, 100, 500),
         "validation": (10_000, 100, 500),
-        "test": (20_000, 200, 1_000),
+        "test": (20_000, 240, 1_000),
     }
     for name, (requests, fraud, unusual) in expected.items():
         bucket = counts["by_partition"][name]
         assert (bucket["requests"], bucket["fraud"], bucket["unusual_legitimate"]) == (requests, fraud, unusual)
-        assert set(bucket["fraud_by_category"].values()) == {fraud // 5}
+        by_category = bucket["fraud_by_category"]
+        assert {by_category[c] for c in FRAUD_CATEGORIES} == {TRAINING_SPEC.fraud_per_category[name]}
+        assert by_category.get("invoice_redirect", 0) == (40 if name == "test" else 0)
 
 
 def test_demo_dataset_has_exact_counts(generated: dict[str, Path]) -> None:
     counts = json.loads((generated["demo"] / "manifest.json").read_text())["counts"]
-    assert (counts["requests"], counts["accounts"], counts["fraud"], counts["legitimate"]) == (10_000, 400, 100, 9_900)
+    assert (counts["requests"], counts["accounts"], counts["fraud"], counts["legitimate"]) == (10_000, 400, 120, 9_880)
     assert counts["unusual_legitimate"] == 500
     for category in FRAUD_CATEGORIES:
         assert counts["by_scenario"][category] == 20
+    assert counts["by_scenario"]["invoice_redirect"] == 20
 
 
 def test_validation_passes_for_both_datasets(generated: dict[str, Path]) -> None:
@@ -139,3 +163,87 @@ def test_security_evidence_is_time_aware(generated: dict[str, Path]) -> None:
     assert all(not store.active_for(r) for r in paid_to_fixtures)
     campaign = [evidence_from_row(r) for r in rows if not r["note"].startswith("Fixture")]
     assert all(e.recorded_at >= e.effective_from or e.entity_type != "counterparty" for e in campaign)
+
+
+def _training_rows(generated):
+    path = generated["training"]
+    requests = read_jsonl(path / "requests.jsonl")
+    labels = load_labels(path)
+    return requests, labels, load_splits(path)
+
+
+def test_invoice_redirect_only_in_test_partition(generated: dict[str, Path]) -> None:
+    requests, labels, splits = _training_rows(generated)
+    accounts = {a["account_id"]: a for a in read_jsonl(generated["training"] / "accounts.jsonl")}
+    first_day: dict[str, int] = {}
+    seen_devices: dict[str, list[tuple[int, str]]] = {}
+    for row in requests:
+        first_day.setdefault(row["recipient_id"], _day(TRAINING_SPEC, row["timestamp"]))
+        seen_devices.setdefault(row["sender_id"], []).append((parse_ts(row["timestamp"]), row["device_id"]))
+    redirect = [r for r in requests if labels[r["request_id"]]["scenario"] == "invoice_redirect"]
+    assert len(redirect) == 40
+    campaign_day: dict[str, int] = {}
+    for row in redirect:
+        campaign = labels[row["request_id"]]["campaign_id"]
+        campaign_day[campaign] = min(campaign_day.get(campaign, 999), _day(TRAINING_SPEC, row["timestamp"]))
+    for row in redirect:
+        label = labels[row["request_id"]]
+        assert splits[row["request_id"]] == "test"
+        assert label["is_fraud"] and not label["is_anomaly"]
+        assert accounts[row["sender_id"]]["account_type"] == "business"
+        assert first_day[row["recipient_id"]] == campaign_day[label["campaign_id"]]
+        earlier = {d for t, d in seen_devices[row["sender_id"]] if t < parse_ts(row["timestamp"])}
+        assert row["device_id"] in earlier
+        assert row["auth_method"] in {"biometric", "password_otp"}
+    assert not any(
+        labels[r["request_id"]]["scenario"] == "invoice_redirect" and splits[r["request_id"]] != "test"
+        for r in requests
+    )
+
+
+def test_invoice_redirect_has_multi_victim_campaigns(generated: dict[str, Path]) -> None:
+    requests, labels, _ = _training_rows(generated)
+    senders: dict[str, set[str]] = {}
+    for row in requests:
+        label = labels[row["request_id"]]
+        if label["scenario"] == "invoice_redirect":
+            senders.setdefault(label["campaign_id"], set()).add(row["sender_id"])
+    assert senders
+    multi = sum(1 for s in senders.values() if len(s) >= 2)
+    assert multi / len(senders) >= 0.25
+
+
+def test_drift_billers_first_paid_in_test_period(generated: dict[str, Path]) -> None:
+    requests, _, _ = _training_rows(generated)
+    paid = [r for r in requests if r["recipient_id"] in DRIFT_BILLERS]
+    assert paid
+    days = [_day(TRAINING_SPEC, r["timestamp"]) for r in paid]
+    assert min(days) >= 81
+    first_by_sender: dict[str, int] = {}
+    for row, day in zip(paid, days):
+        first_by_sender[row["sender_id"]] = min(first_by_sender.get(row["sender_id"], 999), day)
+    assert len(first_by_sender) >= 80
+    assert len(set(first_by_sender.values())) >= 15
+    counterparties = {c["counterparty_id"] for c in read_jsonl(generated["training"] / "counterparties.jsonl")}
+    assert DRIFT_BILLERS <= counterparties
+
+
+def test_drift_raises_routine_amounts(generated: dict[str, Path]) -> None:
+    requests, labels, _ = _training_rows(generated)
+    window: dict[str, list[float]] = {"before": [], "after": []}
+    for row in requests:
+        if labels[row["request_id"]]["scenario"] != "routine_payment":
+            continue
+        day = _day(TRAINING_SPEC, row["timestamp"])
+        if 61 <= day <= 80:
+            window["before"].append(row["amount"])
+        elif day >= 81:
+            window["after"].append(row["amount"])
+    ratio = statistics.median(window["after"]) / statistics.median(window["before"])
+    assert 1.05 <= ratio <= 1.20
+
+
+def test_account_params_unchanged_by_drift() -> None:
+    params = _build_account_params(build_accounts(), _build_base_counterparties())
+    digest = hashlib.sha256(json.dumps([asdict(p) for p in params], sort_keys=True).encode()).hexdigest()
+    assert digest == ACCOUNT_PARAMS_SNAPSHOT

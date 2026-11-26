@@ -26,15 +26,25 @@ from config.settings import Settings
 from ml.assess import AssessmentResult, assess_batch, assess_one, build_evidence_store
 from ml.model import load_bundle, load_operating_point
 from ml.policy import Policy, decide_action, load_policy
+from ml.training import holdout_accounts
 from storage.dataset import load_dataset, load_labels, load_splits
 from storage.history import HistoryIndex
 
 REVIEW_BUDGET = 0.05
 LATENCY_SAMPLE = 300
 COMPONENT_NAMES = ("isolation_forest", "lof", "dbscan", "rules")
-# Risk-score band edges. 61 and 97 are the validated Verify / Block thresholds, so each band sits
-# wholly on one side of them. The last edge is open so a score of exactly 100 lands in the top band.
-SCORE_BAND_EDGES = (0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 61.0, 70.0, 80.0, 90.0, 97.0, 100.0)
+BOOTSTRAP_RESAMPLES = 1_000
+BOOTSTRAP_SEED = 42
+# Fixed risk-score band edges; the frozen Verify / Block thresholds are added so each band sits wholly
+# on one side of them. The last edge is open so a score of exactly 100 lands in the top band.
+BASE_BAND_EDGES = (0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 70.0, 80.0, 90.0, 100.0)
+
+
+def score_band_edges(verify: float, block: float) -> tuple[float, ...]:
+    return tuple(sorted({*BASE_BAND_EDGES, float(verify), float(block)}))
+
+
+SCORE_BAND_EDGES = score_band_edges(61.0, 97.0)  # default for direct callers without an operating point
 
 
 def _ratio(numerator: float, denominator: float) -> float | None:
@@ -111,7 +121,10 @@ def _component_matrix(results: Sequence[AssessmentResult]) -> np.ndarray:
 
 
 def _decide_without_evidence(results: Sequence[AssessmentResult], policy: Policy, point) -> list[str]:
-    return [decide_action(r.risk, r.rules, [], r.policy.assessment_status, point, policy).decision for r in results]
+    return [
+        decide_action(r.risk, r.rules, [], r.policy.assessment_status, point, policy, r.segment).decision
+        for r in results
+    ]
 
 
 def score_bands(risk: np.ndarray, y: np.ndarray, codes: np.ndarray,
@@ -162,6 +175,37 @@ def score_bands(risk: np.ndarray, y: np.ndarray, codes: np.ndarray,
     }
 
 
+def cluster_bootstrap(
+    codes: np.ndarray, y: np.ndarray, clusters: np.ndarray, n: int = BOOTSTRAP_RESAMPLES, seed: int = BOOTSTRAP_SEED
+) -> dict[str, list[float]]:
+    """95% percentile intervals that resample whole clusters (a fraud campaign, or one legitimate request).
+
+    Fraud arrives in correlated campaigns, so resampling single requests would make intervals too narrow.
+    """
+    codes, y, clusters = np.asarray(codes), np.asarray(y, dtype=bool), np.asarray(clusters)
+    _, cluster_index = np.unique(clusters, return_inverse=True)
+    k = int(cluster_index.max()) + 1
+    flagged = codes > 0
+
+    def per_cluster(values: np.ndarray) -> np.ndarray:
+        return np.bincount(cluster_index, weights=values.astype(float), minlength=k)
+
+    totals = np.column_stack([
+        per_cluster(np.ones(len(y))), per_cluster(y), per_cluster(flagged & y), per_cluster(flagged),
+        per_cluster(codes == 1),
+    ])
+    rng = np.random.default_rng(seed)
+    draws = rng.multinomial(k, np.full(k, 1.0 / k), size=n) @ totals  # (n, 5) resampled sums
+    rows, positives, true_flags, flags, verifies = draws.T
+    with np.errstate(divide="ignore", invalid="ignore"):
+        stats = {
+            "precision_verify_or_block": np.where(flags > 0, true_flags / flags, np.nan),
+            "recall_verify_or_block": np.where(positives > 0, true_flags / positives, np.nan),
+            "verify_rate": verifies / rows,
+        }
+    return {name: [float(np.nanpercentile(v, 2.5)), float(np.nanpercentile(v, 97.5))] for name, v in stats.items()}
+
+
 def _subset(codes: np.ndarray, y: np.ndarray, mask: np.ndarray) -> dict[str, Any]:
     if not mask.any():
         return {"requests": 0, "note": "No requests in this subset."}
@@ -188,12 +232,13 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     component_thresholds = {
         name: float(np.quantile(val_components[:, i], 1 - REVIEW_BUDGET)) for i, name in enumerate(COMPONENT_NAMES)
     }
-    component_thresholds["dbscan"] = 1.0  # binary context score: flag = outside every frozen core neighbourhood
+    component_thresholds["dbscan"] = 0.0  # flag = outside every frozen core neighbourhood (continuous score > 0)
 
     # 2) Assess every final-test request exactly once with the frozen pipeline.
     test = [r for r in dataset.requests if splits[r.request_id] == "test"]
     results = assess_batch(test, keys, history, dataset.accounts, bundle, evidence, policy, point)
     labels = load_labels(settings.training_dir)  # opened only after everything above is frozen
+    campaign = np.array([labels[r.request.request_id]["campaign_id"] or r.request.request_id for r in results])
     y = np.array([bool(labels[r.request.request_id]["is_fraud"]) for r in results])
     scenario = np.array([labels[r.request.request_id]["scenario"] for r in results])
     components = _component_matrix(results)
@@ -205,7 +250,7 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
 
     component_results = {}
     for i, name in enumerate(COMPONENT_NAMES):
-        flagged = components[:, i] >= component_thresholds[name]
+        flagged = components[:, i] > 0 if name == "dbscan" else components[:, i] >= component_thresholds[name]
         component_results[name] = {
             "flag_threshold": component_thresholds[name],
             "threshold_source": "validation top-5% budget" if name != "dbscan" else "outside_context",
@@ -218,6 +263,24 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     routine_mask = scenario == "routine_payment"
     cold_ids = set(dataset.manifest["cold_start"]["account_ids"])
     cold_mask = np.array([r.request.sender_id in cold_ids for r in results])
+    holdout = holdout_accounts(dataset, cold_ids)
+    holdout_mask = np.array([r.request.sender_id in holdout for r in results])
+    drift_ids = list((dataset.manifest.get("drift") or {}).get("biller_ids") or [])
+    drift_mask = np.array([r.request.recipient_id in drift_ids for r in results])
+    unseen_mask = scenario == "invoice_redirect"
+    victims: dict[str, set[str]] = {}
+    for r, cmp, hit in zip(results, campaign, unseen_mask, strict=True):
+        if hit:
+            victims.setdefault(cmp, set()).add(r.request.sender_id)
+    multi = np.array([hit and len(victims[cmp]) > 1 for cmp, hit in zip(campaign, unseen_mask, strict=True)])
+    unseen = {
+        "scenario": "invoice_redirect",
+        **_subset(full_codes, y, unseen_mask),
+        "campaigns": len(victims),
+        "single_victim": _subset(full_codes, y, unseen_mask & ~multi),
+        "multi_victim": _subset(full_codes, y, multi),
+        "note": "Never present in train, calibration or validation.",
+    }
 
     per_scenario = {}
     for name in sorted(set(scenario)):
@@ -276,11 +339,22 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
             ),
             "note": "All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection.",
         },
-        "score_bands": score_bands(risk, y, full_codes),
+        "score_bands": score_bands(risk, y, full_codes, score_band_edges(point.verify, point.block)),
         "per_scenario": per_scenario,
         "unusual_legitimate": _subset(full_codes, y, unusual_mask),
         "routine_legitimate": _subset(full_codes, y, routine_mask),
         "cold_start_accounts": {"accounts": len(cold_ids), **_subset(full_codes, y, cold_mask)},
+        "holdout_accounts": {"accounts": len(holdout), **_subset(full_codes, y, holdout_mask),
+                             "note": "Accounts excluded from every fitting and selection row during training."},
+        "unseen_scenario": unseen,
+        "drift_billers": {"biller_ids": drift_ids, **_subset(full_codes, y, drift_mask)},
+        "confidence_intervals": {
+            **cluster_bootstrap(full_codes, y, np.where(y, campaign, [r.request.request_id for r in results])),
+            "method": (f"cluster bootstrap, {BOOTSTRAP_RESAMPLES} resamples, seed {BOOTSTRAP_SEED}; a fraud campaign "
+                       "or one legitimate request is the resampling unit; 2.5th-97.5th percentiles"),
+        },
+        "weights": dict(point.weights or policy.weights),
+        "segment_thresholds": {k: {"verify": v[0], "block": v[1]} for k, v in point.segments.items()},
         "existing_accounts": _subset(full_codes, y, ~cold_mask),
         "decision_sources": dict(sorted(decision_sources.items())),
         "assessment_statuses": dict(sorted(statuses.items())),
@@ -507,6 +581,41 @@ def render_markdown(s: dict[str, Any]) -> str:
         "",
     ]
     lines += [f"- {k}: {v:,}" for k, v in s["decision_sources"].items()]
+    ci = s["confidence_intervals"]
+    weights = ", ".join(f"{k} {v:.2f}" for k, v in s["weights"].items())
+    segments = "; ".join(f"{k}: Verify ≥ {v['verify']:g}, Block ≥ {v['block']:g}"
+                         for k, v in s["segment_thresholds"].items())
+    unseen, holdout, drift = s["unseen_scenario"], s["holdout_accounts"], s["drift_billers"]
+
+    def flagged(subset: dict[str, Any]) -> str:
+        return _pct(subset.get("verify_or_block", {}).get("recall")) if subset.get("fraud") else "n/a"
+
+    lines += [
+        "",
+        "## Learned weights and segment thresholds",
+        "",
+        f"- Weights (calibration AP search): {weights}",
+        f"- Segment thresholds (validation): {segments}",
+        "",
+        "## Confidence intervals (95%)",
+        "",
+        (f"- Verify-or-Block precision: {_pct(ci['precision_verify_or_block'][0])} – "
+        f"{_pct(ci['precision_verify_or_block'][1])}"),
+        f"- Verify-or-Block recall: {_pct(ci['recall_verify_or_block'][0])} – {_pct(ci['recall_verify_or_block'][1])}",
+        f"- Verify rate: {_pct(ci['verify_rate'][0])} – {_pct(ci['verify_rate'][1])}",
+        f"- Method: {ci['method']}",
+        "",
+        "## Unseen scenario, holdout accounts and drift",
+        "",
+        (f"- invoice_redirect ({unseen.get('requests', 0)} requests, {unseen['campaigns']} campaigns): "
+        f"flagged {flagged(unseen)}; single-victim {flagged(unseen['single_victim'])}, "
+        f"multi-victim {flagged(unseen['multi_victim'])}"),
+        (f"- Holdout accounts ({holdout['accounts']} accounts, {holdout.get('requests', 0)} requests, "
+        f"{holdout.get('fraud', 0)} fraud): recall {flagged(holdout)}, "
+        f"verify rate {_pct(holdout.get('verify_rate'))}"),
+        (f"- Drift billers ({drift.get('requests', 0)} requests): verify rate {_pct(drift.get('verify_rate'))}, "
+        f"false-block rate {_pct(drift.get('legitimate_false_block_rate'), 2)}"),
+    ]
     lines += [
         "",
         "Scores are anomaly-risk indices, not probabilities of fraud. A high score alone is never treated as confirmed fraud.",

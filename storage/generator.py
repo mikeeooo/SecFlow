@@ -31,7 +31,7 @@ from storage.identities import (
     build_counterparties,
 )
 
-GENERATOR_VERSION = "secflow-generator-1.0.0"
+GENERATOR_VERSION = "secflow-generator-1.1.0"
 SCHEMA_VERSION = "1.0"
 CURRENCY = "EUR"
 DAY_SECONDS = 86_400
@@ -52,6 +52,11 @@ TRUSTED_SOURCES = ("bank_security_operations", "fraud_investigations_unit")
 UNTRUSTED_SOURCE = "external_tip_feed"
 BASE_COUNTERPARTIES = 650
 POPULAR_BILLERS = 25
+# Test-period drift: billers nobody paid before, adopted by a share of accounts over time.
+DRIFT_BILLERS = 3
+DRIFT_ADOPTION_SHARE = 0.30
+DRIFT_PAYMENT_PROBABILITY = 0.15
+DRIFT_BILLER_KINDS = ("Broadband", "Water Services", "Streaming")
 
 RUNTIME_FILES = (
     "accounts.jsonl",
@@ -85,6 +90,11 @@ class DatasetSpec:
     unusual_per_partition: dict[str, int]
     cold_start_partition: str | None
     activity_scale: float
+    # partition -> scenario -> requests, for fraud scenarios outside FRAUD_CATEGORIES
+    extra_fraud: dict[str, dict[str, int]] = field(default_factory=dict)
+    drift_first_day: int | None = None  # routine amounts scale by drift_amount_factor from this day on
+    drift_amount_factor: float = 1.0
+    drift_adoption_days: tuple[int, int] | None = None  # first/last day an account may start paying a drift biller
 
 
 TRAINING_START = date(2026, 4, 6)
@@ -109,6 +119,10 @@ TRAINING_SPEC = DatasetSpec(
     unusual_per_partition={"train": 3000, "calibration": 500, "validation": 500, "test": 1000},
     cold_start_partition="test",
     activity_scale=1.0,
+    extra_fraud={"test": {"invoice_redirect": 40}},
+    drift_first_day=81,
+    drift_amount_factor=1.12,
+    drift_adoption_days=(81, 100),
 )
 
 DEMO_SPEC = DatasetSpec(
@@ -124,6 +138,10 @@ DEMO_SPEC = DatasetSpec(
     unusual_per_partition={"demo": 500},
     cold_start_partition=None,
     activity_scale=0.1,
+    extra_fraud={"demo": {"invoice_redirect": 20}},
+    drift_first_day=1,
+    drift_amount_factor=1.12,
+    drift_adoption_days=(1, 1),
 )
 
 
@@ -181,6 +199,38 @@ def _build_base_counterparties() -> list[CounterpartyIdentity]:
         rng, BASE_COUNTERPARTIES - POPULAR_BILLERS, "CP-", POPULAR_BILLERS + 1, reserved_names=reserved
     )
     return billers + others
+
+
+def _drift_billers(reserved: set[str]) -> list[CounterpartyIdentity]:
+    """Billers that exist from the start but nobody pays before the drift adoption days."""
+    from storage.identities import BUSINESS_PREFIXES
+
+    billers = []
+    for index in range(DRIFT_BILLERS):
+        prefix = BUSINESS_PREFIXES[(POPULAR_BILLERS + index) % len(BUSINESS_PREFIXES)]
+        name = f"{prefix} {DRIFT_BILLER_KINDS[index]}"
+        if name in reserved:
+            name = f"{name} Group"
+        reserved.add(name)
+        billers.append(CounterpartyIdentity(f"CP-{BASE_COUNTERPARTIES + index + 1:05d}", name, "business", "biller"))
+    return billers
+
+
+def _drift_adoption(
+    accounts: list[AccountIdentity], billers: list[str], days: tuple[int, int] | None
+) -> dict[str, tuple[str, int]]:
+    """account -> (drift biller, first day it may be paid). A separate RNG keeps account params unchanged."""
+    if days is None:
+        return {}
+    rng = np.random.default_rng(IDENTITY_SEED + 3000)
+    adoption = {}
+    for account in accounts:
+        adopts = rng.random() < DRIFT_ADOPTION_SHARE
+        biller = billers[int(rng.integers(len(billers)))]
+        day = int(rng.integers(days[0], days[1] + 1))
+        if adopts:
+            adoption[account.account_id] = (biller, day)
+    return adoption
 
 
 def _build_account_params(
@@ -320,6 +370,13 @@ class _Generator:
         self._cp_index = 1
         self.biller_ids = [c.counterparty_id for c in self.base_counterparties[:POPULAR_BILLERS]]
         self.base_ids = [c.counterparty_id for c in self.base_counterparties]
+        self.kind_of = {c.counterparty_id: c.kind for c in self.base_counterparties}
+        # Drift billers are written out but deliberately kept out of base_ids/biller_ids:
+        # only drift adoption pays them, so nobody does before an account's adoption day.
+        self.drift_billers = _drift_billers(self._reserved_names)
+        self.drift_adoption = _drift_adoption(
+            self.accounts, [c.counterparty_id for c in self.drift_billers], spec.drift_adoption_days
+        )
 
     # -- helpers ---------------------------------------------------------
     def _choice(self, values: list[Any], weights: list[float] | None = None) -> Any:
@@ -465,7 +522,13 @@ class _Generator:
         return [{"status": "confirmed", "at": at, "reason": "investigation_confirmed"}]
 
     # -- routine ---------------------------------------------------------
+    def _day_number(self, day_start: int) -> int:
+        return (day_start - day_start_ts(self.spec.start, 1)) // DAY_SECONDS + 1
+
     def routine(self, count: int, day_start: int) -> list[Draft]:
+        day = self._day_number(day_start)
+        drifted = self.spec.drift_first_day is not None and day >= self.spec.drift_first_day
+        amount_factor = self.spec.drift_amount_factor if drifted else 1.0
         active = self._active_accounts(day_start)
         weights = [self.params[a].activity_weight for a in active]
         drafts: list[Draft] = []
@@ -474,7 +537,10 @@ class _Generator:
             sender = active[int(index)]
             p = self.params[sender]
             ts = self._clamp(day_start + self._hour_offset(sender), day_start)
-            if self.rng.random() < 0.06:
+            adoption = self.drift_adoption.get(sender)
+            if adoption is not None and day >= adoption[1] and self.rng.random() < DRIFT_PAYMENT_PROBABILITY:
+                recipient, factor = adoption[0], 1.0
+            elif self.rng.random() < 0.06:
                 # Ordinary people also pay payees nobody in the dataset has paid before.
                 recipient = self._new_counterparty(0.6) if self.rng.random() < 0.5 else self._choice(self.base_ids)
                 factor = float(np.exp(self.rng.normal(0, 0.4)))
@@ -495,8 +561,8 @@ class _Generator:
             session = self._session(sender, device, ts, method, failures, ip)
             drafts.append(
                 self._draft(
-                    ts, sender, recipient, self._amount(sender, factor), device, session, method, ip,
-                    "routine_payment", False, False, None,
+                    ts, sender, recipient, self._amount(sender, factor * amount_factor), device, session, method,
+                    ip, "routine_payment", False, False, None,
                 )
             )
         return drafts
@@ -687,6 +753,40 @@ class _Generator:
                 "fraud_controlled_beneficiary", "counterparty", beneficiary, recorded, recorded, None,
                 TRUSTED_SOURCES[1], self._confirmed_history(recorded),
                 "Beneficiary linked to a confirmed impersonation scam (simulated).",
+            )
+        return drafts
+
+    def _fraud_invoice_redirect(self, plan: _Plan, day_start: int) -> list[Draft]:
+        """Businesses pay a fake supplier an ordinary invoice amount from a known device with strong sign-in.
+
+        Never generated in train/calibration/validation. Multi-victim campaigns share one brand-new payee.
+        """
+        candidates = [
+            a for a in self._active_accounts(day_start)
+            if self.params[a].account_type == "business" and not self.params[a].cold_start
+        ]
+        senders = self.rng.choice(candidates, size=plan.size, replace=False).tolist()
+        # Business names run out late in the corpus; a person-named payee keeps the name search finite.
+        beneficiary = self._new_counterparty(business_share=0.7)
+        window = 6 * 3_600
+        start = self._campaign_start(day_start, window)
+        drafts = []
+        for sender in senders:
+            p = self.params[sender]
+            slot = next(
+                (i for i, payee in enumerate(p.payees)
+                 if self.kind_of.get(payee) == "business" and payee not in self.biller_ids),
+                0,
+            )
+            ts = start + int(self.rng.integers(0, window))
+            device = self.devices[sender][0]
+            method = self._choice(["password_otp", "biometric"])
+            session = self._session(sender, device, ts, method, 0, p.home_country)
+            drafts.append(
+                self._draft(
+                    self._clamp(ts, day_start), sender, beneficiary, self._amount(sender, p.payee_factors[slot], 0.1),
+                    device, session, method, p.home_country, "invoice_redirect", True, False, plan.campaign_id,
+                )
             )
         return drafts
 
@@ -931,6 +1031,7 @@ FRAUD_SIZES = {
     "velocity": (4, 9),
     "social_engineering": (1, 3),
     "coordinated": (3, 7),
+    "invoice_redirect": (1, 3),
 }
 UNUSUAL_SIZES = {
     "large_planned_purchase": (1, 1),
@@ -964,6 +1065,12 @@ def _plan(spec: DatasetSpec, rng: np.random.Generator) -> list[_Plan]:
         for category in FRAUD_CATEGORIES:
             low, high = FRAUD_SIZES[category]
             for size in _split_total(rng, spec.fraud_per_category[partition.name], low, high):
+                counter += 1
+                plans.append(_Plan(category, True, int(rng.choice(days)), size,
+                                   f"CMP-{spec.entity_prefix}{counter:04d}"))
+        for category, total in spec.extra_fraud.get(partition.name, {}).items():
+            low, high = FRAUD_SIZES[category]
+            for size in _split_total(rng, total, low, high):
                 counter += 1
                 plans.append(_Plan(category, True, int(rng.choice(days)), size,
                                    f"CMP-{spec.entity_prefix}{counter:04d}"))
@@ -1124,7 +1231,7 @@ def generate_dataset(output_dir: Path, spec: DatasetSpec) -> dict[str, Any]:
     ]
     counterparty_rows = [
         {"counterparty_id": c.counterparty_id, "display_name": c.display_name, "kind": c.kind, "category": c.category}
-        for c in gen.base_counterparties + gen.state.new_counterparties
+        for c in gen.base_counterparties + gen.drift_billers + gen.state.new_counterparties
     ]
     param_rows = [
         {key: value for key, value in asdict(p).items()} | {"created_at": iso(p.created_at)}
@@ -1209,6 +1316,14 @@ def _manifest(
         "days": spec.days,
         "requests_per_day": spec.requests_per_day,
         "partitions": [asdict(p) for p in spec.partitions],
+        "extra_fraud": spec.extra_fraud,
+        "drift": {
+            "first_day": spec.drift_first_day,
+            "amount_factor": spec.drift_amount_factor,
+            "adoption_days": list(spec.drift_adoption_days) if spec.drift_adoption_days else None,
+            "adoption_share": DRIFT_ADOPTION_SHARE,
+            "biller_ids": [c.counterparty_id for c in gen.drift_billers],
+        },
         "counts": {
             "requests": len(requests),
             "accounts": len(accounts),
