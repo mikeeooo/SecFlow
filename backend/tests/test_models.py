@@ -8,7 +8,7 @@ import pytest
 from config.settings import load_settings
 from ml.algorithms.dbscan_context import DBSCANContext, EmptyCoreError
 from ml.algorithms.isolation_forest import IsolationForestDetector
-from ml.algorithms.local_outlier_factor import LocalOutlierFactorDetector
+from ml.algorithms.local_outlier_factor import LOF_SUBSPACES, LocalOutlierFactorDetector
 from ml.algorithms.preprocessing import EmpiricalScoreMapping, FeaturePreprocessor
 from ml.features import PAYMENT_FEATURES
 from ml.model import BundleError, load_bundle, load_operating_point
@@ -57,11 +57,49 @@ def test_dbscan_context_near_core_outside_insufficient_and_empty() -> None:
     context = DBSCANContext(eps=0.5, min_samples=5).fit(NORMAL)
     results = context.score(np.vstack([NORMAL[:1], OUTLIER, OUTLIER]), ["ok", "ok", "insufficient_history"])
     assert (results[0].score, results[0].status) == (0.0, "within_context")
-    assert (results[1].score, results[1].status) == (1.0, "outside_context")
+    assert results[1].status == "outside_context" and results[1].score > 0
     assert (results[2].score, results[2].status) == (0.0, "insufficient_history")
     sparse = np.arange(20, dtype=float).reshape(-1, 1) * 100
     with pytest.raises(EmptyCoreError):
         DBSCANContext(eps=0.01, min_samples=5).fit(sparse)
+
+
+def test_lof_uses_only_selected_columns() -> None:
+    detector = LocalOutlierFactorDetector(n_neighbors=20, columns=(0, 1)).fit(NORMAL)
+    probe = RNG.normal(0, 1, size=(50, 4))
+    changed = probe.copy()
+    changed[:, 2:] += 100.0  # columns the detector does not use
+    np.testing.assert_array_equal(detector.raw_scores(probe), detector.raw_scores(changed))
+    assert detector.params["columns"] == (0, 1)
+
+
+def test_lof_fit_rows_subsample_is_seeded() -> None:
+    a = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=500).fit(NORMAL)
+    b = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=500).fit(NORMAL)
+    assert a.model.n_samples_fit_ == 500
+    np.testing.assert_array_equal(a.raw_scores(NORMAL[:100]), b.raw_scores(NORMAL[:100]))
+    assert a.training_diagnostics()["fit_rows"] == 500
+    full = LocalOutlierFactorDetector(n_neighbors=20, fit_rows=5_000).fit(NORMAL)
+    assert full.model.n_samples_fit_ == 2_000
+
+
+def test_lof_subspaces_name_known_payment_features() -> None:
+    assert set(LOF_SUBSPACES) == {"amount", "amount_velocity", "amount_velocity_beneficiary", "full"}
+    assert LOF_SUBSPACES["full"] == PAYMENT_FEATURES
+    assert LOF_SUBSPACES["amount"] == ("log_amount", "amount_zscore_30d", "log_amount_to_prior_max_30d")
+    for names in LOF_SUBSPACES.values():
+        assert set(names) <= set(PAYMENT_FEATURES)
+
+
+def test_dbscan_continuous_score() -> None:
+    context = DBSCANContext(eps=0.5, min_samples=5).fit(np.zeros((10, 1)))  # all cores at 0, identity scaling
+    probes = np.array([[0.2], [0.75], [1.0], [5.0], [5.0]])
+    results = context.score(probes, ["ok", "ok", "ok", "ok", "insufficient_history"])
+    assert (results[0].score, results[0].status) == (0.0, "within_context")
+    assert results[1].status == "outside_context" and results[1].score == pytest.approx(0.5)
+    assert (results[2].score, results[2].status) == (1.0, "outside_context")
+    assert (results[3].score, results[3].status) == (1.0, "outside_context")
+    assert (results[4].score, results[4].status) == (0.0, "insufficient_history")
 
 
 def test_saved_bundle_round_trip_and_schema_metadata() -> None:
