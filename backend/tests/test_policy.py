@@ -232,3 +232,27 @@ def test_weights_must_sum_to_one(tmp_path) -> None:
     path.write_text(json.dumps(raw))
     with pytest.raises(ValueError):
         load_policy(path)
+
+
+def _codes(facts: dict, status: str = "sufficient") -> set[str]:
+    return {t.code for t in evaluate_rules(facts, status, POLICY).triggered}
+
+
+def test_repeat_new_beneficiary_fires_on_second_payment() -> None:
+    facts = {**BASE_FACTS, "new_recipient": True, "pair_requests_24h": 1}
+    hit = [t for t in evaluate_rules(facts, "sufficient", POLICY).triggered if t.code == "REPEAT_NEW_BENEFICIARY"]
+    assert len(hit) == 1
+    assert (hit[0].family, hit[0].weight, hit[0].corroborating) == ("beneficiary_risk", 0.15, False)
+    assert "2 payments to this new beneficiary in 24 hours" in hit[0].detail
+
+
+def test_repeat_new_beneficiary_silent_on_first_or_established() -> None:
+    assert "REPEAT_NEW_BENEFICIARY" not in _codes({**BASE_FACTS, "new_recipient": True, "pair_requests_24h": 0})
+    assert "REPEAT_NEW_BENEFICIARY" not in _codes({**BASE_FACTS, "new_recipient": False, "pair_requests_24h": 3})
+    assert "REPEAT_NEW_BENEFICIARY" not in _codes({**BASE_FACTS, "new_recipient": True, "pair_requests_24h": 2}, "none")
+
+
+def test_repeat_new_beneficiary_does_not_corroborate() -> None:
+    result = evaluate_rules({**BASE_FACTS, "new_recipient": True, "pair_requests_24h": 2}, "sufficient", POLICY)
+    assert "REPEAT_NEW_BENEFICIARY" in {t.code for t in result.triggered}
+    assert "beneficiary_risk" not in result.corroborating_families

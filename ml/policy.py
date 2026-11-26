@@ -179,6 +179,10 @@ def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: 
     elif rule.code == "SHARED_NEW_BENEFICIARY":
         if f["new_recipient"] and f["recipient_senders_24h"] >= p["min_other_senders_24h"] and recent_beneficiary:
             return f"{f['recipient_senders_24h']} other accounts paid this beneficiary in the last 24 hours"
+    elif rule.code == "REPEAT_NEW_BENEFICIARY":
+        prior = f.get("pair_requests_24h", 0)
+        if has_history and f["new_recipient"] and prior >= p["min_prior_payments_24h"]:
+            return f"{prior + 1} payments to this new beneficiary in 24 hours"
     elif rule.code == "NEW_BENEFICIARY_HIGH_AMOUNT":
         if has_history and f["new_recipient"] and z is not None and z >= p["min_zscore"]:
             return f"z-score {z} to a beneficiary without an established payment history"
