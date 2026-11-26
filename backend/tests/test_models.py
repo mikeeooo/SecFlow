@@ -163,7 +163,96 @@ def test_training_never_fit_on_held_out_partitions() -> None:
     settings = load_settings()
     report = json.loads((settings.models_dir / "training_report.json").read_text())
     meta = json.loads((settings.models_dir / "metadata.json").read_text())
-    assert meta["fit_rows"]["preprocessing"] == 60_000
+    assert 50_000 < meta["fit_rows"]["preprocessing"] < 60_000  # train days minus holdout accounts
     assert meta["fit_rows"]["dbscan"] <= 60_000
     assert report["operating_point"]["source"].startswith("validated")
-    assert all(r["fit_rows"] == 60_000 for r in report["search"]["lof"])
+    assert len(report["search"]["lof"]) == 24
+
+
+# -- training integration (runs train_models on the generated corpus) -------------------------
+
+
+def _train_rows_without(training_dir: Path, excluded: set[str]) -> int:
+    from storage.dataset import load_splits, read_jsonl
+
+    splits = load_splits(training_dir)
+    return sum(
+        1 for r in read_jsonl(training_dir / "requests.jsonl")
+        if splits[r["request_id"]] == "train" and r["sender_id"] not in excluded
+    )
+
+
+def test_holdout_accounts_never_in_fit_rows(trained: dict) -> None:
+    import json
+
+    report = trained["report"]
+    holdout = set(report["holdout_accounts"]["account_ids"])
+    manifest = json.loads((trained["training_dir"] / "manifest.json").read_text())
+    assert len(holdout) == 40
+    assert holdout.isdisjoint(manifest["cold_start"]["account_ids"])
+    meta = json.loads((trained["models_dir"] / "metadata.json").read_text())
+    expected = _train_rows_without(trained["training_dir"], holdout)
+    assert meta["fit_rows"]["preprocessing"] == meta["fit_rows"]["isolation_forest"] == expected
+
+
+def test_weights_learned_on_calibration_not_validation(trained: dict) -> None:
+    import json
+
+    search = trained["report"]["weights_search"]
+    assert search["partition"] == "calibration"
+    assert search["candidates"] == 1540
+    point = json.loads((trained["models_dir"] / "operating_point.json").read_text())
+    assert point["weights"] == search["selected"]
+    assert sum(point["weights"].values()) == pytest.approx(1.0)
+    assert point["weights"]["lof"] >= 0.05 - 1e-9
+    assert set(point["segments"]) == {"personal", "business"}
+
+
+def test_lof_grid_covers_subspaces_k_and_fit_rows(trained: dict) -> None:
+    records = trained["report"]["search"]["lof"]
+    grid = {(r["subspace"], r["n_neighbors"], r["fit_rows_requested"]) for r in records}
+    assert len(records) == len(grid) == 24
+    assert {r["subspace"] for r in records} == {"amount", "amount_velocity", "amount_velocity_beneficiary", "full"}
+    assert {r["n_neighbors"] for r in records} == {20, 35, 50}
+    assert {r["fit_rows_requested"] for r in records} == {20_000, "all"}
+    selected = trained["report"]["selected_parameters"]["lof"]
+    assert selected["subspace"] in LOF_SUBSPACES
+
+
+def test_segment_fallback_reported_when_infeasible() -> None:
+    from ml.policy import load_policy
+    from ml.training import select_segment_points
+
+    policy = load_policy(load_settings().policy_path)
+    rng = np.random.default_rng(5)
+    n = 4_000
+    segments = np.array(["personal"] * 2_000 + ["business"] * 2_000)
+    y = np.zeros(n, dtype=bool)
+    y[rng.choice(2_000, 40, replace=False)] = True  # personal fraud
+    risk = np.where(y, 85.0, rng.uniform(0, 40, n))
+    risk[2_000:] = 99.0  # business: every row maximal, half of them fraud -> no feasible pair
+    y[2_000:3_000] = True
+    families = np.full(n, 3)
+    unsafe = np.zeros(n, dtype=bool)
+    point, report = select_segment_points(risk, families, unsafe, y, segments, policy)
+    assert report["segments"]["business"]["fallback"] is True
+    assert point.thresholds_for("business") == (point.verify, point.block)
+    assert report["segments"]["personal"]["fallback"] is False
+    assert point.thresholds_for("personal") == (
+        report["segments"]["personal"]["chosen"]["verify_threshold"],
+        report["segments"]["personal"]["chosen"]["block_threshold"],
+    )
+
+
+def test_segment_without_fraud_falls_back() -> None:
+    from ml.policy import load_policy
+    from ml.training import select_segment_points
+
+    policy = load_policy(load_settings().policy_path)
+    segments = np.array(["personal"] * 1_000 + ["business"] * 1_000)
+    y = np.zeros(2_000, dtype=bool)
+    y[:20] = True
+    risk = np.where(y, 90.0, 10.0)
+    point, report = select_segment_points(risk, np.full(2_000, 3), np.zeros(2_000, dtype=bool), y, segments, policy)
+    assert report["segments"]["business"]["fallback"] is True
+    assert "no fraud" in report["segments"]["business"]["reason"]

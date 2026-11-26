@@ -26,3 +26,15 @@ def generated(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
         generate_dataset(base / spec.name, spec)
         paths[spec.name] = base / spec.name
     return paths
+
+
+@pytest.fixture(scope="session")
+def trained(generated: dict[str, Path], tmp_path_factory: pytest.TempPathFactory) -> dict:
+    """Train on the freshly generated corpus into a temporary models directory."""
+    from config.settings import load_settings
+    from ml.policy import load_policy
+    from ml.training import train_models
+
+    models_dir = tmp_path_factory.mktemp("models")
+    report = train_models(generated["training"], models_dir, load_policy(load_settings().policy_path))
+    return {"models_dir": models_dir, "report": report, "training_dir": generated["training"]}
