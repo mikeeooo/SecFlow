@@ -31,6 +31,14 @@ SOURCE_SAFEGUARD = "assessment_safeguard"
 
 UNSAFE_STATUSES = frozenset({"model_unavailable", "invalid_features", "insufficient_history"})
 
+# Account segments with their own validated Verify/Block thresholds.
+SEGMENTS = ("personal", "business")
+
+
+def segment_of(account: Any) -> str:
+    """Threshold segment of a sender account; unknown or missing accounts use `personal`."""
+    return "business" if getattr(account, "account_type", None) == "business" else "personal"
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -110,6 +118,12 @@ class OperatingPoint:
     block: float
     source: str  # "validated" | "initial"
     version: str
+    weights: Mapping[str, float] | None = None  # learned combination weights; None -> policy weights
+    segments: Mapping[str, tuple[float, float]] = field(default_factory=dict)  # segment -> (verify, block)
+
+    def thresholds_for(self, segment: str) -> tuple[float, float]:
+        """(verify, block) for a segment, falling back to the global pair."""
+        return tuple(self.segments.get(segment, (self.verify, self.block)))  # type: ignore[return-value]
 
 
 # ---------------------------------------------------------------------------
@@ -301,8 +315,10 @@ def decide_action(
     status: str,
     operating_point: OperatingPoint,
     policy: Policy,
+    segment: str = "personal",
 ) -> PolicyResult:
-    """Apply the evidence-first action table (priority 1 -> 5)."""
+    """Apply the evidence-first action table (priority 1 -> 5) with the sender segment's thresholds."""
+    verify, block = operating_point.thresholds_for(segment)
     families = rules.corroborating_families if rules else ()
     if evidence:
         ids = tuple(e.evidence_id for e in evidence)
@@ -317,25 +333,25 @@ def decide_action(
             DECISION_VERIFY, SOURCE_SAFEGUARD, "Needs verification", status, (), families,
             "Sent to verification because the request cannot be assessed safely with the information available.",
         )
-    if risk.total >= operating_point.block and len(families) >= policy.min_families:
+    if risk.total >= block and len(families) >= policy.min_families:
         return PolicyResult(
             DECISION_BLOCK, SOURCE_RISK, "Preventive risk block", status, (), families,
-            f"Preventive block: risk {risk.total:.1f} reached the block threshold {operating_point.block:g} and "
+            f"Preventive block: risk {risk.total:.1f} reached the {segment} block threshold {block:g} and "
             f"{len(families)} distinct behavioural signals corroborate it. This is a risk decision, not confirmed fraud.",
         )
-    if risk.total >= operating_point.verify:
+    if risk.total >= verify:
         reason = (
             "very high anomaly score without enough independent corroborating signals for a block"
-            if risk.total >= operating_point.block
+            if risk.total >= block
             else "unusual behaviour above the verification threshold"
         )
         return PolicyResult(
             DECISION_VERIFY, SOURCE_RISK, "Needs verification", status, (), families,
-            f"Needs verification: {reason} (risk {risk.total:.1f}, threshold {operating_point.verify:g}).",
+            f"Needs verification: {reason} (risk {risk.total:.1f}, {segment} threshold {verify:g}).",
         )
     return PolicyResult(
         DECISION_PERMIT, SOURCE_RISK, "Permitted", status, (), families,
-        f"Permitted: risk {risk.total:.1f} is below the verification threshold {operating_point.verify:g}.",
+        f"Permitted: risk {risk.total:.1f} is below the {segment} verification threshold {verify:g}.",
     )
 
 
@@ -344,11 +360,14 @@ def decide_arrays(
     families: np.ndarray,
     unsafe: np.ndarray,
     has_evidence: np.ndarray,
-    verify: float,
-    block: float,
+    verify: float | np.ndarray,
+    block: float | np.ndarray,
     min_families: int,
 ) -> np.ndarray:
-    """Vectorised `decide_action` returning 0=Permit, 1=Verify, 2=Block (tested for equivalence)."""
+    """Vectorised `decide_action` returning 0=Permit, 1=Verify, 2=Block (tested for equivalence).
+
+    `verify` and `block` are scalars or per-row arrays (each row's segment thresholds).
+    """
     block_mask = has_evidence | (~unsafe & (risk >= block) & (families >= min_families))
     verify_mask = ~block_mask & (unsafe | (risk >= verify))
     return np.where(block_mask, 2, np.where(verify_mask, 1, 0))
