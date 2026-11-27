@@ -1,23 +1,23 @@
 {
-  "verify_threshold": 83.0,
-  "block_threshold": 99.0,
+  "verify_threshold": 69.0,
+  "block_threshold": 91.0,
   "source": "validated",
-  "version": "op-8d3e6850",
-  "model_version": "secflow-sk-1.1-a7a420d885",
+  "version": "op-65088891",
+  "model_version": "secflow-sk-2.0-910679dc58",
   "weights": {
-    "isolation_forest": 0.8,
+    "isolation_forest": 0.65,
     "lof": 0.05,
     "dbscan": 0.0,
-    "rules": 0.15
+    "rules": 0.3
   },
   "segments": {
     "personal": {
-      "verify": 80.0,
-      "block": 93.0
+      "verify": 71.0,
+      "block": 91.0
     },
     "business": {
-      "verify": 90.0,
-      "block": 99.0
+      "verify": 69.0,
+      "block": 91.0
     }
   }
 }

@@ -1,0 +1,347 @@
+{
+  "dataset": "secflow-mia-instant",
+  "schema_version": "2.0",
+  "generator_version": "secflow-mia-generator-2.0.0",
+  "seed": 42,
+  "identity_seed": 42,
+  "provenance": "Fully synthetic data produced by datagen/generator.py, modelled on MIA Plati Instant (National Bank of Moldova). Accounts, counterparties, phone aliases, payments, sessions and security evidence are generated; they describe no real people, businesses, phone numbers or confirmed fraud cases.",
+  "currency": "MDL",
+  "mia_limits": {
+    "currency": "MDL",
+    "personal": {
+      "per_transaction": 5000.0,
+      "per_day": 10000.0,
+      "per_month": 30000.0
+    },
+    "business": {
+      "per_transaction": 100000.0,
+      "per_day": 1000000.0,
+      "per_month": null
+    },
+    "fee_free_per_month": 10000.0
+  },
+  "start_date": "2026-01-05",
+  "days": 100,
+  "assessed_payments_per_day": 1000,
+  "settlement_seconds": 5,
+  "partitions": {
+    "train": {
+      "file": "storage/train.json",
+      "days": [
+        1,
+        70
+      ],
+      "date_range": {
+        "start": "2026-01-05T00:20:15Z",
+        "end": "2026-03-15T23:53:09Z"
+      },
+      "rows": 75416,
+      "assessed_payments": 70000,
+      "context_credits": 5416,
+      "fraud": 1500,
+      "fraud_is_anomaly_false": 542,
+      "unusual_legitimate": 3500,
+      "fraud_by_type": {
+        "account_takeover_phishing": 150,
+        "coordinated_beneficiary": 150,
+        "investment_scam": 150,
+        "limit_structuring": 150,
+        "marketplace_scam": 150,
+        "money_mule": 150,
+        "request_to_pay_scam": 150,
+        "romance_scam": 150,
+        "sim_swap_takeover": 150,
+        "vishing_impersonation": 150
+      },
+      "anomaly_by_type": {
+        "business_settlement": 132,
+        "diaspora_remittance_spend": 195,
+        "group_payment_new_payee": 361,
+        "holiday_spike": 284,
+        "household_repeat_payments": 442,
+        "legit_alias_change": 126,
+        "limit_increase_then_large_payment": 84,
+        "near_limit_planned_purchase": 104,
+        "new_device_legit": 203,
+        "new_merchant_qr": 104,
+        "night_payment": 87,
+        "payroll_burst": 675,
+        "salary_day_spike": 369,
+        "travel_abroad": 334
+      },
+      "payment_schemes": {
+        "b2b": 32989,
+        "b2p_salary": 2155,
+        "p2b_link": 5853,
+        "p2b_qr_dynamic": 6878,
+        "p2b_qr_static": 8024,
+        "p2g": 1399,
+        "p2p_alias": 10565,
+        "p2p_iban": 4770,
+        "remittance_in": 253,
+        "request_to_pay": 2530
+      },
+      "senders": 360,
+      "sha256": "d4a24243f20b1c25eb085d0fa7551cd09da753dd49021c5c0a44316ee829f02b",
+      "bytes": 79825761
+    },
+    "validation": {
+      "file": "storage/validation.json",
+      "days": [
+        71,
+        85
+      ],
+      "date_range": {
+        "start": "2026-03-16T00:08:46Z",
+        "end": "2026-03-30T23:55:48Z"
+      },
+      "rows": 16138,
+      "assessed_payments": 15000,
+      "context_credits": 1138,
+      "fraud": 300,
+      "fraud_is_anomaly_false": 136,
+      "unusual_legitimate": 750,
+      "fraud_by_type": {
+        "account_takeover_phishing": 30,
+        "coordinated_beneficiary": 30,
+        "investment_scam": 30,
+        "limit_structuring": 30,
+        "marketplace_scam": 30,
+        "money_mule": 30,
+        "request_to_pay_scam": 30,
+        "romance_scam": 30,
+        "sim_swap_takeover": 30,
+        "vishing_impersonation": 30
+      },
+      "anomaly_by_type": {
+        "business_settlement": 22,
+        "diaspora_remittance_spend": 30,
+        "group_payment_new_payee": 94,
+        "household_repeat_payments": 112,
+        "legit_alias_change": 30,
+        "limit_increase_then_large_payment": 23,
+        "near_limit_planned_purchase": 29,
+        "new_device_legit": 32,
+        "new_merchant_qr": 21,
+        "night_payment": 28,
+        "payroll_burst": 144,
+        "salary_day_spike": 70,
+        "travel_abroad": 115
+      },
+      "payment_schemes": {
+        "b2b": 7216,
+        "b2p_salary": 440,
+        "p2b_link": 1180,
+        "p2b_qr_dynamic": 1459,
+        "p2b_qr_static": 1682,
+        "p2g": 296,
+        "p2p_alias": 2271,
+        "p2p_iban": 1046,
+        "remittance_in": 40,
+        "request_to_pay": 508
+      },
+      "senders": 358,
+      "sha256": "49d4a674c196c41c189a2d3cd2bf79df25fda3e8b4be136ae19cc614d930ae89",
+      "bytes": 17068055
+    },
+    "test": {
+      "file": "storage/test.json",
+      "days": [
+        86,
+        100
+      ],
+      "date_range": {
+        "start": "2026-03-31T00:11:30Z",
+        "end": "2026-04-14T23:51:36Z"
+      },
+      "rows": 16205,
+      "assessed_payments": 15000,
+      "context_credits": 1205,
+      "fraud": 360,
+      "fraud_is_anomaly_false": 177,
+      "unusual_legitimate": 750,
+      "fraud_by_type": {
+        "account_takeover_phishing": 30,
+        "coordinated_beneficiary": 30,
+        "investment_scam": 30,
+        "invoice_redirect": 30,
+        "limit_structuring": 30,
+        "marketplace_scam": 30,
+        "money_mule": 30,
+        "qr_code_tampering": 30,
+        "request_to_pay_scam": 30,
+        "romance_scam": 30,
+        "sim_swap_takeover": 30,
+        "vishing_impersonation": 30
+      },
+      "anomaly_by_type": {
+        "business_settlement": 29,
+        "diaspora_remittance_spend": 44,
+        "group_payment_new_payee": 113,
+        "holiday_spike": 53,
+        "household_repeat_payments": 106,
+        "legit_alias_change": 20,
+        "limit_increase_then_large_payment": 18,
+        "near_limit_planned_purchase": 30,
+        "new_device_legit": 37,
+        "new_merchant_qr": 18,
+        "night_payment": 23,
+        "payroll_burst": 106,
+        "salary_day_spike": 99,
+        "travel_abroad": 54
+      },
+      "payment_schemes": {
+        "b2b": 6689,
+        "b2p_salary": 437,
+        "p2b_link": 1362,
+        "p2b_qr_dynamic": 1588,
+        "p2b_qr_static": 1787,
+        "p2g": 333,
+        "p2p_alias": 2319,
+        "p2p_iban": 1030,
+        "remittance_in": 63,
+        "request_to_pay": 597
+      },
+      "senders": 400,
+      "sha256": "99c981ff70dddcb93f6ccc2e42301476844996d23f407673f1628a2fe4f0c668",
+      "bytes": 17100018
+    }
+  },
+  "fraud_types": [
+    "account_takeover_phishing",
+    "sim_swap_takeover",
+    "vishing_impersonation",
+    "request_to_pay_scam",
+    "marketplace_scam",
+    "investment_scam",
+    "romance_scam",
+    "money_mule",
+    "limit_structuring",
+    "coordinated_beneficiary"
+  ],
+  "test_only_fraud_types": [
+    "qr_code_tampering",
+    "invoice_redirect"
+  ],
+  "anomaly_types": [
+    "near_limit_planned_purchase",
+    "limit_increase_then_large_payment",
+    "new_device_legit",
+    "travel_abroad",
+    "payroll_burst",
+    "salary_day_spike",
+    "diaspora_remittance_spend",
+    "group_payment_new_payee",
+    "holiday_spike",
+    "night_payment",
+    "new_merchant_qr",
+    "legit_alias_change",
+    "household_repeat_payments",
+    "business_settlement"
+  ],
+  "holidays": [
+    {
+      "name": "orthodox_christmas",
+      "date": "2026-01-07"
+    },
+    {
+      "name": "martisor",
+      "date": "2026-03-01"
+    },
+    {
+      "name": "womens_day",
+      "date": "2026-03-08"
+    },
+    {
+      "name": "orthodox_easter",
+      "date": "2026-04-12"
+    },
+    {
+      "name": "first_of_september",
+      "date": "2026-09-01"
+    }
+  ],
+  "drift": {
+    "first_day": 86,
+    "amount_factor": 1.12,
+    "adoption_share": 0.3,
+    "biller_ids": [
+      "CP-00651",
+      "CP-00652",
+      "CP-00653"
+    ]
+  },
+  "cold_start": {
+    "partition": "test",
+    "account_ids": [
+      "ACC-0021",
+      "ACC-0023",
+      "ACC-0031",
+      "ACC-0039",
+      "ACC-0045",
+      "ACC-0066",
+      "ACC-0073",
+      "ACC-0088",
+      "ACC-0093",
+      "ACC-0105",
+      "ACC-0107",
+      "ACC-0115",
+      "ACC-0144",
+      "ACC-0154",
+      "ACC-0157",
+      "ACC-0158",
+      "ACC-0162",
+      "ACC-0170",
+      "ACC-0179",
+      "ACC-0182",
+      "ACC-0185",
+      "ACC-0188",
+      "ACC-0197",
+      "ACC-0205",
+      "ACC-0207",
+      "ACC-0230",
+      "ACC-0235",
+      "ACC-0240",
+      "ACC-0248",
+      "ACC-0249",
+      "ACC-0260",
+      "ACC-0282",
+      "ACC-0285",
+      "ACC-0322",
+      "ACC-0340",
+      "ACC-0343",
+      "ACC-0356",
+      "ACC-0369",
+      "ACC-0384",
+      "ACC-0389"
+    ]
+  },
+  "security_evidence": {
+    "campaign_evidence_records": 157,
+    "fixtures": {
+      "expired": 2,
+      "retracted": 2,
+      "future_recorded": 2,
+      "pending_review": 2,
+      "untrusted_source": 2
+    },
+    "administrative_session_revocations": 25,
+    "trusted_sources": [
+      "bank_security_operations",
+      "fraud_investigations_unit"
+    ],
+    "note": "All evidence is simulated. Fixtures (SEC-FX-*) must never trigger a confirmed-fraud block."
+  },
+  "label_columns": [
+    "is_fraud",
+    "is_anomaly",
+    "fraud_type",
+    "anomaly_type",
+    "campaign_id"
+  ],
+  "feature_assumptions": [
+    "Runtime features use only events ordered strictly before the payment (timestamp, type rank, id).",
+    "Label columns are offline-only; the runtime loader drops them.",
+    "Every assessed payment settles 5 s after its timestamp in the runtime ledger."
+  ]
+}
