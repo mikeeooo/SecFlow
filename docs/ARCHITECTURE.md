@@ -3,13 +3,13 @@
 ```text
                  offline (CLI)                                   online (one uvicorn process)
 ┌────────────────────────────────────────────┐      ┌──────────────────────────────────────────────────────┐
-│ generate ─► storage/data/{training,demo}   │      │ startup: load demo runtime files + model bundle      │
-│              (JSONL + manifest, hashes)    │      │          + policy + operating point + evidence       │
-│ train    ─► replay ─► features ─► fit IF,  │      │          replay 10,000 baseline requests (batch)     │
-│              LOF, DBSCAN on days 1-60      │─────►│                                                      │
-│              CDF maps + weights, 61-70     │ ml/  │ request ─► append session events to history overlay  │
-│              select params/thresholds 71-80│models│          ─► build_features (history < key)           │
-│ evaluate ─► frozen pipeline on days 81-100 │      │          ─► IF, LOF, DBSCAN context (once each)      │
+│ generate ─► storage/{train,validation,     │      │ startup: load storage/test.json (labels dropped)     │
+│              test}.json + datagen/manifest │      │          + model bundle + policy + operating point   │
+│ train    ─► replay ─► features ─► fit IF,  │      │          replay 15,000 baseline payments (batch)     │
+│              LOF, DBSCAN on train.json     │─────►│                                                      │
+│              CDF maps + weights, days 71-77│ ml/  │ request ─► MIA limit check ─► session events overlay │
+│              select params/thresholds 78-85│models│          ─► build_features (history < key)           │
+│ evaluate ─► frozen pipeline on test.json   │      │          ─► IF, LOF, DBSCAN context (once each)      │
 │              ─► artifacts/evaluation.*     │      │          ─► rules ─► combine ─► evidence ─► action   │
 └────────────────────────────────────────────┘      │          ─► commit attempt (+ settlement if Permit)  │
                                                      │ stream producer (asyncio task) ─► same path         │
@@ -21,10 +21,21 @@
                                                      └──────────────────────────────────────────────────────┘
 ```
 
+## Code layout
+
+| Package | Role |
+|---|---|
+| `storage/` | Data only: `train.json`, `validation.json`, `test.json` (see [DATASET.md](DATASET.md)) |
+| `datagen/` | Generator, identities, runtime records, loader and validator, `manifest.json` |
+| `runtime/` | Time-ordered history index, trusted evidence store, process-memory state, durable review log (`runtime/state/`, git-ignored) |
+| `config/` | Settings (`train_path`, `validation_path`, `test_path`, `manifest_path`), policy, MIA limits |
+| `ml/` | Features, scikit-learn adapters, policy, training, evaluation, model bundle |
+| `backend/` | FastAPI app, service, stream producer, CLI, tests |
+
 ## One assessment path
 
 `ml/assess.py` is the only path from a request to a decision. Live simulations, the startup replay
-of the demo history, and the offline evaluation all call it.
+of the test-period history, and the offline evaluation all call it.
 
 1. `build_features(request, key, history, account)` reads only events whose ordering key is lower
    than the request's key.
@@ -53,7 +64,7 @@ received by anyone.
 
 ## State, idempotency and concurrency
 
-`storage/memory.py` keeps assessments, reviews, idempotency fingerprints, and the history overlay
+`runtime/memory.py` keeps assessments, reviews, idempotency fingerprints, and the history overlay
 behind one re-entrant lock.
 
 - `POST /api/simulations` hashes the payload. The same ID with the same payload returns the stored
@@ -70,15 +81,16 @@ multi-instance operation would need a shared store and is a separate scope chang
 
 ## Simulation clock
 
-Baseline events are historical. The simulation clock starts one hour after the last demo event and
-advances in real time. A simulation's sign-in events and request are stamped at or after the
+Baseline events are historical (the 15 days of `test.json`). The simulation clock starts one hour
+after the last test event and advances in real time. A simulation's sign-in events and request are stamped at or after the
 latest event, so the overlay stays strictly ordered.
 
 ## Live stream
 
 `backend/stream.py` owns one producer task per process. It starts with the server (unless
 `SECFLOW_AUTOSTART_STREAM=false`) and submits one request every 2 seconds, or batches of 5, 10 or
-20 every 4 seconds. Browsers poll `GET /api/live-transfers?after=<cursor>` and only call
+20 every 4 seconds. Inputs are MIA Plăți Instant payments in MDL, with a payment scheme that fits
+the payee and an amount within the sender's per-transaction limit. Browsers poll `GET /api/live-transfers?after=<cursor>` and only call
 start, stop or mode, so extra tabs cannot multiply submissions.
 
 The producer re-checks `running` before every submission, so Stop takes effect within one
@@ -93,8 +105,8 @@ submission. Stop does not depend on the feed endpoint, so it keeps working while
 | GET | `/api/transactions` | Filter (`q`, `decision`, `decision_source`, `origin`, `review_status`, dates, score) and paginate |
 | GET | `/api/accounts`, `/api/accounts/{id}` | Named-account search, behaviour profile, context finding, linked transfers |
 | GET | `/api/parties` | Account and counterparty search for the simulator |
-| GET | `/api/simulator/options` | Known devices, recent recipients, beneficiaries with active evidence |
-| POST | `/api/simulations` | Assess and record one simulated request (idempotent) |
+| GET | `/api/simulator/options` | Known devices, recent recipients, beneficiaries with active evidence, MIA schemes and limits |
+| POST | `/api/simulations` | Assess and record one simulated MIA payment (idempotent) |
 | GET | `/api/live-transfers` | Cursor-based simulated assessments plus stream status |
 | GET/POST | `/api/simulation-stream[/start\|/stop\|/mode]` | Backend producer status and controls |
 | GET | `/api/investigations/{id}` | Full assessment, timeline, reviews |
@@ -103,3 +115,7 @@ submission. Stop does not depend on the feed endpoint, so it keeps working while
 
 Errors share one shape: `{"error": {"code", "message", "details"}}`. Unknown request fields are
 rejected (`422`), so a client cannot send `is_fraud` or `confirmed_fraud` to influence a decision.
+The simulation contract mirrors MIA: `currency` must be `MDL`, `transfer_type` must be `instant`,
+`payment_scheme` is one of the nine schemes a customer can initiate, an alias must be `+373` and
+8 digits, and a personal sender's amount above 5,000 MDL (a business sender's above 100,000 MDL) is
+answered with `422`.
