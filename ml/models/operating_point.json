@@ -3,7 +3,7 @@
   "block_threshold": 99.0,
   "source": "validated",
   "version": "op-8d3e6850",
-  "model_version": "secflow-sk-1.1-326d6a99a3",
+  "model_version": "secflow-sk-1.1-a7a420d885",
   "weights": {
     "isolation_forest": 0.8,
     "lof": 0.05,

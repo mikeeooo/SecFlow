@@ -283,7 +283,7 @@ class SecFlowService:
             request_id=payload.request_id, ts=success_ts + 8, sender_id=payload.sender_id, recipient_id=recipient_id,
             recipient_type="account" if recipient_id in self.accounts else "counterparty", amount=payload.amount,
             currency=payload.currency, channel=payload.channel, device_id=device, session_id=session,
-            auth_method=payload.auth_method, ip_country=payload.ip_country,
+            auth_method=payload.auth_method, ip_country=payload.ip_country, transfer_type=payload.transfer_type,
         )
         key = self._next_key(request.ts)
         started = time.perf_counter()

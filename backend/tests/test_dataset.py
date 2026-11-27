@@ -7,7 +7,10 @@ from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 
+import pytest
+
 from storage.dataset import (
+    DatasetError,
     cross_dataset_fingerprint_overlap,
     load_dataset,
     load_labels,
@@ -75,6 +78,36 @@ def test_demo_dataset_has_exact_counts(generated: dict[str, Path]) -> None:
 def test_validation_passes_for_both_datasets(generated: dict[str, Path]) -> None:
     assert validate_dataset(generated["training"], TRAINING_SPEC) == []
     assert validate_dataset(generated["demo"], DEMO_SPEC) == []
+
+
+def test_every_request_is_an_instant_transfer(generated: dict[str, Path]) -> None:
+    for name in ("training", "demo"):
+        rows = read_jsonl(generated[name] / "requests.jsonl")
+        assert {row["transfer_type"] for row in rows} == {"instant"}, name
+    assert {r.transfer_type for r in load_dataset(generated["demo"]).requests} == {"instant"}
+
+
+def _rewrite_first_request(source: Path, target: Path, change) -> None:
+    import shutil
+
+    shutil.copytree(source, target)
+    rows = read_jsonl(target / "requests.jsonl")
+    change(rows[0])
+    (target / "requests.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "change",
+    [lambda row: row.pop("transfer_type"), lambda row: row.update(transfer_type="standard")],
+    ids=["missing", "not_instant"],
+)
+def test_transfer_type_is_mandatory_and_instant(generated: dict[str, Path], tmp_path: Path, change) -> None:
+    broken = tmp_path / "demo"
+    _rewrite_first_request(generated["demo"], broken, change)
+    problems = validate_dataset(broken, DEMO_SPEC)
+    assert any("transfer_type" in p for p in problems), problems
+    with pytest.raises(DatasetError, match="transfer_type"):
+        load_dataset(broken, check_hashes=False)
 
 
 def test_same_seed_reproduces_identical_files(generated: dict[str, Path], tmp_path: Path) -> None:

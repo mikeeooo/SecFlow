@@ -1,7 +1,7 @@
 # Datasets and provenance
 
 Both datasets are **fully synthetic**, produced by `storage/generator.py`
-(`secflow-generator-1.1.0`, schema 1.0). No real person, business, payment, or fraud case is
+(`secflow-generator-1.2.0`, schema 1.1). No real person, business, payment, or fraud case is
 represented. Reproducing the requested counts does not reproduce any earlier, lost dataset byte for
 byte.
 
@@ -84,7 +84,7 @@ payees, and 276 fraud requests are labelled `is_anomaly = false` (more than 50 i
 |---|---|---|
 | `accounts.jsonl` | runtime | ID, display name, type, home country, created at |
 | `counterparties.jsonl` | runtime | External participants with understandable names |
-| `requests.jsonl` | runtime | Request ID, time, sender/recipient, amount (EUR), channel, device, session, sign-in method, session country |
+| `requests.jsonl` | runtime | Request ID, time, sender/recipient, amount (EUR), channel, device, session, sign-in method, session country, mandatory `transfer_type` (always `instant`) |
 | `payment_events.jsonl` | runtime | Historical ledger: `transfer_settled` per request plus `incoming_credit` events |
 | `authentication_events.jsonl` | runtime | `login_failure`, `login_success`, and administrative `session_revoked` events |
 | `security_events.jsonl` | runtime (trusted server-side source) | Simulated evidence with recorded/effective times, expiry, status history |
@@ -92,6 +92,11 @@ payees, and 276 fraud requests are labelled `is_anomaly = false` (more than 50 i
 | `split_assignments.jsonl` | **offline only** (corpus) | Partition per request |
 | `generator_account_params.jsonl` | **offline only** | Generator behaviour parameters; never read by features or the service |
 | `manifest.json` | metadata | Seeds, versions, date range, exact counts, cold-start IDs, evidence summary, SHA-256 per file |
+
+SecFlow assesses instant transfers only. Every row in `requests.jsonl` must carry
+`"transfer_type": "instant"`: `validate` reports any row where the field is missing or has another
+value, and `load_dataset` refuses to load such a file. The simulation API accepts only
+`transfer_type = "instant"` (the default) and rejects any other value with a validation error.
 
 The runtime loader (`load_dataset`) reads only runtime files. Labels and splits have separate
 loaders that only training and evaluation call.

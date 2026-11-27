@@ -1,6 +1,6 @@
 # SecFlow evaluation report
 
-Generated 2026-11-26T07:11:48Z · model `secflow-sk-1.1-326d6a99a3` · policy `secflow-evidence-first-1.1.0+bf92c73f`
+Generated 2026-11-27T16:27:32Z · model `secflow-sk-1.1-a7a420d885` · policy `secflow-evidence-first-1.1.0+bf92c73f`
 
 > Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.
 
@@ -104,7 +104,7 @@ Observed on the labelled synthetic final-test period. The fraud rate of a band i
 
 ## Latency
 
-300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 5.469 ms, p50 5.455 ms, p95 6.169 ms, p99 6.66 ms.
+300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 5.57 ms, p50 5.432 ms, p95 6.239 ms, p99 10.398 ms.
 
 ## Decision sources
 

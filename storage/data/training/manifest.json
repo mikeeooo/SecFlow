@@ -1,7 +1,7 @@
 {
   "dataset": "training",
-  "schema_version": "1.0",
-  "generator_version": "secflow-generator-1.1.0",
+  "schema_version": "1.1",
+  "generator_version": "secflow-generator-1.2.0",
   "seed": 42,
   "identity_seed": 42,
   "provenance": "Fully synthetic data produced by storage/generator.py. Accounts, counterparties, payments, sessions and security evidence are generated; they describe no real people, businesses, or confirmed fraud cases. Security evidence is a simulated trusted server-side stream.",
@@ -216,7 +216,7 @@
       "role": "runtime"
     },
     "requests.jsonl": {
-      "sha256": "ea6b2e8148924f8fadecf7f187f1bdce1dcadd59b1c4bfb8c1f56a07008db7a6",
+      "sha256": "43d140cdd71542a4e16f5ce3a8ad1dc967bd273bfd25235a533d9c5d195fe2d0",
       "lines": 100000,
       "role": "runtime"
     },

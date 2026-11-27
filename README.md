@@ -13,6 +13,10 @@ risk_score = 100 × (0.80 × IF + 0.05 × LOF + 0.00 × DBSCAN + 0.15 × rules)
 Ponderile sunt învățate pe perioada de calibrare (căutare exhaustivă pe simplex, cu LOF menținut la
 ≥ 0.05), iar pragurile Verify/Block sunt alese separat pentru conturile personale și cele de firmă.
 
+SecFlow evaluează doar transferuri instant. Fiecare cerere din `requests.jsonl` are câmpul
+obligatoriu `"transfer_type": "instant"`: `validate` raportează rândurile fără el sau cu altă
+valoare, `load_dataset` refuză fișierul, iar API-ul de simulare respinge orice alt tip (422).
+
 Scorul este un indice relativ de anomalie, **nu o probabilitate de fraudă**. Un scor mare, singur,
 nu este niciodată prezentat drept fraudă confirmată.
 

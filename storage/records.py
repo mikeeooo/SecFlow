@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 # Events that share a timestamp are ordered auth -> payment -> request, then by identifier.
 EVENT_RANK = {"auth": 0, "payment": 1, "request": 2}
 KEY_SCALE = 1_000_000  # ordering key = epoch_seconds * KEY_SCALE + global sequence number
+# SecFlow assesses instant transfers only; every dataset request must declare this type.
+INSTANT_TRANSFER = "instant"
 
 
 def parse_ts(value: str) -> int:
@@ -45,6 +47,7 @@ class PaymentRequest:
     session_id: str
     auth_method: str
     ip_country: str
+    transfer_type: str = INSTANT_TRANSFER
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +93,12 @@ class Counterparty:
 
 
 def request_from_row(row: dict) -> PaymentRequest:
+    transfer_type = row.get("transfer_type")
+    if transfer_type != INSTANT_TRANSFER:
+        raise ValueError(
+            f"Request {row.get('request_id')}: transfer_type is mandatory and must be "
+            f"{INSTANT_TRANSFER!r}, found {transfer_type!r}"
+        )
     return PaymentRequest(
         request_id=row["request_id"],
         ts=parse_ts(row["timestamp"]),
@@ -103,6 +112,7 @@ def request_from_row(row: dict) -> PaymentRequest:
         session_id=row["session_id"],
         auth_method=row["auth_method"],
         ip_country=row["ip_country"],
+        transfer_type=transfer_type,
     )
 
 
