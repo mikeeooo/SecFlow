@@ -146,6 +146,8 @@ npm --prefix frontend run build
 
 ## Ce conține proiectul
 
+Rezumatul tehnic al întregului proiect este în [docs/TEHNIC.md](docs/TEHNIC.md).
+
 | Cale | Conținut |
 |---|---|
 | `storage/train.json`, `storage/validation.json`, `storage/test.json` | Singurele fișiere din `storage/`: setul de date sintetic MIA |
