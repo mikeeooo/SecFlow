@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import type { AssessmentSummary } from "../api/types";
-import { formatDateTime, formatMoney } from "../lib/format";
+import { formatDateTime, formatMoney, formatScheme } from "../lib/format";
 import { DecisionBadge } from "./DecisionBadge";
 import { ComponentMiniBar } from "./RiskComposition";
 import { cx } from "./ui";
@@ -22,6 +22,7 @@ export function AssessmentRow({ item, highlight, compact }: { item: AssessmentSu
         <p className="tabular text-right text-[15px] font-semibold">{formatMoney(item.amount)}</p>
         <p className="tabular truncate text-[12px] text-label-2">
           {formatDateTime(item.event_time)}
+          {` · ${formatScheme(item.payment_scheme)}`}
           {compact ? "" : ` · ${item.request_id}`}
           {reviewed}
         </p>

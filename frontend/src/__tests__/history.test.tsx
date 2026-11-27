@@ -12,8 +12,8 @@ const review = (id: string, action: "approve" | "reject", overrides: Partial<Rev
   review_id: id, request_id: `SIM-${id}`, action, reason: "Beneficiary could not be verified", actor: "Ana",
   created_at: "2026-11-21T10:00:00.00Z", original_decision: "Verify", original_decision_label: "Needs verification",
   original_risk_score: 72.4, resulting_outcome: action === "reject" ? "rejected_after_review" : "approved_after_review",
-  origin: "simulation", event_time: "2026-11-21T09:59:00Z", sender_id: "ACC-0001", sender_name: "Amara Okafor",
-  recipient_id: "CP-00001", recipient_name: "Harbor Lane Utilities", amount: 6000, currency: "EUR",
+  origin: "simulation", event_time: "2026-11-21T09:59:00Z", sender_id: "ACC-0001", sender_name: "Ion Rusu",
+  recipient_id: "CP-00001", recipient_name: "Valea Verde Utilities", amount: 4900, currency: "MDL",
   investigation_available: true, ...overrides,
 });
 
