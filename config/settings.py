@@ -54,7 +54,7 @@ def _default_state_dir() -> Path | None:
         return None
     if os.environ.get("VERCEL"):  # the deployment bundle is read-only; /tmp is the only writable path
         return Path("/tmp/secflow-state")
-    return ROOT / "storage" / "state"
+    return ROOT / "runtime" / "state"
 
 
 def load_settings() -> Settings:

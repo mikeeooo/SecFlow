@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from storage.generator import FRAUD_CATEGORIES, RUNTIME_FILES, DatasetSpec, request_fingerprint, sha256_file
-from storage.records import (
+from datagen.generator import FRAUD_CATEGORIES, RUNTIME_FILES, DatasetSpec, request_fingerprint, sha256_file
+from datagen.records import (
     INSTANT_TRANSFER,
     Account,
     AuthEvent,

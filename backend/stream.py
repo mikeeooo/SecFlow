@@ -20,8 +20,8 @@ import numpy as np
 
 from backend.schemas import SimulationRequest
 from backend.service import SecFlowService
-from storage.identities import FIRST_NAMES, LAST_NAMES
-from storage.memory import utc_now_iso
+from datagen.identities import FIRST_NAMES, LAST_NAMES
+from runtime.memory import utc_now_iso
 
 log = logging.getLogger("secflow.stream")
 BATCH_SIZES = {"continuous": 1, "batch_5": 5, "batch_10": 10, "batch_20": 20}

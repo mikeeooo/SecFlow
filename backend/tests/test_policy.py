@@ -23,8 +23,8 @@ from ml.policy import (
     load_policy,
     segment_of,
 )
-from storage.evidence import EvidenceStore, SecurityEvidence, StatusChange
-from storage.records import Account, PaymentRequest
+from runtime.evidence import EvidenceStore, SecurityEvidence, StatusChange
+from datagen.records import Account, PaymentRequest
 
 POLICY = load_policy(load_settings().policy_path)
 OP = OperatingPoint(verify=40.0, block=70.0, source="test", version="op-test")
@@ -318,7 +318,7 @@ def test_combination_uses_learned_weights_and_contributions_sum() -> None:
     from ml.assess import finalize
     from ml.features import FeatureSnapshot
     from ml.model import ModelComponents
-    from storage.evidence import EvidenceStore
+    from runtime.evidence import EvidenceStore
 
     request = PaymentRequest("R1", T, "ACC-1", "CP-1", "counterparty", 50.0, "EUR", "mobile_app", "D", "S",
                              "biometric", "DE")

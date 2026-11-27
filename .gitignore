@@ -11,5 +11,5 @@ artifacts/features/
 .vercel/
 .vercel
 .env*
-storage/state/
+runtime/state/
 .claude/

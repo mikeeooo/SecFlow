@@ -14,8 +14,8 @@ import sys
 
 from config.settings import load_settings
 from ml.policy import load_policy
-from storage.dataset import cross_dataset_fingerprint_overlap, validate_dataset
-from storage.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
+from datagen.dataset import cross_dataset_fingerprint_overlap, validate_dataset
+from datagen.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
 
 
 def cmd_generate(_: argparse.Namespace) -> int:

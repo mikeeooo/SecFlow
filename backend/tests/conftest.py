@@ -10,10 +10,10 @@ from pathlib import Path
 import pytest
 
 os.environ.setdefault("SECFLOW_AUTOSTART_STREAM", "false")
-# Review history goes to a throwaway directory so tests never touch storage/state/.
+# Review history goes to a throwaway directory so tests never touch runtime/state/.
 os.environ.setdefault("SECFLOW_STATE_DIR", tempfile.mkdtemp(prefix="secflow-state-"))
 
-from storage.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
+from datagen.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
 
 ROOT = Path(__file__).resolve().parents[2]
 

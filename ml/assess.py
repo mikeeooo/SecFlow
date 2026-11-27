@@ -27,9 +27,9 @@ from ml.policy import (
     evaluate_rules,
     segment_of,
 )
-from storage.evidence import EvidenceStore, SecurityEvidence
-from storage.history import HistoryIndex
-from storage.records import Account, PaymentRequest
+from runtime.evidence import EvidenceStore, SecurityEvidence
+from runtime.history import HistoryIndex
+from datagen.records import Account, PaymentRequest
 
 
 @dataclass(frozen=True)
@@ -115,6 +115,6 @@ def assess_batch(
 
 
 def build_evidence_store(rows: Sequence[dict], policy: Policy) -> EvidenceStore:
-    from storage.evidence import evidence_from_row
+    from runtime.evidence import evidence_from_row
 
     return EvidenceStore([evidence_from_row(r) for r in rows], policy.trusted_sources, policy.blocking_types)

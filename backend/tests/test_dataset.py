@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from storage.dataset import (
+from datagen.dataset import (
     DatasetError,
     cross_dataset_fingerprint_overlap,
     load_dataset,
@@ -18,8 +18,8 @@ from storage.dataset import (
     read_jsonl,
     validate_dataset,
 )
-from storage.evidence import EvidenceStore, evidence_from_row
-from storage.generator import (
+from runtime.evidence import EvidenceStore, evidence_from_row
+from datagen.generator import (
     DEMO_SPEC,
     FRAUD_CATEGORIES,
     TRAINING_SPEC,
@@ -28,8 +28,8 @@ from storage.generator import (
     day_start_ts,
     generate_dataset,
 )
-from storage.identities import build_accounts
-from storage.records import parse_ts
+from datagen.identities import build_accounts
+from datagen.records import parse_ts
 
 # sha256 of the generator-only account parameters as produced by generator 1.0.0.
 ACCOUNT_PARAMS_SNAPSHOT = "bea5ee12d4d55aa37c69d08900bb15fb1bfa3bf66dadb600c77f20bcdc270fda"

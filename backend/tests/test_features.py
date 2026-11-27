@@ -9,9 +9,9 @@ import pytest
 
 from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES, build_features
 from ml.replay import replay
-from storage.dataset import load_dataset, read_jsonl
-from storage.history import HistoryIndex
-from storage.records import Account, AuthEvent, PaymentRequest
+from datagen.dataset import load_dataset, read_jsonl
+from runtime.history import HistoryIndex
+from datagen.records import Account, AuthEvent, PaymentRequest
 
 T0 = 1_780_000_000
 ACCOUNT = Account("ACC-0001", "Amara Okafor", "personal", "DE", T0 - 400 * 86_400)

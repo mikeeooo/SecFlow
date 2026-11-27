@@ -1,7 +1,7 @@
 """Temporary process-memory state: assessments, reviews, idempotency, and the history overlay.
 
 Everything here lives in one Python process. Restarting the server discards simulations; reviews
-are also written to `storage.review_log` and re-applied to baseline requests at startup. Multiple workers or instances would each hold their own independent copy. All
+are also written to `runtime.review_log` and re-applied to baseline requests at startup. Multiple workers or instances would each hold their own independent copy. All
 mutations happen under a single re-entrant lock so duplicate detection, scoring and commit
 are atomic within the process.
 """
@@ -15,8 +15,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ml.assess import AssessmentResult
-from storage.history import HistoryIndex
-from storage.records import AuthEvent, PaymentRequest
+from runtime.history import HistoryIndex
+from datagen.records import AuthEvent, PaymentRequest
 
 
 class ConflictError(RuntimeError):

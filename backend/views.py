@@ -18,8 +18,8 @@ from backend.schemas import (
     TimelineEntry,
 )
 from ml.policy import OperatingPoint, Policy
-from storage.memory import AssessmentRecord, ReviewRecord
-from storage.records import format_ts
+from runtime.memory import AssessmentRecord, ReviewRecord
+from datagen.records import format_ts
 
 COMPONENT_LABELS = {
     "isolation_forest": "Isolation Forest",
