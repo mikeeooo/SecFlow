@@ -31,11 +31,11 @@ from backend.schemas import (
     StreamStatus,
     TransactionPage,
 )
-from backend.service import SecFlowService, TransactionFilters
+from backend.service import MiaLimitError, SecFlowService, TransactionFilters
 from backend.stream import StreamController
 from config.settings import ROOT, Settings, load_settings
-from runtime.memory import ConflictError, NotFoundError
 from datagen.records import format_ts
+from runtime.memory import ConflictError, NotFoundError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("secflow.api")
@@ -74,6 +74,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def error(status: int, code: str, message: str, details: Any = None) -> JSONResponse:
         return JSONResponse(status_code=status, content={"error": {"code": code, "message": message, "details": details}})
+
+    @app.exception_handler(MiaLimitError)
+    async def mia_limit(_: Request, exc: MiaLimitError) -> JSONResponse:
+        return error(422, "validation_error", str(exc), {"limit": "mia_per_transaction"})
 
     @app.exception_handler(NotFoundError)
     async def not_found(_: Request, exc: NotFoundError) -> JSONResponse:

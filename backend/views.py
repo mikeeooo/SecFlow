@@ -17,9 +17,9 @@ from backend.schemas import (
     Thresholds,
     TimelineEntry,
 )
+from datagen.records import format_ts
 from ml.policy import OperatingPoint, Policy
 from runtime.memory import AssessmentRecord, ReviewRecord
-from datagen.records import format_ts
 
 COMPONENT_LABELS = {
     "isolation_forest": "Isolation Forest",
@@ -57,6 +57,7 @@ def summary(record: AssessmentRecord, party: PartyLookup) -> AssessmentSummary:
         recipient=party(record.request.recipient_id),
         amount=record.request.amount,
         currency=record.request.currency,
+        payment_scheme=record.request.payment_scheme,
         risk_score=_round(risk.total, 2) if risk else None,
         decision=result.policy.decision,  # type: ignore[arg-type]
         decision_source=result.policy.decision_source,  # type: ignore[arg-type]
@@ -174,6 +175,9 @@ def detail(
         auth_method=request.auth_method,
         ip_country=request.ip_country,
         channel=request.channel,
+        request_to_pay_id=request.request_to_pay_id,
+        qr_payload_merchant_id=request.qr_payload_merchant_id,
+        recipient_alias=request.recipient_alias,
         facts=_jsonable(dict(result.snapshot.facts)),
         idempotent_replay=replay,
     )
@@ -203,6 +207,8 @@ def timeline(record: AssessmentRecord) -> list[TimelineEntry]:
             "login_failure": "Failed sign-in attempt",
             "login_success": "Signed in",
             "session_revoked": "Session ended",
+            "alias_rebound": "Phone alias rebound to a new SIM or device",
+            "limit_changed": "Payment limit changed",
         }.get(event.event_type, event.event_type)
         entries.append(TimelineEntry(
             at=format_ts(event.ts), kind="authentication", title=title,
@@ -215,7 +221,8 @@ def timeline(record: AssessmentRecord) -> list[TimelineEntry]:
                                      detail=f"{item.evidence_id} from {item.source.replace('_', ' ')}"))
     request = record.request
     entries.append(TimelineEntry(at=format_ts(request.ts), kind="request", title="Payment request received",
-                                 detail=f"{request.amount:,.2f} {request.currency} via {request.channel.replace('_', ' ')}"))
+                                 detail=(f"{request.amount:,.2f} {request.currency} by MIA {request.payment_scheme.replace('_', ' ')} "
+                                         f"via {request.channel.replace('_', ' ')}")))
     policy = record.result.policy
     entries.append(TimelineEntry(at=format_ts(request.ts), kind="decision", title=f"Automated decision: {policy.label}",
                                  detail=policy.explanation))
