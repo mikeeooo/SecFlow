@@ -1,15 +1,17 @@
 """Offline training: chronological fitting, bounded parameter search, and operating-point selection.
 
-Data use per partition (labels are only opened where stated):
+Data use per file (labels are only opened where stated):
 
-* train (days 1-60): fit preprocessing, IsolationForest, LOF (novelty) and DBSCAN. No labels.
-* calibration (61-70): fit IF/LOF empirical score mappings (no labels), then use the labels to learn
-  the combination weights of the risk index.
-* validation (71-80): labels used to choose estimator parameters and per-segment policy thresholds.
+* `storage/train.json` (days 1-70): fit preprocessing, IsolationForest, LOF (novelty) and DBSCAN. No labels.
+* `storage/validation.json`, split by date inside the file:
+  - days 71-77 ("validation_mapping"): fit the IF/LOF empirical score mappings (no labels), then use the
+    labels to learn the combination weights of the risk index;
+  - days 78-85 ("validation_selection"): labels used to choose estimator parameters and the per-segment
+    Verify/Block thresholds.
+* `storage/test.json` (days 86-100): not read here. `ml.evaluation` opens it once, after freezing.
 
 Forty established holdout accounts (seeded, chosen without labels) are excluded from every fitting and
 selection row so the test period can report an account-disjoint subset.
-* test (81-100): not touched here. `ml.evaluation` opens it once, after freezing.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from sklearn.metrics import average_precision_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
+from datagen.dataset import Dataset, file_hashes, load_labels, load_partitions, read_manifest
 from ml.algorithms.dbscan_context import DBSCANContext, EmptyCoreError
 from ml.algorithms.isolation_forest import IsolationForestDetector
 from ml.algorithms.local_outlier_factor import LOF_SUBSPACES, LocalOutlierFactorDetector, subspace_columns
@@ -45,9 +48,11 @@ from ml.policy import (
 )
 from ml.replay import ReplayResult, replay
 from ml.weights import search_weights
-from datagen.dataset import Dataset, load_dataset, load_labels, load_splits
 
 SEED = 42
+DAY = 86_400
+MAPPING_DAYS = 7  # the first seven days of validation.json (days 71-77) map scores and learn the weights
+SPLITS = ("train", "validation_mapping", "validation_selection", "test")
 IF_GRID = ({"n_estimators": 100, "max_samples": 256}, {"n_estimators": 100, "max_samples": 512},
            {"n_estimators": 200, "max_samples": 256}, {"n_estimators": 200, "max_samples": 512})
 LOF_GRID = (20, 35, 50)
@@ -68,9 +73,22 @@ class PartitionView:
         return matrix[self.rows]
 
 
+def split_assignments(dataset: Dataset) -> dict[str, str]:
+    """Training split of every assessed payment: its file, with validation.json split by date."""
+    validation_ts = [r.ts for r in dataset.requests if dataset.partition_of[r.request_id] == "validation"]
+    mapping_end = (min(validation_ts) // DAY) * DAY + MAPPING_DAYS * DAY if validation_ts else 0
+    out = {}
+    for r in dataset.requests:
+        part = dataset.partition_of[r.request_id]
+        if part == "validation":
+            part = "validation_mapping" if r.ts < mapping_end else "validation_selection"
+        out[r.request_id] = part
+    return out
+
+
 def _partition_masks(result: ReplayResult, splits: dict[str, str]) -> dict[str, PartitionView]:
     part = np.array([splits[r] for r in result.request_ids])
-    return {name: PartitionView(part == name) for name in ("train", "calibration", "validation", "test")}
+    return {name: PartitionView(part == name) for name in SPLITS}
 
 
 def _ap(y: np.ndarray, scores: np.ndarray) -> float | None:
@@ -117,9 +135,12 @@ def _search_isolation_forest(x_train, x_cal, x_val, y_val) -> tuple[dict, list[d
     return {"record": best[0], "detector": best[1], "mapping": best[2]}, records
 
 
-def holdout_accounts(dataset: Dataset, cold_start_ids: set[str]) -> frozenset[str]:
-    """Seeded choice of established accounts kept out of every fitting and selection row (no labels read)."""
-    candidates = sorted(a for a in dataset.accounts if a not in cold_start_ids)
+def holdout_accounts(candidates: set[str] | frozenset[str]) -> frozenset[str]:
+    """Seeded choice of established accounts kept out of every fitting and selection row (no labels read).
+
+    `candidates` are the senders of train.json and validation.json; cold-start accounts only appear in test.
+    """
+    candidates = sorted(candidates)
     rng = np.random.default_rng(HOLDOUT_SEED)
     return frozenset(rng.choice(candidates, size=min(HOLDOUT_ACCOUNTS, len(candidates)), replace=False).tolist())
 
@@ -294,34 +315,36 @@ def select_segment_points(
     return point, {"global": global_report, "segments": report}
 
 
-def _model_version(dataset: Dataset, selection: dict[str, Any]) -> str:
+def _model_version(hashes: dict[str, str], selection: dict[str, Any]) -> str:
     material = json.dumps(
-        {"files": {k: v["sha256"] for k, v in dataset.manifest["files"].items()}, "selection": selection,
-         "features": FEATURE_VERSION, "sklearn": sklearn_version()},
+        {"files": hashes, "selection": selection, "features": FEATURE_VERSION, "sklearn": sklearn_version()},
         sort_keys=True,
     )
-    return f"{MODEL_FAMILY}-1.1-{hashlib.sha256(material.encode()).hexdigest()[:10]}"
+    return f"{MODEL_FAMILY}-2.0-{hashlib.sha256(material.encode()).hexdigest()[:10]}"
 
 
-def train_models(training_dir: Path, models_dir: Path, policy: Policy) -> dict[str, Any]:
+def train_models(train_path: Path, validation_path: Path, models_dir: Path, policy: Policy,
+                 manifest_path: Path | None = None) -> dict[str, Any]:
     started = time.perf_counter()
-    dataset = load_dataset(training_dir)
-    splits = load_splits(training_dir)
-    labelled_ids = [rid for rid, part in splits.items() if part in {"calibration", "validation"}]
+    dataset = load_partitions([train_path, validation_path])
+    hashes = file_hashes([train_path, validation_path])
+    manifest = read_manifest(manifest_path) if manifest_path is not None and manifest_path.exists() else {}
+    splits = split_assignments(dataset)
+    labelled_ids = [rid for rid, part in splits.items() if part.startswith("validation")]
     result = replay(dataset, keep_facts_for=labelled_ids)
     by_id = {r.request_id: r for r in dataset.requests}
     senders = np.array([by_id[rid].sender_id for rid in result.request_ids])
-    holdout = holdout_accounts(dataset, set(dataset.manifest["cold_start"]["account_ids"]))
+    holdout = holdout_accounts({r.sender_id for r in dataset.requests})
     keep = ~np.isin(senders, sorted(holdout))
     masks = {name: PartitionView(view.rows & keep) for name, view in _partition_masks(result, splits).items()}
-    tr, cal, val = masks["train"], masks["calibration"], masks["validation"]
+    tr, cal, val = masks["train"], masks["validation_mapping"], masks["validation_selection"]
 
     preprocessor = FeaturePreprocessor().fit(tr.take(result.payment))
     x_train = preprocessor.transform(tr.take(result.payment))
     x_cal = preprocessor.transform(cal.take(result.payment))
     x_val = preprocessor.transform(val.take(result.payment))
 
-    labels = load_labels(training_dir)  # calibration (weights) and validation (selection) labels only
+    labels = load_labels([validation_path])  # validation labels only: mapping days (weights), selection days
     ids = np.array(result.request_ids)
     y_cal = np.array([bool(labels[rid]["is_fraud"]) for rid in ids[cal.rows]])
     y_val = np.array([bool(labels[rid]["is_fraud"]) for rid in ids[val.rows]])
@@ -358,7 +381,7 @@ def train_models(training_dir: Path, models_dir: Path, policy: Policy) -> dict[s
         "weights": weights,
     }
     metadata = {
-        "model_version": _model_version(dataset, selection),
+        "model_version": _model_version(hashes, selection),
         "feature_version": FEATURE_VERSION,
         "payment_features": list(PAYMENT_FEATURES),
         "context_features": list(CONTEXT_FEATURES),
@@ -366,10 +389,15 @@ def train_models(training_dir: Path, models_dir: Path, policy: Policy) -> dict[s
         "sklearn_version": sklearn_version(),
         "random_seed": SEED,
         "training_dataset": {
-            "path": "storage/data/training",
-            "seed": dataset.manifest["seed"],
-            "generator_version": dataset.manifest["generator_version"],
-            "file_hashes": {k: v["sha256"] for k, v in dataset.manifest["files"].items()},
+            "files": ["storage/train.json", "storage/validation.json"],
+            "seed": manifest.get("seed"),
+            "generator_version": manifest.get("generator_version"),
+            "file_hashes": hashes,
+            "splits": {
+                "train": "train.json, days 1-70: preprocessing, IsolationForest, LOF, DBSCAN (no labels)",
+                "validation_mapping": "validation.json, days 71-77: score mappings (no labels), learned weights",
+                "validation_selection": "validation.json, days 78-85: parameter and threshold selection",
+            },
         },
         "fit_rows": {
             "preprocessing": int(tr.rows.sum()),
@@ -391,7 +419,7 @@ def train_models(training_dir: Path, models_dir: Path, policy: Policy) -> dict[s
             "adapter": ("frozen-core: within eps of a training core sample -> 0, beyond -> min(1, (d - eps) / eps), "
                         "insufficient history -> 0"),
         },
-        "score_mapping": "empirical CDF of inverted raw scores over the unlabelled calibration period",
+        "score_mapping": "empirical CDF of inverted raw scores over the unlabelled validation days 71-77",
     }
     bundle = ModelBundle(
         preprocessor=preprocessor,
@@ -418,7 +446,7 @@ def train_models(training_dir: Path, models_dir: Path, policy: Policy) -> dict[s
         "operating_point": operating_point,
         "selected_parameters": selection,
         "search": {"isolation_forest": if_records, "lof": lof_records, "dbscan": db_records},
-        "weights_search": {**weights_report, "partition": "calibration", "selected": weights,
+        "weights_search": {**weights_report, "partition": "validation_mapping (days 71-77)", "selected": weights,
                            "rows": int(cal.rows.sum()), "fraud": int(y_cal.sum())},
         "threshold_selection": threshold_report["global"],
         "segment_thresholds": threshold_report["segments"],

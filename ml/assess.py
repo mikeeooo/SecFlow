@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from datagen.records import Account, PaymentRequest
 from ml.features import FeatureSnapshot, build_features
 from ml.model import ModelBundle, ModelComponents
 from ml.policy import (
@@ -29,7 +30,6 @@ from ml.policy import (
 )
 from runtime.evidence import EvidenceStore, SecurityEvidence
 from runtime.history import HistoryIndex
-from datagen.records import Account, PaymentRequest
 
 
 @dataclass(frozen=True)

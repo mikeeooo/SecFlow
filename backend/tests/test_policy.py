@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from config.settings import load_settings
+from datagen.records import Account, PaymentRequest
 from ml.policy import (
     SEGMENTS,
     ComponentScores,
@@ -24,7 +25,6 @@ from ml.policy import (
     segment_of,
 )
 from runtime.evidence import EvidenceStore, SecurityEvidence, StatusChange
-from datagen.records import Account, PaymentRequest
 
 POLICY = load_policy(load_settings().policy_path)
 OP = OperatingPoint(verify=40.0, block=70.0, source="test", version="op-test")
@@ -115,8 +115,8 @@ def evidence(**overrides) -> SecurityEvidence:
 
 
 def request_to(recipient: str, ts: int = T) -> PaymentRequest:
-    return PaymentRequest("R1", ts, "ACC-0001", recipient, "counterparty", 20.0, "EUR", "mobile_app", "DEV-1",
-                          "SES-1", "biometric", "DE")
+    return PaymentRequest("R1", ts, "ACC-0001", recipient, "counterparty", 20.0, "MDL", "mobile_app", "DEV-1",
+                          "SES-1", "biometric", "MD")
 
 
 def store(*items: SecurityEvidence) -> EvidenceStore:
@@ -320,9 +320,9 @@ def test_combination_uses_learned_weights_and_contributions_sum() -> None:
     from ml.model import ModelComponents
     from runtime.evidence import EvidenceStore
 
-    request = PaymentRequest("R1", T, "ACC-1", "CP-1", "counterparty", 50.0, "EUR", "mobile_app", "D", "S",
+    request = PaymentRequest("R1", T, "ACC-1", "CP-1", "counterparty", 50.0, "MDL", "mobile_app", "D", "S",
                              "biometric", "DE")
-    snapshot = FeatureSnapshot((0.0,) * 24, (0.0,) * 8, "sufficient", "ok", {**BASE_FACTS})
+    snapshot = FeatureSnapshot((0.0,) * 31, (0.0,) * 8, "sufficient", "ok", {**BASE_FACTS})
     comps = ModelComponents(0.0, 0.8, 0.0, 0.2, ContextResult(0.5, "outside_context", 1.0, None, 0))
     result = finalize(request, snapshot, comps, EvidenceStore([], POLICY.trusted_sources, POLICY.blocking_types),
                       POLICY, SEGMENTED, "business")
@@ -331,3 +331,59 @@ def test_combination_uses_learned_weights_and_contributions_sum() -> None:
     for name, value in expected.items():
         assert result.risk.contributions[name] == pytest.approx(value)
     assert result.risk.total == pytest.approx(sum(result.risk.contributions.values()))
+
+
+# -- MIA rules (policy revision 2.0.0) ---------------------------------------------------------
+
+
+def test_policy_revision_and_mia_limits_in_mdl() -> None:
+    assert POLICY.revision == "2.0.0"
+    assert POLICY.limits is not None and POLICY.limits.currency == "MDL"
+    assert POLICY.limits.personal.per_transaction == 5_000 and POLICY.limits.personal.per_day == 10_000
+    assert POLICY.limits.personal.per_month == 30_000 and POLICY.limits.business.per_transaction == 100_000
+    assert {"limit_pressure", "identity_change", "payment_instrument"} <= set(POLICY.families)
+    assert POLICY.cold_start_max_amount == 1_000
+
+
+MIA_FACTS = {**BASE_FACTS, "amount": 4_900.0, "tx_cap": 5_000.0, "daily_cap": 10_000.0, "amount_to_tx_cap_ratio": 0.98,
+             "sent_today_before": 0.0, "daily_cumulative_to_cap_ratio": 0.49, "near_cap_count_24h": 0,
+             "alias_rebound_age_hours": None, "is_request_to_pay": False, "qr_merchant_mismatch": False,
+             "recipient_new_global": False}
+
+
+def test_near_cap_fires_but_does_not_corroborate() -> None:
+    result = evaluate_rules(MIA_FACTS, "sufficient", POLICY)
+    hit = {t.code: t for t in result.triggered}
+    assert "NEAR_TX_CAP" in hit and not hit["NEAR_TX_CAP"].corroborating
+    assert "MDL" in hit["NEAR_TX_CAP"].detail
+    assert "NEAR_TX_CAP" not in _codes({**MIA_FACTS, "amount_to_tx_cap_ratio": 0.5})
+
+
+def test_daily_cap_pressure_needs_a_new_beneficiary() -> None:
+    facts = {**MIA_FACTS, "daily_cumulative_to_cap_ratio": 0.95, "sent_today_before": 4_600.0}
+    assert "DAILY_CAP_PRESSURE" not in _codes(facts)
+    result = evaluate_rules({**facts, "new_recipient": True}, "sufficient", POLICY)
+    assert "DAILY_CAP_PRESSURE" in {t.code for t in result.triggered}
+    assert "limit_pressure" in result.corroborating_families
+
+
+def test_cap_structuring_needs_an_earlier_near_cap_payment() -> None:
+    assert "CAP_STRUCTURING" not in _codes(MIA_FACTS)
+    assert "CAP_STRUCTURING" in _codes({**MIA_FACTS, "near_cap_count_24h": 1})
+    assert "CAP_STRUCTURING" not in _codes({**MIA_FACTS, "near_cap_count_24h": 1, "amount_to_tx_cap_ratio": 0.6})
+
+
+def test_recent_alias_rebound_window() -> None:
+    assert "RECENT_ALIAS_REBOUND" in _codes({**MIA_FACTS, "alias_rebound_age_hours": 3.0})
+    assert "RECENT_ALIAS_REBOUND" not in _codes({**MIA_FACTS, "alias_rebound_age_hours": 200.0})
+    assert "RECENT_ALIAS_REBOUND" not in _codes(MIA_FACTS)
+
+
+def test_unknown_rtp_requester_and_qr_mismatch() -> None:
+    rtp = {**MIA_FACTS, "is_request_to_pay": True, "new_recipient": True, "recipient_new_global": True}
+    result = evaluate_rules(rtp, "sufficient", POLICY)
+    assert "UNKNOWN_RTP_REQUESTER" in {t.code for t in result.triggered}
+    assert "payment_instrument" in result.corroborating_families
+    assert "UNKNOWN_RTP_REQUESTER" not in _codes({**rtp, "recipient_new_global": False})  # a known biller's RTP
+    assert "QR_MERCHANT_MISMATCH" in _codes({**MIA_FACTS, "qr_merchant_mismatch": True, "qr_payload_merchant_id": "CP-1"})
+    assert "QR_MERCHANT_MISMATCH" not in _codes(MIA_FACTS)

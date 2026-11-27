@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy as np
 
+from config.limits import MiaLimits, parse_limits
 from runtime.evidence import SecurityEvidence
 
 COMPONENTS = ("isolation_forest", "lof", "dbscan", "rules")
@@ -72,6 +73,7 @@ class Policy:
     strong_auth_methods: frozenset[str]
     trusted_sources: tuple[str, ...]
     blocking_types: tuple[str, ...]
+    limits: MiaLimits | None = None  # MIA Plati Instant limits in MDL (`mia_limits`)
     raw: Mapping[str, Any] = field(repr=False, default_factory=dict)
 
 
@@ -108,6 +110,7 @@ def load_policy(path: Path) -> Policy:
         strong_auth_methods=frozenset(raw["cold_start"]["strong_auth_methods"]),
         trusted_sources=tuple(raw["evidence"]["trusted_sources"]),
         blocking_types=tuple(raw["evidence"]["blocking_types"]),
+        limits=parse_limits(raw["mia_limits"]),
         raw=raw,
     )
 
@@ -149,7 +152,7 @@ class RuleResult:
 
 
 def _money(value: float | None) -> str:
-    return "n/a" if value is None else f"€{value:,.2f}"
+    return "n/a" if value is None else f"{value:,.2f} MDL"
 
 
 def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: set[str]) -> str | None:
@@ -204,6 +207,30 @@ def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: 
         if has_history and f["new_recipient"]:
             hours = f.get("recipient_relationship_hours")
             return "first payment to this beneficiary" if hours is None else f"first paid {hours:.1f} hours ago"
+    elif rule.code == "NEAR_TX_CAP":
+        ratio = f.get("amount_to_tx_cap_ratio") or 0.0
+        if ratio >= p["min_cap_ratio"]:
+            return f"{_money(f['amount'])} is {ratio:.0%} of the {_money(f.get('tx_cap'))} per-transaction limit"
+    elif rule.code == "DAILY_CAP_PRESSURE":
+        ratio = f.get("daily_cumulative_to_cap_ratio") or 0.0
+        if ratio >= p["min_daily_cap_ratio"] and f["new_recipient"]:
+            return (f"{_money(f.get('sent_today_before', 0.0) + f['amount'])} sent today including this payment, "
+                    f"{ratio:.0%} of the {_money(f.get('daily_cap'))} daily limit")
+    elif rule.code == "CAP_STRUCTURING":
+        ratio = f.get("amount_to_tx_cap_ratio") or 0.0
+        prior = f.get("near_cap_count_24h", 0)
+        if ratio >= p["min_cap_ratio"] and prior >= p["min_prior_near_cap_24h"]:
+            return f"{prior + 1} payments within 24 hours just under the {_money(f.get('tx_cap'))} per-transaction limit"
+    elif rule.code == "RECENT_ALIAS_REBOUND":
+        hours = f.get("alias_rebound_age_hours")
+        if hours is not None and hours <= p["max_hours"]:
+            return f"phone alias rebound to a new SIM or device {hours:.1f} hours ago"
+    elif rule.code == "UNKNOWN_RTP_REQUESTER":
+        if f.get("is_request_to_pay") and f["new_recipient"] and f.get("recipient_new_global"):
+            return "Request-to-Pay approved for a requester nobody had an established payment history with"
+    elif rule.code == "QR_MERCHANT_MISMATCH":
+        if f.get("qr_merchant_mismatch"):
+            return f"the QR code names merchant {f.get('qr_payload_merchant_id')}, but the money goes to another account"
     elif rule.code == "PASS_THROUGH_FUNDS":
         incoming = f.get("incoming_24h", 0.0)
         outflow = f.get("sum_24h", 0.0) + f["amount"]

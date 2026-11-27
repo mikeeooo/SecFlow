@@ -79,16 +79,20 @@ def test_repeated_evaluation_is_identical_apart_from_timing(evaluations) -> None
 
 def test_each_component_scores_each_row_once(evaluations) -> None:
     first, _, counted = evaluations
-    expected = 10_000 + first["test_requests"] + first["latency_ms"]["requests_timed"]  # validation + test + timing
+    selection = first["splits"]["validation_selection"]["requests"]  # validation days 78-85
+    assert selection == 8_000
+    expected = selection + first["test_requests"] + first["latency_ms"]["requests_timed"]
     assert counted == {"isolation_forest": expected, "lof": expected}
 
 
 def test_evaluation_uses_only_the_chronological_test_period(evaluations) -> None:
     first, _, _ = evaluations
-    assert first["test_requests"] == 20_000 and first["test_fraud"] == 240
-    assert first["splits"]["test"] == {"requests": 20_000, "fraud": 240, "fraud_share": 0.012}
+    assert first["test_requests"] == 15_000 and first["test_fraud"] == 360
+    assert first["splits"]["test"] == {"requests": 15_000, "fraud": 360, "fraud_share": 0.024}
+    assert first["splits"]["train"]["requests"] == 70_000
+    assert first["splits"]["validation_mapping"]["requests"] == 7_000
     assert first["cold_start_accounts"]["accounts"] == 40
-    assert first["unusual_legitimate"]["requests"] == 1_000
+    assert first["unusual_legitimate"]["requests"] == 750
 
 
 def test_reports_both_positive_views_and_separate_evidence_channel(evaluations) -> None:
@@ -96,7 +100,7 @@ def test_reports_both_positive_views_and_separate_evidence_channel(evaluations) 
     for view in (first["combined_policy"], first["combined_policy_without_evidence"]):
         assert {"verify_or_block", "block_only"} <= set(view)
     channel = first["evidence_channel"]
-    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 240
+    assert channel["fraud_with_active_evidence"] + channel["fraud_without_evidence"] == 360
     assert set(first["components"]) == {"isolation_forest", "lof", "dbscan", "rules", "combined_risk_score"}
 
 
@@ -161,8 +165,24 @@ def test_evaluation_report_has_new_sections(evaluations) -> None:
                 "segment_thresholds", "weights"):
         assert key in first, key
     assert first["holdout_accounts"]["requests"] > 0
-    assert first["unseen_scenario"]["requests"] == 40
+    assert first["unseen_scenario"]["requests"] == 60
+    assert set(first["unseen_scenario"]["fraud_types"]) == {"qr_code_tampering", "invoice_redirect"}
     assert first["drift_billers"]["requests"] > 0
     assert set(first["segment_thresholds"]) == {"personal", "business"}
     verify, block = first["operating_point"]["verify"], first["operating_point"]["block"]
     assert verify in first["score_bands"]["edges"] and block in first["score_bands"]["edges"]
+
+
+def test_recall_is_reported_per_fraud_type_including_test_only_types(evaluations) -> None:
+    from datagen.generator import ALL_FRAUD_TYPES, TEST_ONLY_FRAUD_TYPES
+
+    first, _, _ = evaluations
+    per_type = first["per_fraud_type"]
+    assert set(per_type) == set(ALL_FRAUD_TYPES)
+    for name, row in per_type.items():
+        assert row["requests"] == 30 and row["test_only"] == (name in TEST_ONLY_FRAUD_TYPES)
+        assert 0.0 <= row["recall_verify_or_block"] <= 1.0 and 0.0 <= row["recall_block_only"] <= 1.0
+    assert sum(r["requests"] for r in per_type.values()) == first["test_fraud"]
+    assert len(first["per_anomaly_type"]) >= 10
+    report = (load_settings().artifacts_dir / "evaluation.md").read_text()
+    assert "## Recall per fraud type" in report and "qr_code_tampering" in report and "invoice_redirect" in report
