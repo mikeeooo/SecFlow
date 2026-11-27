@@ -39,6 +39,8 @@ class _AuthSeries:
     keys: list[int] = field(default_factory=list)
     devices: list[str] = field(default_factory=list)
     cum_failures: list[int] = field(default_factory=lambda: [0])
+    alias_rebounds: list[int] = field(default_factory=list)  # keys of alias_rebound events
+    limit_changes: list[int] = field(default_factory=list)  # keys of limit_changed events
 
 
 @dataclass
@@ -56,6 +58,7 @@ class HistoryIndex:
         self.pair_first: dict[tuple[str, str], int] = {}
         self.auth: dict[str, _AuthSeries] = {}
         self.device_first: dict[tuple[str, str], int] = {}
+        self.scheme_first: dict[tuple[str, str], int] = {}
         self.incoming: dict[str, _IncomingSeries] = {}
         self.max_key = 0
         self.max_seq = 0
@@ -85,6 +88,7 @@ class HistoryIndex:
         incoming.cum_amount.append(incoming.cum_amount[-1] + request.amount)
         self.pair_first.setdefault((request.sender_id, request.recipient_id), key)
         self.device_first.setdefault((request.sender_id, request.device_id), key)
+        self.scheme_first.setdefault((request.sender_id, request.payment_scheme), key)
 
     def add_auth(self, event: AuthEvent, key: int) -> None:
         self._advance(key)
@@ -92,6 +96,10 @@ class HistoryIndex:
         series.keys.append(key)
         series.devices.append(event.device_id)
         series.cum_failures.append(series.cum_failures[-1] + (1 if event.event_type == "login_failure" else 0))
+        if event.event_type == "alias_rebound":
+            series.alias_rebounds.append(key)
+        elif event.event_type == "limit_changed":
+            series.limit_changes.append(key)
         self.device_first.setdefault((event.account_id, event.device_id), key)
 
     def add_payment(self, event: PaymentEvent, key: int) -> None:
@@ -143,3 +151,12 @@ class HistoryIndex:
 
     def first_device_key(self, account: str, device: str) -> int | None:
         return self.device_first.get((account, device))
+
+    def first_scheme_key(self, account: str, scheme: str) -> int | None:
+        return self.scheme_first.get((account, scheme))
+
+    @staticmethod
+    def last_before(keys: list[int], key: int) -> int | None:
+        """The latest key in `keys` strictly before `key`, if any."""
+        index = bisect_left(keys, key)
+        return keys[index - 1] if index > 0 else None

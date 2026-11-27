@@ -1,6 +1,6 @@
 """Trusted, time-aware security-evidence lookup.
 
-Evidence comes only from the server-side `security_events.jsonl` stream (or evidence the
+Evidence comes only from the trusted server-side source (the `security_evidence` lists of the dataset rows) (or evidence the
 server itself records). Client payloads cannot create evidence, and ground-truth labels are
 never consulted. At request time `t`, an evidence record is active only if all hold:
 
@@ -48,18 +48,24 @@ class SecurityEvidence:
 
 
 def evidence_from_row(row: dict) -> SecurityEvidence:
+    """Evidence record as it appears in a dataset row's `security_evidence` list.
+
+    A record carries its latest status; it takes effect at `recorded_at` (when the server learned it),
+    so a confirmation recorded after a payment never applies to that payment.
+    """
+    recorded = parse_ts(row["recorded_at"])
+    history = row.get("status_history")
     return SecurityEvidence(
         evidence_id=row["evidence_id"],
         evidence_type=row["evidence_type"],
-        entity_type=row["entity_type"],
-        entity_id=row["entity_id"],
+        entity_type=row["subject_type"],
+        entity_id=row["subject_id"],
         source=row["source"],
-        recorded_at=parse_ts(row["recorded_at"]),
-        effective_from=parse_ts(row["effective_from"]),
-        effective_until=parse_ts(row["effective_until"]) if row.get("effective_until") else None,
-        status_history=tuple(
-            StatusChange(h["status"], parse_ts(h["at"]), h.get("reason")) for h in row.get("status_history", [])
-        ),
+        recorded_at=recorded,
+        effective_from=parse_ts(row["effective_at"]),
+        effective_until=parse_ts(row["expires_at"]) if row.get("expires_at") else None,
+        status_history=tuple(StatusChange(h["status"], parse_ts(h["at"]), h.get("reason")) for h in history)
+        if history else (StatusChange(row["status"], recorded, None),),
         note=row.get("note", ""),
     )
 
