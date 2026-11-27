@@ -1,32 +1,32 @@
 # SecFlow evaluation report
 
-Generated 2026-11-27T16:27:32Z · model `secflow-sk-1.1-a7a420d885` · policy `secflow-evidence-first-1.1.0+bf92c73f`
+Generated 2026-11-27T20:44:28Z · model `secflow-sk-2.0-910679dc58` · policy `secflow-evidence-first-2.0.0+91b14a52`
 
-> Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.
+> Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in MDL). Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.
 
-Operating point (selected on validation, frozen before test): **Verify ≥ 83**, **Block ≥ 99** with at least two corroborating behaviour families (`validated`).
+Operating point (selected on validation, frozen before test): **Verify ≥ 69**, **Block ≥ 91** with at least two corroborating behaviour families (`validated`).
 
 ## Splits
 
 | Partition | Requests | Fraud | Fraud share |
 |---|---:|---:|---:|
-| train | 60,000 | 600 | 1.00% |
-| calibration | 10,000 | 100 | 1.00% |
-| validation | 10,000 | 100 | 1.00% |
-| test | 20,000 | 240 | 1.20% |
+| train | 70,000 | 1500 | 2.14% |
+| validation_mapping | 7,000 | 127 | 1.81% |
+| validation_selection | 8,000 | 173 | 2.16% |
+| test | 15,000 | 360 | 2.40% |
 
 ## Combined policy on the final test period
 
-Positive definitions: *Verify or Block* — A request counts as flagged when the final action is Verify or Block. *Block only* — A request counts as flagged only when the final action is Block.
+Positive definitions: *Verify or Block* — A payment counts as flagged when the final action is Verify or Block. *Block only* — A payment counts as flagged only when the final action is Block.
 
 | View | Precision | Recall | F1 | FPR | TP | FP | FN | TN |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| With evidence · Verify or Block | 14.6% | 76.2% | 0.245 | 5.40% | 183 | 1068 | 57 | 18692 |
-| With evidence · Block only | 97.3% | 29.6% | 0.454 | 0.01% | 71 | 2 | 169 | 19758 |
-| Model + rules only · Verify or Block | 14.4% | 75.0% | 0.242 | 5.40% | 180 | 1068 | 60 | 18692 |
-| Model + rules only · Block only | 96.4% | 22.5% | 0.365 | 0.01% | 54 | 2 | 186 | 19758 |
+| With evidence · Verify or Block | 34.4% | 76.7% | 0.475 | 3.59% | 276 | 526 | 84 | 14114 |
+| With evidence · Block only | 96.5% | 30.8% | 0.467 | 0.03% | 111 | 4 | 249 | 14636 |
+| Model + rules only · Verify or Block | 34.2% | 75.8% | 0.471 | 3.59% | 273 | 526 | 87 | 14114 |
+| Model + rules only · Block only | 96.1% | 27.2% | 0.424 | 0.03% | 98 | 4 | 262 | 14636 |
 
-Verify rate 5.89% · Block rate 0.36% · legitimate false-block rate 0.010% · block precision 95% CI [0.9055, 0.9925] over 73 blocks.
+Verify rate 4.58% · Block rate 0.77% · legitimate false-block rate 0.027% · block precision 95% CI [0.914, 0.9864] over 115 blocks.
 
 ## Components alone
 
@@ -34,102 +34,118 @@ Flag thresholds come from the validation period (top 5% review budget; DBSCAN fl
 
 | Component | Threshold | Precision | Recall | FPR | Average precision | ROC AUC |
 |---|---:|---:|---:|---:|---:|---:|
-| isolation_forest | 0.967 | 16.4% | 74.6% | 4.63% | 0.406 | 0.967 |
-| lof | 0.962 | 4.3% | 31.2% | 8.53% | 0.033 | 0.782 |
-| dbscan | 0.000 | 5.8% | 23.3% | 4.61% | 0.028 | 0.595 |
-| rules | 0.150 | 14.9% | 85.4% | 5.91% | 0.506 | 0.974 |
-| combined risk score | — | — | — | — | 0.572 | 0.975 |
+| isolation_forest | 0.956 | 23.4% | 65.6% | 5.28% | 0.507 | 0.942 |
+| lof | 0.961 | 7.0% | 14.4% | 4.73% | 0.059 | 0.566 |
+| dbscan | 0.000 | 8.2% | 16.4% | 4.52% | 0.038 | 0.560 |
+| rules | 0.300 | 32.5% | 75.6% | 3.86% | 0.654 | 0.957 |
+| combined risk score | — | — | — | — | 0.657 | 0.967 |
 
-## Per scenario (final test)
+## Recall per fraud type (final test)
 
-| Scenario | Kind | Requests | Verify or Block | Block | Evidence block | Model-only Verify or Block |
-|---|---|---:|---:|---:|---:|---:|
-| account_recovery | legitimate | 31 | 22.6% | 0.0% | 0.0% | 22.6% |
-| account_takeover | fraud | 40 | 90.0% | 37.5% | 20.0% | 90.0% |
-| business_settlement | legitimate | 47 | 0.0% | 0.0% | 0.0% | 0.0% |
-| coordinated | fraud | 40 | 95.0% | 65.0% | 35.0% | 95.0% |
-| household_repeat | legitimate | 192 | 6.8% | 0.0% | 0.0% | 6.8% |
-| invoice_redirect | fraud | 40 | 12.5% | 0.0% | 0.0% | 12.5% |
-| large_planned_purchase | legitimate | 52 | 48.1% | 0.0% | 0.0% | 48.1% |
-| mule_flow | fraud | 40 | 100.0% | 42.5% | 2.5% | 100.0% |
-| new_device_legitimate | legitimate | 74 | 39.2% | 0.0% | 0.0% | 39.2% |
-| new_recipient_legitimate | legitimate | 56 | 44.6% | 0.0% | 0.0% | 44.6% |
-| payroll_burst | legitimate | 277 | 3.6% | 0.0% | 0.0% | 3.6% |
-| routine_payment | legitimate | 18,760 | 4.1% | 0.0% | 0.0% | 4.1% |
-| shared_group_payment | legitimate | 140 | 72.9% | 0.7% | 0.0% | 72.9% |
-| social_engineering | fraud | 40 | 72.5% | 27.5% | 27.5% | 65.0% |
-| travel | legitimate | 131 | 69.5% | 0.0% | 0.0% | 69.5% |
-| velocity | fraud | 40 | 87.5% | 5.0% | 0.0% | 87.5% |
+| Fraud type | Test only | Payments | Campaigns | Verify or Block | Block | Evidence block | Model-only Verify or Block |
+|---|---|---:|---:|---:|---:|---:|---:|
+| account_takeover_phishing |  | 30 | 20 | 76.7% | 70.0% | 0.0% | 76.7% |
+| sim_swap_takeover |  | 30 | 12 | 100.0% | 86.7% | 10.0% | 100.0% |
+| vishing_impersonation |  | 30 | 15 | 70.0% | 13.3% | 3.3% | 70.0% |
+| request_to_pay_scam |  | 30 | 7 | 100.0% | 50.0% | 26.7% | 100.0% |
+| marketplace_scam |  | 30 | 8 | 70.0% | 16.7% | 13.3% | 63.3% |
+| investment_scam |  | 30 | 7 | 36.7% | 0.0% | 0.0% | 36.7% |
+| romance_scam |  | 30 | 8 | 36.7% | 3.3% | 3.3% | 33.3% |
+| money_mule |  | 30 | 9 | 96.7% | 33.3% | 10.0% | 96.7% |
+| limit_structuring |  | 30 | 9 | 100.0% | 33.3% | 0.0% | 100.0% |
+| coordinated_beneficiary |  | 30 | 7 | 100.0% | 60.0% | 10.0% | 100.0% |
+| qr_code_tampering | yes | 30 | 8 | 83.3% | 3.3% | 3.3% | 83.3% |
+| invoice_redirect | yes | 30 | 14 | 50.0% | 0.0% | 0.0% | 50.0% |
+
+## Unusual but legitimate payments per anomaly type (final test)
+
+| Anomaly type | Payments | Verify or Block | Block |
+|---|---:|---:|---:|
+| business_settlement | 29 | 27.6% | 0.0% |
+| diaspora_remittance_spend | 44 | 61.4% | 2.3% |
+| group_payment_new_payee | 113 | 31.9% | 0.0% |
+| holiday_spike | 53 | 18.9% | 0.0% |
+| household_repeat_payments | 106 | 3.8% | 0.0% |
+| legit_alias_change | 20 | 45.0% | 0.0% |
+| limit_increase_then_large_payment | 18 | 88.9% | 5.6% |
+| near_limit_planned_purchase | 30 | 96.7% | 3.3% |
+| new_device_legit | 37 | 35.1% | 0.0% |
+| new_merchant_qr | 18 | 0.0% | 0.0% |
+| night_payment | 23 | 0.0% | 0.0% |
+| payroll_burst | 106 | 12.3% | 0.0% |
+| salary_day_spike | 99 | 1.0% | 0.0% |
+| travel_abroad | 54 | 38.9% | 0.0% |
+| routine (no anomaly) | 13,890 | 2.4% | 0.0% |
 
 ## What the risk score is worth: observed fraud rate per score band (final test)
 
-Base fraud rate 1.20% over 20,000 scored requests. *Recall ≥ band* and *precision ≥ band* describe flagging every request at or above the band's lower edge.
+Base fraud rate 2.40% over 15,000 scored requests. *Recall ≥ band* and *precision ≥ band* describe flagging every request at or above the band's lower edge.
 
 | Score band | Requests | Fraud | Fraud rate (95% CI) | Lift | Recall ≥ band | Precision ≥ band | Flag rate ≥ band |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 0–10 | 1,918 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 1.2% | 100.00% |
-| 10–20 | 2,196 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 1.3% | 90.41% |
-| 20–30 | 2,306 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 1.5% | 79.43% |
-| 30–40 | 2,207 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 1.8% | 67.90% |
-| 40–50 | 2,328 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 2.1% | 56.87% |
-| 50–70 | 4,645 | 2 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 2.7% | 45.23% |
-| 70–80 | 2,448 | 22 | 0.9% (0.6–1.4%) | 0.7× | 99.2% | 5.4% | 22.00% |
-| 80–83 | 809 | 15 | 1.9% (1.1–3.0%) | 1.5× | 90.0% | 11.1% | 9.76% |
-| 83–90 | 946 | 74 | 7.8% (6.3–9.7%) | 6.5× | 83.8% | 17.6% | 5.71% |
-| 90–99 | 173 | 104 | 60.1% (52.7–67.1%) | 50.1× | 52.9% | 64.5% | 0.98% |
-| 99–100 | 24 | 23 | 95.8% (79.8–99.3%) | 79.9× | 9.6% | 95.8% | 0.12% |
+| 0–10 | 1,606 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 2.4% | 100.00% |
+| 10–20 | 2,250 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 2.7% | 89.29% |
+| 20–30 | 2,133 | 0 | 0.0% (0.0–0.2%) | 0.0× | 100.0% | 3.2% | 74.29% |
+| 30–40 | 2,190 | 1 | 0.0% (0.0–0.3%) | 0.0× | 100.0% | 4.0% | 60.07% |
+| 40–50 | 2,076 | 5 | 0.2% (0.1–0.6%) | 0.1× | 99.7% | 5.3% | 45.47% |
+| 50–69 | 3,837 | 70 | 1.8% (1.5–2.3%) | 0.8× | 98.3% | 7.5% | 31.63% |
+| 69–70 | 93 | 9 | 9.7% (5.2–17.4%) | 4.0× | 78.9% | 31.3% | 6.05% |
+| 70–80 | 543 | 84 | 15.5% (12.7–18.8%) | 6.4× | 76.4% | 33.7% | 5.43% |
+| 80–90 | 161 | 86 | 53.4% (45.7–61.0%) | 22.3× | 53.1% | 70.2% | 1.81% |
+| 90–91 | 9 | 7 | 77.8% (45.3–93.7%) | 32.4× | 29.2% | 94.6% | 0.74% |
+| 91–100 | 102 | 98 | 96.1% (90.3–98.5%) | 40.0× | 27.2% | 96.1% | 0.68% |
 
 Observed on the labelled synthetic final-test period. The fraud rate of a band is how often a request with that score really was fraud; it is an empirical rate, not a calibrated probability for any single request.
 
 ## Evidence channel versus model-only detection
 
-- Confirmed-evidence blocks: 34 (34 fraud, 0 legitimate).
-- Fraud requests without any active evidence: 206; model + rules flagged 72.3% of them (Verify or Block).
+- Confirmed-evidence blocks: 24 (24 fraud, 0 legitimate).
+- Fraud requests without any active evidence: 336; model + rules flagged 75.0% of them (Verify or Block).
 - All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection.
 
 ## Subsets
 
 | Subset | Requests | Fraud | Verify or Block recall | Block recall | Legit review rate | Legit false-block rate |
 |---|---:|---:|---:|---:|---:|---:|
-| Unusual legitimate | 1,000 | 0 | n/a | n/a | 30.10% | 0.100% |
-| Routine legitimate | 18,760 | 0 | n/a | n/a | 4.08% | 0.005% |
-| Cold-start accounts (40) | 1,415 | 9 | 100.0% | 44.4% | 27.95% | 0.000% |
-| Existing accounts | 18,585 | 231 | 75.3% | 29.0% | 3.67% | 0.011% |
+| Unusual legitimate | 750 | 0 | n/a | n/a | 24.53% | 0.400% |
+| Routine legitimate | 13,890 | 0 | n/a | n/a | 2.43% | 0.007% |
+| Cold-start accounts (40) | 678 | 30 | 100.0% | 43.3% | 14.51% | 0.154% |
+| Existing accounts | 14,322 | 330 | 74.5% | 29.7% | 3.06% | 0.021% |
 
 ## Validation goals (targets to assess, not promises)
 
-- Legitimate false-block rate <= 0.1%: measured 0.0001 — **met**
-- Verify rate <= 5%: measured 0.0589 — **not met**
-- Block precision >= 99%: measured 0.9726 — **not established** (Fewer than 100 predicted blocks: the sample cannot establish 99% precision either way.)
+- Legitimate false-block rate <= 0.1%: measured 0.0003 — **met**
+- Verify rate <= 5%: measured 0.0458 — **met**
+- Block precision >= 99%: measured 0.9652 — **not met**
 
 ## Latency
 
-300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 5.57 ms, p50 5.432 ms, p95 6.239 ms, p99 10.398 ms.
+300 single-request assessments (single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process): mean 4.544 ms, p50 4.537 ms, p95 4.653 ms, p99 4.795 ms.
 
 ## Decision sources
 
-- Block/confirmed_fraud_evidence: 34
-- Block/risk_policy: 39
-- Permit/risk_policy: 18,749
-- Verify/assessment_safeguard: 14
-- Verify/risk_policy: 1,164
+- Block/confirmed_fraud_evidence: 24
+- Block/risk_policy: 91
+- Permit/risk_policy: 14,198
+- Verify/assessment_safeguard: 18
+- Verify/risk_policy: 669
 
 ## Learned weights and segment thresholds
 
-- Weights (calibration AP search): isolation_forest 0.80, lof 0.05, dbscan 0.00, rules 0.15
-- Segment thresholds (validation): personal: Verify ≥ 80, Block ≥ 93; business: Verify ≥ 90, Block ≥ 99
+- Weights (AP search on validation days 71-77): isolation_forest 0.65, lof 0.05, dbscan 0.00, rules 0.30
+- Segment thresholds (validation days 78-85): personal: Verify ≥ 71, Block ≥ 91; business: Verify ≥ 69, Block ≥ 91
 
 ## Confidence intervals (95%)
 
-- Verify-or-Block precision: 11.0% – 18.4%
-- Verify-or-Block recall: 68.2% – 83.2%
-- Verify rate: 5.5% – 6.3%
-- Method: cluster bootstrap, 1000 resamples, seed 42; a fraud campaign or one legitimate request is the resampling unit; 2.5th-97.5th percentiles
+- Verify-or-Block precision: 28.9% – 39.5%
+- Verify-or-Block recall: 70.8% – 82.8%
+- Verify rate: 4.2% – 5.0%
+- Method: cluster bootstrap, 1000 resamples, seed 42; a fraud campaign or one legitimate payment is the resampling unit; 2.5th-97.5th percentiles
 
-## Unseen scenario, holdout accounts and drift
+## Test-only fraud types, holdout accounts and drift
 
-- invoice_redirect (40 requests, 18 campaigns): flagged 12.5%; single-victim 0.0%, multi-victim 14.3%
-- Holdout accounts (40 accounts, 2178 requests, 27 fraud): recall 70.4%, verify rate 3.1%
-- Drift billers (471 requests): verify rate 14.2%, false-block rate 0.21%
+- Test-only fraud types qr_code_tampering, invoice_redirect (60 payments, 22 campaigns): flagged 66.7%; single-victim 50.0%, multi-victim 67.9%
+- Holdout accounts (40 accounts, 1365 requests, 30 fraud): recall 80.0%, verify rate 3.4%
+- Drift billers (372 requests): verify rate 14.8%, false-block rate 0.27%
 
 Scores are anomaly-risk indices, not probabilities of fraud. A high score alone is never treated as confirmed fraud.
