@@ -1,7 +1,8 @@
 import type { DecisionLabel, DecisionSource, Outcome } from "../api/types";
 
-const money = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
-const compactMoney = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 });
+// MIA Plăți Instant settles in Moldovan lei only, so every amount is shown in MDL.
+const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "MDL", currencyDisplay: "code", minimumFractionDigits: 2 });
+const compactMoney = new Intl.NumberFormat("en-GB", { style: "currency", currency: "MDL", currencyDisplay: "code", notation: "compact", maximumFractionDigits: 1 });
 const integer = new Intl.NumberFormat("en-IE");
 
 export const formatMoney = (value: number | null | undefined): string => (value == null ? "—" : money.format(value));
@@ -58,7 +59,27 @@ export const FAMILY_TEXT: Record<string, string> = {
   compromised_access: "Device & sign-in",
   beneficiary_risk: "Beneficiary network",
   funds_flow: "Pass-through funds",
+  limit_pressure: "MIA limit pressure",
+  identity_change: "Alias rebound",
+  payment_instrument: "RTP / QR instrument",
 };
+
+/** Human names of the MIA Plăți Instant payment schemes. */
+export const SCHEME_TEXT: Record<string, string> = {
+  p2p_alias: "P2P by phone alias",
+  p2p_iban: "P2P by IBAN",
+  p2b_qr_static: "Static merchant QR",
+  p2b_qr_dynamic: "Dynamic QR",
+  p2b_link: "Payment link",
+  request_to_pay: "Request to Pay",
+  b2b: "Business to business",
+  p2g: "Payment to a public institution",
+  b2p_salary: "Salary payment",
+  remittance_in: "Incoming remittance",
+};
+
+export const formatScheme = (scheme: string | null | undefined): string =>
+  scheme ? SCHEME_TEXT[scheme] ?? humanize(scheme) : "—";
 
 export function humanize(value: string): string {
   const text = value.replace(/_/g, " ");

@@ -12,6 +12,17 @@ export type Outcome =
 export type ReviewStatus = "not_applicable" | "pending" | "approved" | "rejected";
 export type ComponentKey = "isolation_forest" | "lof" | "dbscan" | "rules";
 export type AuthMethod = "biometric" | "password" | "otp" | "password_otp";
+/** MIA Plăți Instant schemes a SecFlow customer can initiate (incoming remittances are context only). */
+export type PaymentScheme =
+  | "p2p_alias"
+  | "p2p_iban"
+  | "p2b_qr_static"
+  | "p2b_qr_dynamic"
+  | "p2b_link"
+  | "request_to_pay"
+  | "b2b"
+  | "p2g"
+  | "b2p_salary";
 
 export interface PartyRef {
   id: string;
@@ -36,6 +47,7 @@ export interface AssessmentSummary {
   recipient: PartyRef;
   amount: number;
   currency: string;
+  payment_scheme: string;
   risk_score: number | null;
   decision: Decision;
   decision_source: DecisionSource;
@@ -109,6 +121,9 @@ export interface AssessmentDetail extends AssessmentSummary {
   auth_method: string;
   ip_country: string;
   channel: string;
+  request_to_pay_id: string | null;
+  qr_payload_merchant_id: string | null;
+  recipient_alias: string | null;
   facts: Record<string, unknown>;
   idempotent_replay: boolean;
   score_band: ScoreBand | null;
@@ -289,11 +304,15 @@ export interface PartyOption {
 export interface SimulatorOptions {
   simulation_time: string;
   currencies: string[];
+  payment_schemes: PaymentScheme[];
+  limits: Record<Segment, { per_transaction: number; per_day: number; per_month: number | null }>;
   auth_methods: AuthMethod[];
   countries: string[];
   flagged_beneficiaries: { evidence_id: string; id: string; name: string; evidence_type: string }[];
   sender: {
     account_id: string;
+    account_type: Segment;
+    max_amount: number;
     home_country: string;
     known_devices: string[];
     recent_recipients: PartyRef[];
@@ -307,7 +326,10 @@ export interface SimulationRequest {
   recipient_id?: string | null;
   new_recipient_name?: string | null;
   amount: number;
-  currency: "EUR";
+  currency: "MDL";
+  payment_scheme: PaymentScheme;
+  recipient_alias?: string | null;
+  qr_payload_merchant_id?: string | null;
   device_id: string | null;
   auth_method: AuthMethod;
   failed_login_attempts: number;
@@ -324,7 +346,10 @@ export interface ReviewRequest {
 export interface Health {
   status: "ok" | "degraded";
   started_at: string;
-  data: { source: string; dataset: string; requests: number; accounts: number; generator_version: string; seed: number };
+  data: {
+    source: string; dataset: string; file: string; currency: string; requests: number; context_credits: number;
+    accounts: number; generator_version: string | null; seed: number | null; hashes_verified: boolean;
+  };
   model: { loaded: boolean; version: string | null; error: string | null };
   policy: {
     version: string;

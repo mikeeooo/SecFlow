@@ -3,17 +3,23 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import { useSimulate, useSimulatorOptions } from "../api/hooks";
-import type { AssessmentDetail, AuthMethod, PartyOption, SimulationRequest } from "../api/types";
+import type { AssessmentDetail, AuthMethod, PartyOption, PaymentScheme, SimulationRequest } from "../api/types";
 import { DecisionBadge } from "../components/DecisionBadge";
 import { PartyPicker } from "../components/PartyPicker";
 import { RiskComposition } from "../components/RiskComposition";
 import { errorMessage } from "../components/States";
 import { Button, Card, CardHeader, Chip, Field, PageHeader, Segmented, cx, inputClass } from "../components/ui";
-import { SOURCE_TEXT, formatDateTime, formatMoney, humanize, newRequestId } from "../lib/format";
+import { SCHEME_TEXT, SOURCE_TEXT, formatDateTime, formatMoney, formatScheme, humanize, newRequestId } from "../lib/format";
 
 type RecipientMode = "existing" | "new";
 const NEW_DEVICE = "__new__";
-const NEW_NAMES = ["Jordan Pike", "Mara Ellison", "Tobias Renn", "Quinn Albrecht", "Nadia Sorel"];
+const NEW_NAMES = ["Ion Vatra", "Mariana Colina", "Tudor Izvoru", "Silvia Poiana", "Radu Livada"];
+const DEFAULT_SCHEMES: PaymentScheme[] = [
+  "p2p_alias", "p2p_iban", "p2b_qr_static", "p2b_qr_dynamic", "p2b_link", "request_to_pay", "b2b", "p2g", "b2p_salary",
+];
+const QR_SCHEMES: PaymentScheme[] = ["p2b_qr_static", "p2b_qr_dynamic"];
+/** Fallback MIA per-transaction limit for a personal sender until the server's options arrive. */
+const PERSONAL_CAP = 5_000;
 
 interface FormState {
   sender: PartyOption | null;
@@ -21,6 +27,8 @@ interface FormState {
   recipient: PartyOption | null;
   newName: string;
   amount: string;
+  scheme: PaymentScheme;
+  qrMerchant: string;
   device: string;
   auth: AuthMethod;
   failures: number;
@@ -33,6 +41,8 @@ const EMPTY: FormState = {
   recipient: null,
   newName: "",
   amount: "",
+  scheme: "p2p_alias",
+  qrMerchant: "",
   device: "",
   auth: "biometric",
   failures: 0,
@@ -41,7 +51,7 @@ const EMPTY: FormState = {
 
 type Errors = Partial<Record<"sender" | "recipient" | "amount" | "form", string>>;
 
-function validate(form: FormState): Errors {
+function validate(form: FormState, maxAmount: number): Errors {
   const errors: Errors = {};
   if (!form.sender) errors.sender = "Choose who is paying.";
   if (form.recipientMode === "existing" && !form.recipient) errors.recipient = "Choose a recipient, or switch to a new recipient.";
@@ -49,7 +59,7 @@ function validate(form: FormState): Errors {
   if (form.recipient && form.sender && form.recipient.id === form.sender.id) errors.recipient = "Sender and recipient must differ.";
   const amount = Number(form.amount);
   if (!form.amount || !Number.isFinite(amount) || amount <= 0) errors.amount = "Enter an amount greater than zero.";
-  else if (amount > 1_000_000) errors.amount = "The simulator accepts up to €1,000,000.";
+  else if (amount > maxAmount) errors.amount = `MIA Plăți Instant accepts at most ${formatMoney(maxAmount)} per payment from this sender.`;
   return errors;
 }
 
@@ -90,37 +100,44 @@ export function SimulatorPage() {
     }
   };
 
-  const median = sender?.median_amount ?? 50;
+  const median = sender?.median_amount ?? 200;
+  const maxAmount = sender?.max_amount ?? PERSONAL_CAP;
+  const nearCap = (share: number) => Math.min(median * 7, maxAmount * share).toFixed(2);
+  const personScheme: PaymentScheme = sender?.account_type === "business" ? "p2p_iban" : "p2p_alias";
   const presets = useMemo(() => {
     const known = sender?.recent_recipients ?? [];
     const flagged = options.data?.flagged_beneficiaries ?? [];
     const device = sender?.known_devices[0] ?? NEW_DEVICE;
-    const home = sender?.home_country ?? "DE";
+    const home = sender?.home_country ?? "MD";
     const name = NEW_NAMES[(form.sender?.id.charCodeAt(form.sender.id.length - 1) ?? 0) % NEW_NAMES.length];
     return [
       {
         id: "ordinary", label: "Ordinary payment", hint: "Usual amount to a recent recipient, known device",
-        apply: (): Partial<FormState> => ({ recipientMode: "existing", recipient: known[0] ? { ...known[0], detail: "" } : null, amount: (median * 0.9).toFixed(2), device, auth: "biometric", failures: 0, country: home }),
+        apply: (): Partial<FormState> => ({ recipientMode: "existing", recipient: known[0] ? { ...known[0], detail: "" } : null, amount: (median * 0.9).toFixed(2), scheme: personScheme, qrMerchant: "", device, auth: "biometric", failures: 0, country: home }),
       },
       {
         id: "verify", label: "Unusual but plausible", hint: "Larger first payment to someone new, known device",
-        apply: (): Partial<FormState> => ({ recipientMode: "new", newName: name, recipient: null, amount: (median * 7).toFixed(2), device, auth: "password", failures: 0, country: home }),
+        apply: (): Partial<FormState> => ({ recipientMode: "new", newName: name, recipient: null, amount: nearCap(0.8), scheme: personScheme, qrMerchant: "", device, auth: "password", failures: 0, country: home }),
       },
       {
-        id: "high", label: "High-risk pattern", hint: "New device after failed sign-ins, abroad, large amount",
-        apply: (): Partial<FormState> => ({ recipientMode: "new", newName: name, recipient: null, amount: (median * 14).toFixed(2), device: NEW_DEVICE, auth: "password", failures: 3, country: home === "US" ? "GB" : "US" }),
+        id: "high", label: "Phishing takeover", hint: "New device after failed sign-ins, abroad, just under the MIA cap",
+        apply: (): Partial<FormState> => ({ recipientMode: "new", newName: name, recipient: null, amount: (maxAmount * 0.98).toFixed(2), scheme: personScheme, qrMerchant: "", device: NEW_DEVICE, auth: "password", failures: 3, country: home === "NL" ? "US" : "NL" }),
+      },
+      {
+        id: "rtp", label: "Request to Pay scam", hint: "Approving a Request to Pay from an unknown requester",
+        apply: (): Partial<FormState> => ({ recipientMode: "new", newName: name, recipient: null, amount: Math.min(median * 4, maxAmount * 0.5).toFixed(2), scheme: "request_to_pay", qrMerchant: "", device, auth: "biometric", failures: 0, country: home }),
       },
       {
         id: "flagged", label: "Flagged beneficiary", hint: flagged.length ? "Ordinary payment to a beneficiary with active security evidence" : "No beneficiary currently has active evidence",
         disabled: flagged.length === 0,
-        apply: (): Partial<FormState> => ({ recipientMode: "existing", recipient: flagged[0] ? { id: flagged[0].id, name: flagged[0].name, kind: "counterparty", detail: "" } : null, amount: (median * 0.8).toFixed(2), device, auth: "biometric", failures: 0, country: home }),
+        apply: (): Partial<FormState> => ({ recipientMode: "existing", recipient: flagged[0] ? { id: flagged[0].id, name: flagged[0].name, kind: "counterparty", detail: "" } : null, amount: (median * 0.8).toFixed(2), scheme: personScheme, qrMerchant: "", device, auth: "biometric", failures: 0, country: home }),
       },
     ];
-  }, [sender, options.data, median, form.sender]);
+  }, [sender, options.data, median, maxAmount, personScheme, form.sender]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const found = validate(form);
+    const found = validate(form, maxAmount);
     setErrors(found);
     if (Object.keys(found).length || simulate.isPending || !form.sender) return;
     const body: SimulationRequest = {
@@ -129,11 +146,13 @@ export function SimulatorPage() {
       recipient_id: form.recipientMode === "existing" ? form.recipient?.id : null,
       new_recipient_name: form.recipientMode === "new" ? form.newName.trim() : null,
       amount: Number(Number(form.amount).toFixed(2)),
-      currency: "EUR",
+      currency: "MDL",
+      payment_scheme: form.scheme,
+      qr_payload_merchant_id: QR_SCHEMES.includes(form.scheme) && form.qrMerchant.trim() ? form.qrMerchant.trim() : null,
       device_id: form.device === NEW_DEVICE || !form.device ? null : form.device,
       auth_method: form.auth,
       failed_login_attempts: form.failures,
-      ip_country: form.country || sender?.home_country || "DE",
+      ip_country: form.country || sender?.home_country || "MD",
       channel: "mobile_app",
     };
     simulate.mutate(body, {
@@ -154,7 +173,7 @@ export function SimulatorPage() {
 
   return (
     <>
-      <PageHeader title="Payment Simulator" subtitle="Compose a payment request and see the real assessment. Results are simulated and recorded in server memory; no money moves." />
+      <PageHeader title="Payment Simulator" subtitle="Compose an MIA Plăți Instant payment (MDL) and see the real assessment. Results are simulated and recorded in server memory; no money moves." />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader title="Request" subtitle="Presets fill the form from the sender's observed history. The decision always comes from the server." />
@@ -202,10 +221,24 @@ export function SimulatorPage() {
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Amount (EUR)" htmlFor="sim-amount" error={errors.amount} hint={sender?.median_amount ? `Sender's recent median ${formatMoney(sender.median_amount)}` : undefined}>
+              <Field label="Amount (MDL)" htmlFor="sim-amount" error={errors.amount}
+                hint={`${sender?.median_amount ? `Sender's recent median ${formatMoney(sender.median_amount)} · ` : ""}MIA limit ${formatMoney(maxAmount)} per payment`}>
                 <input id="sim-amount" className={cx(inputClass, "tabular")} inputMode="decimal" type="number" min="0.01" step="0.01"
                   value={form.amount} aria-invalid={!!errors.amount || undefined} onChange={(e) => change({ amount: e.target.value })} placeholder="0.00" />
               </Field>
+              <Field label="MIA payment scheme" htmlFor="sim-scheme">
+                <select id="sim-scheme" className={inputClass} value={form.scheme} onChange={(e) => change({ scheme: e.target.value as PaymentScheme })}>
+                  {(options.data?.payment_schemes ?? DEFAULT_SCHEMES).map((scheme) => (
+                    <option key={scheme} value={scheme}>{SCHEME_TEXT[scheme] ?? humanize(scheme)}</option>
+                  ))}
+                </select>
+              </Field>
+              {QR_SCHEMES.includes(form.scheme) ? (
+                <Field label="Merchant named in the QR code" htmlFor="sim-qr" hint="Leave empty for an honest QR; another merchant ID simulates a tampered code.">
+                  <input id="sim-qr" className={cx(inputClass, "font-mono")} value={form.qrMerchant} maxLength={40}
+                    onChange={(e) => change({ qrMerchant: e.target.value })} placeholder="Recipient's own ID" />
+                </Field>
+              ) : null}
               <Field label="Device" htmlFor="sim-device">
                 <select id="sim-device" className={inputClass} value={form.device} onChange={(e) => change({ device: e.target.value })}>
                   {(sender?.known_devices ?? []).map((d) => <option key={d} value={d}>{d} (known)</option>)}
@@ -222,7 +255,7 @@ export function SimulatorPage() {
               </Field>
               <Field label="Session country" htmlFor="sim-country">
                 <select id="sim-country" className={inputClass} value={form.country} onChange={(e) => change({ country: e.target.value })}>
-                  {(options.data?.countries ?? [form.country || "DE"]).map((c) => <option key={c} value={c}>{c}{c === sender?.home_country ? " (home)" : ""}</option>)}
+                  {(options.data?.countries ?? [form.country || "MD"]).map((c) => <option key={c} value={c}>{c}{c === sender?.home_country ? " (home)" : ""}</option>)}
                 </select>
               </Field>
               <Field label="Failed sign-in attempts before success" htmlFor="sim-failures">
@@ -276,7 +309,7 @@ function ResultCard({ result }: { result: AssessmentDetail }) {
         </div>
         <p className="text-[15px] font-medium">{result.explanation}</p>
         <p className="text-[13px] text-label-2">
-          {result.sender.name} → {result.recipient.name} · {formatMoney(result.amount)} · {result.request_id}
+          {result.sender.name} → {result.recipient.name} · {formatMoney(result.amount)} · {formatScheme(result.payment_scheme)} · {result.request_id}
         </p>
       </div>
       <div className="border-t border-separator p-5">

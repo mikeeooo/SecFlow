@@ -7,7 +7,7 @@ import type { Report } from "../api/types";
 import { ColumnChart } from "../components/charts";
 import { ErrorState, LoadingState } from "../components/States";
 import { Card, CardHeader, Chip, KeyValue, PageHeader, Segmented, Stat } from "../components/ui";
-import { FAMILY_TEXT, formatDay, formatInt, formatPercent, humanize } from "../lib/format";
+import { FAMILY_TEXT, formatDay, formatInt, formatMoney, formatPercent, humanize } from "../lib/format";
 
 function Table({ head, rows, caption }: { head: string[]; rows: ReactNode[][]; caption?: string }) {
   return (
@@ -126,13 +126,13 @@ function ModelsAndEvaluation() {
         </p>
         <p className="mt-2 text-[12px] text-label-2">
           {policy.weights_source === "learned"
-            ? "Weights learned by exhaustive search on the simplex (step 0.05, LOF ≥ 0.05), maximising average precision on the calibration period (days 61–70)."
+            ? "Weights learned by exhaustive search on the simplex (step 0.05, LOF ≥ 0.05), maximising average precision on validation days 71–77."
             : "Learned weights unavailable: showing the policy fallback weights."}
         </p>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Personal accounts" value={`${policy.segments.personal.verify} / ${policy.segments.personal.block}`} hint="Verify / Block thresholds, chosen on validation" tone="verify" />
           <Stat label="Business accounts" value={`${policy.segments.business.verify} / ${policy.segments.business.block}`} hint={`Block also needs ≥ ${policy.min_corroborating_families} corroborating families`} tone="block" />
-          <Stat label="Cold-start limit" value={`€${policy.cold_start.max_amount_without_history}`} hint="without history, above this or without strong sign-in → Verify" />
+          <Stat label="Cold-start limit" value={formatMoney(policy.cold_start.max_amount_without_history)} hint="without history, above this or without strong sign-in → Verify" />
           <Stat label="Trusted evidence sources" value={policy.trusted_sources.length} hint={policy.trusted_sources.map(humanize).join(", ")} />
         </div>
         <p className="mt-4 text-[13px] text-label-2">
@@ -181,7 +181,7 @@ function ModelsAndEvaluation() {
             </div>
           </Card>
           <Card>
-            <CardHeader title="Fitting and selection" subtitle="Training days 1–60 · calibration 61–70 · validation 71–80" />
+            <CardHeader title="Fitting and selection" subtitle="train.json days 1–70 · validation.json days 71–77 (score mapping, weights) and 78–85 (thresholds)" />
             <div className="space-y-4 px-5 pb-5">
               <KeyValue items={[
                 { label: "IsolationForest", value: `${model.selected_parameters.isolation_forest.n_estimators} trees, ${model.selected_parameters.isolation_forest.max_samples} samples` },
@@ -246,7 +246,7 @@ function ModelsAndEvaluation() {
       {a.training?.weights_search ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card>
-            <CardHeader title="Learned combination weights" subtitle={`Top candidates of ${formatInt(a.training.weights_search.candidates)} on the calibration period (${formatInt(a.training.weights_search.rows)} requests, ${a.training.weights_search.fraud} fraud)`} />
+            <CardHeader title="Learned combination weights" subtitle={`Top candidates of ${formatInt(a.training.weights_search.candidates)} on validation days 71–77 (${formatInt(a.training.weights_search.rows)} requests, ${a.training.weights_search.fraud} fraud)`} />
             <div className="px-5 pb-5">
               <Table caption="Weight search" head={["IF", "LOF", "DBSCAN", "Rules", "Avg. precision"]}
                 rows={(a.training.weights_search.top as Report[]).map((r) => [num(r.isolation_forest, 2), num(r.lof, 2), num(r.dbscan, 2), num(r.rules, 2), num(r.average_precision)])} />
@@ -334,12 +334,21 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
           </div>
         </Card>
         <Card>
-          <CardHeader title="By scenario" subtitle="Share of requests sent to Verify or Block" />
+          <CardHeader title="Recall by fraud type" subtitle="Share of each fraud type's test payments sent to Verify or Block" />
           <div className="px-5 pb-5">
-            <Table caption="Scenarios" head={["Scenario", "Requests", "V or B", "Block", "Evidence block"]}
-              rows={Object.entries(e.per_scenario as Record<string, Report>).map(([k, r]) => [
-                <span key={k}>{humanize(k)} <Chip tone={r.kind === "fraud" ? "block" : "neutral"}>{r.kind}</Chip></span>,
-                formatInt(r.requests), formatPercent(r.verify_or_block_rate), formatPercent(r.block_rate), formatPercent(r.evidence_block_rate),
+            <Table caption="Fraud types" head={["Fraud type", "Payments", "V or B", "Block", "Evidence block"]}
+              rows={Object.entries((e.per_fraud_type ?? {}) as Record<string, Report>).map(([k, r]) => [
+                <span key={k}>{humanize(k)}{r.test_only ? <> <Chip tone="verify">test only</Chip></> : null}</span>,
+                formatInt(r.requests), formatPercent(r.recall_verify_or_block), formatPercent(r.recall_block_only), formatPercent(r.evidence_block_rate),
+              ])} />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Unusual but legitimate" subtitle="Share of each anomaly type sent to Verify or Block (legitimate payments)" />
+          <div className="px-5 pb-5">
+            <Table caption="Anomaly types" head={["Anomaly type", "Payments", "V or B", "Block"]}
+              rows={Object.entries((e.per_anomaly_type ?? {}) as Record<string, Report>).map(([k, r]) => [
+                humanize(k), formatInt(r.requests), formatPercent(r.verify_or_block_rate), formatPercent(r.block_rate),
               ])} />
           </div>
         </Card>
@@ -351,7 +360,7 @@ function EvaluationSection({ query }: { query: ReturnType<typeof useEvaluation> 
                 ["Unusual legitimate", e.unusual_legitimate], ["Cold-start accounts", e.cold_start_accounts], ["Existing accounts", e.existing_accounts],
                 ...(e.holdout_accounts ? [["Holdout accounts (never fitted)", e.holdout_accounts]] : []),
                 ...(e.drift_billers ? [["Payments to drift billers", e.drift_billers]] : []),
-                ...(e.unseen_scenario ? [["Unseen scenario: invoice redirect", e.unseen_scenario]] : []),
+                ...(e.unseen_scenario ? [["Test-only types: QR tampering, invoice redirect", e.unseen_scenario]] : []),
               ].map(([label, s]) => [
                 label as string, formatInt((s as Report).requests), formatPercent((s as Report).verify_or_block?.recall), formatPercent((s as Report).legitimate_review_rate, 2), formatPercent((s as Report).legitimate_false_block_rate, 3),
               ])} />

@@ -31,7 +31,7 @@ export function TransactionsPage() {
 
   return (
     <>
-      <PageHeader title="Transactions" subtitle="Every assessed payment request: the demonstration history plus this session's simulations." />
+      <PageHeader title="Transactions" subtitle="Every assessed payment request: the test-period history (storage/test.json) plus this session's simulations." />
       <Card className="mb-5 space-y-4 p-5">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[240px] flex-1">
@@ -77,7 +77,7 @@ export function TransactionsPage() {
           <Field label="Origin" htmlFor="tx-origin">
             <select id="tx-origin" className={inputClass} value={params.get("origin") ?? ""} onChange={(e) => update("origin", e.target.value)}>
               <option value="">History and simulations</option>
-              <option value="baseline">Demonstration history</option>
+              <option value="baseline">Test-period history</option>
               <option value="simulation">Simulations</option>
             </select>
           </Field>

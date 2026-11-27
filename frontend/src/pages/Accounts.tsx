@@ -40,7 +40,7 @@ export function AccountsPage() {
 
   return (
     <>
-      <PageHeader title="Accounts" subtitle="Every account in the demonstration history with its activity, flags, and review outcomes. Names are generated identities." />
+      <PageHeader title="Accounts" subtitle="Every account in the test-period history with its activity, flags, and review outcomes. Names are generated identities." />
       {data ? (
         <Card className="mb-5 grid grid-cols-2 gap-6 p-5 md:grid-cols-4">
           <Stat label="All accounts" value={formatInt(data.all_accounts)} />

@@ -8,7 +8,7 @@ import { DecisionBadge, LABEL_STYLE } from "../components/DecisionBadge";
 import { RiskComposition } from "../components/RiskComposition";
 import { ErrorState, LoadingState, errorMessage } from "../components/States";
 import { Button, Card, CardHeader, Chip, Field, KeyValue, PageHeader, Segmented, cx, inputClass } from "../components/ui";
-import { FAMILY_TEXT, LABEL_HINT, OUTCOME_TEXT, SOURCE_TEXT, formatDateTime, formatInt, formatMoney, formatPercent, formatScore, humanize } from "../lib/format";
+import { FAMILY_TEXT, LABEL_HINT, OUTCOME_TEXT, SOURCE_TEXT, formatDateTime, formatInt, formatMoney, formatPercent, formatScore, humanize, formatScheme } from "../lib/format";
 
 export function InvestigationPage() {
   const { requestId = "" } = useParams();
@@ -30,7 +30,7 @@ export function InvestigationPage() {
       </Link>
       <PageHeader
         title={`${a.sender.name} → ${a.recipient.name}`}
-        subtitle={`${formatMoney(a.amount)} · ${formatDateTime(a.event_time)} · ${a.request_id} · ${a.origin === "simulation" ? "simulated request" : "demonstration history"}`}
+        subtitle={`${formatMoney(a.amount)} · ${formatDateTime(a.event_time)} · ${a.request_id} · ${a.origin === "simulation" ? "simulated request" : "test-period history"}`}
       />
       <DecisionPanel a={a} />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -52,6 +52,10 @@ export function InvestigationPage() {
                 { label: "Sender", value: a.sender.kind === "account" ? <Link className="text-accent" to={`/accounts/${a.sender.id}`}>{a.sender.name}</Link> : a.sender.name },
                 { label: "Recipient", value: a.recipient.kind === "account" ? <Link className="text-accent" to={`/accounts/${a.recipient.id}`}>{a.recipient.name}</Link> : `${a.recipient.name} (${a.recipient.id})` },
                 { label: "Amount", value: formatMoney(a.amount) },
+                { label: "MIA scheme", value: formatScheme(a.payment_scheme) },
+                ...(a.recipient_alias ? [{ label: "Recipient alias", value: <span className="font-mono text-[12px]">{a.recipient_alias}</span> }] : []),
+                ...(a.request_to_pay_id ? [{ label: "Request to Pay", value: <span className="font-mono text-[12px]">{a.request_to_pay_id}</span> }] : []),
+                ...(a.qr_payload_merchant_id ? [{ label: "QR names merchant", value: <span className="font-mono text-[12px]">{a.qr_payload_merchant_id}</span> }] : []),
                 { label: "Sign-in", value: humanize(a.auth_method) },
                 { label: "Device", value: <span className="font-mono text-[12px]">{a.device_id}</span> },
                 { label: "Session", value: <span className="font-mono text-[12px]">{a.session_id}</span> },
