@@ -37,9 +37,11 @@ def _env_float(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class Settings:
-    data_dir: Path
-    training_dir: Path
-    demo_dir: Path
+    storage_dir: Path  # exactly train.json, validation.json and test.json
+    train_path: Path
+    validation_path: Path
+    test_path: Path  # final evaluation and the history the app serves
+    manifest_path: Path
     models_dir: Path
     artifacts_dir: Path
     policy_path: Path
@@ -58,11 +60,13 @@ def _default_state_dir() -> Path | None:
 
 
 def load_settings() -> Settings:
-    data_dir = _env_path("SECFLOW_DATA_DIR", ROOT / "storage" / "data")
+    storage_dir = _env_path("SECFLOW_STORAGE_DIR", ROOT / "storage")
     return Settings(
-        data_dir=data_dir,
-        training_dir=data_dir / "training",
-        demo_dir=data_dir / "demo",
+        storage_dir=storage_dir,
+        train_path=storage_dir / "train.json",
+        validation_path=storage_dir / "validation.json",
+        test_path=storage_dir / "test.json",
+        manifest_path=_env_path("SECFLOW_MANIFEST_PATH", ROOT / "datagen" / "manifest.json"),
         models_dir=_env_path("SECFLOW_MODELS_DIR", ROOT / "ml" / "models"),
         artifacts_dir=_env_path("SECFLOW_ARTIFACTS_DIR", ROOT / "artifacts"),
         policy_path=_env_path("SECFLOW_POLICY_PATH", ROOT / "config" / "policy.json"),
