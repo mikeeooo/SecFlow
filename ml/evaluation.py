@@ -1,8 +1,8 @@
-"""Frozen evaluation on the chronological final test period (days 81-100).
+"""Frozen evaluation on the chronological final test file `storage/test.json` (days 86-100).
 
 The model bundle, score mappings, rules, thresholds and evidence policy are loaded as
 frozen artifacts; nothing is fitted or tuned here. Component-only flag thresholds are taken
-from the validation period (top 5% review budget) before test labels are opened. Every test
+from validation days 78-85 (top 5% review budget) before test labels are opened. Every test
 request is assessed once through `ml.assess`; the evidence-free view re-applies the pure
 action table to the same already-computed components.
 """
@@ -23,11 +23,12 @@ import numpy as np
 from sklearn.metrics import average_precision_score, roc_auc_score
 
 from config.settings import Settings
+from datagen.dataset import file_hashes, load_labels, load_partitions, read_manifest
+from datagen.generator import ALL_FRAUD_TYPES, TEST_ONLY_FRAUD_TYPES
 from ml.assess import AssessmentResult, assess_batch, assess_one, build_evidence_store
 from ml.model import load_bundle, load_operating_point
 from ml.policy import Policy, decide_action, load_policy
-from ml.training import holdout_accounts
-from datagen.dataset import load_dataset, load_labels, load_splits
+from ml.training import holdout_accounts, split_assignments
 from runtime.history import HistoryIndex
 
 REVIEW_BUDGET = 0.05
@@ -212,35 +213,47 @@ def _subset(codes: np.ndarray, y: np.ndarray, mask: np.ndarray) -> dict[str, Any
     return {"requests": int(mask.sum()), "fraud": int(y[mask].sum()), **policy_metrics(codes[mask], y[mask])}
 
 
+def _victims_per_campaign(results, campaign, mask) -> np.ndarray:
+    victims: dict[str, set[str]] = {}
+    for r, cmp, hit in zip(results, campaign, mask, strict=True):
+        if hit:
+            victims.setdefault(cmp, set()).add(r.request.sender_id)
+    return np.array([bool(hit) and len(victims[cmp]) > 1 for cmp, hit in zip(campaign, mask, strict=True)])
+
+
 def run_evaluation(settings: Settings) -> dict[str, Any]:
     policy = load_policy(settings.policy_path)
     bundle = load_bundle(settings.models_dir)
     point = load_operating_point(settings.models_dir, bundle.version)
-    dataset = load_dataset(settings.training_dir)
+    paths = [settings.train_path, settings.validation_path, settings.test_path]
     expected = bundle.metadata["training_dataset"]["file_hashes"]
-    actual = {k: v["sha256"] for k, v in dataset.manifest["files"].items()}
+    actual = file_hashes(paths[:2])
     if expected != actual:
-        raise RuntimeError("Training dataset hashes differ from those recorded in the model bundle; retrain first.")
-    splits = load_splits(settings.training_dir)
+        raise RuntimeError("train.json / validation.json differ from the files recorded in the model bundle; retrain first.")
+    dataset = load_partitions(paths)  # test features see the earlier partitions as history, never the reverse
+    splits = split_assignments(dataset)
+    manifest = read_manifest(settings.manifest_path) if settings.manifest_path.exists() else {}
     history, keys = HistoryIndex.from_events(dataset.requests, dataset.auth_events, dataset.payment_events)
     evidence = build_evidence_store(dataset.security_events, policy)
 
-    # 1) Freeze component-only thresholds on validation, before opening any test label.
-    validation = [r for r in dataset.requests if splits[r.request_id] == "validation"]
-    val_results = assess_batch(validation, keys, history, dataset.accounts, bundle, evidence, policy, point)
+    # 1) Freeze component-only thresholds on validation days 78-85, before opening any test label.
+    selection = [r for r in dataset.requests if splits[r.request_id] == "validation_selection"]
+    val_results = assess_batch(selection, keys, history, dataset.accounts, bundle, evidence, policy, point)
     val_components = _component_matrix(val_results)
     component_thresholds = {
         name: float(np.quantile(val_components[:, i], 1 - REVIEW_BUDGET)) for i, name in enumerate(COMPONENT_NAMES)
     }
     component_thresholds["dbscan"] = 0.0  # flag = outside every frozen core neighbourhood (continuous score > 0)
 
-    # 2) Assess every final-test request exactly once with the frozen pipeline.
+    # 2) Assess every final-test payment exactly once with the frozen pipeline.
     test = [r for r in dataset.requests if splits[r.request_id] == "test"]
     results = assess_batch(test, keys, history, dataset.accounts, bundle, evidence, policy, point)
-    labels = load_labels(settings.training_dir)  # opened only after everything above is frozen
-    campaign = np.array([labels[r.request.request_id]["campaign_id"] or r.request.request_id for r in results])
-    y = np.array([bool(labels[r.request.request_id]["is_fraud"]) for r in results])
-    scenario = np.array([labels[r.request.request_id]["scenario"] for r in results])
+    labels = load_labels(paths)  # opened only after everything above is frozen
+    ids = [r.request.request_id for r in results]
+    campaign = np.array([labels[i]["campaign_id"] or i for i in ids])
+    y = np.array([bool(labels[i]["is_fraud"]) for i in ids])
+    fraud_type = np.array([labels[i]["fraud_type"] or "" for i in ids])
+    anomaly_type = np.array([labels[i]["anomaly_type"] or "" for i in ids])
     components = _component_matrix(results)
     risk = np.array([r.risk.total if r.risk else np.nan for r in results])
 
@@ -253,48 +266,76 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
         flagged = components[:, i] > 0 if name == "dbscan" else components[:, i] >= component_thresholds[name]
         component_results[name] = {
             "flag_threshold": component_thresholds[name],
-            "threshold_source": "validation top-5% budget" if name != "dbscan" else "outside_context",
+            "threshold_source": "validation days 78-85, top-5% budget" if name != "dbscan" else "outside_context",
             **binary_metrics(flagged, y),
             **_safe_auc(y, components[:, i]),
         }
     component_results["combined_risk_score"] = {**_safe_auc(y, risk)}
 
-    unusual_mask = (~y) & (scenario != "routine_payment")
-    routine_mask = scenario == "routine_payment"
-    cold_ids = set(dataset.manifest["cold_start"]["account_ids"])
+    unusual_mask = (~y) & (anomaly_type != "")
+    routine_mask = (~y) & (anomaly_type == "")
+    # cold-start accounts: senders of test.json that never paid in train.json or validation.json
+    earlier = {r.sender_id for r in dataset.requests if splits[r.request_id] != "test"}
+    cold_ids = {r.request.sender_id for r in results if r.request.sender_id not in earlier}
     cold_mask = np.array([r.request.sender_id in cold_ids for r in results])
-    holdout = holdout_accounts(dataset, cold_ids)
+    holdout = holdout_accounts(earlier)
     holdout_mask = np.array([r.request.sender_id in holdout for r in results])
-    drift_ids = list((dataset.manifest.get("drift") or {}).get("biller_ids") or [])
+    drift_ids = list((manifest.get("drift") or {}).get("biller_ids") or [])
     drift_mask = np.array([r.request.recipient_id in drift_ids for r in results])
-    unseen_mask = scenario == "invoice_redirect"
-    victims: dict[str, set[str]] = {}
-    for r, cmp, hit in zip(results, campaign, unseen_mask, strict=True):
-        if hit:
-            victims.setdefault(cmp, set()).add(r.request.sender_id)
-    multi = np.array([hit and len(victims[cmp]) > 1 for cmp, hit in zip(campaign, unseen_mask, strict=True)])
-    unseen = {
-        "scenario": "invoice_redirect",
-        **_subset(full_codes, y, unseen_mask),
-        "campaigns": len(victims),
-        "single_victim": _subset(full_codes, y, unseen_mask & ~multi),
-        "multi_victim": _subset(full_codes, y, multi),
-        "note": "Never present in train, calibration or validation.",
-    }
 
-    per_scenario = {}
-    for name in sorted(set(scenario)):
-        mask = scenario == name
-        is_fraud = bool(y[mask].all())
-        per_scenario[name] = {
-            "kind": "fraud" if is_fraud else "legitimate",
+    per_fraud_type: dict[str, Any] = {}
+    for name in ALL_FRAUD_TYPES:
+        mask = fraud_type == name
+        multi = _victims_per_campaign(results, campaign, mask)
+        per_fraud_type[name] = {
+            "test_only": name in TEST_ONLY_FRAUD_TYPES,
+            "requests": int(mask.sum()),
+            "campaigns": len(set(campaign[mask])),
+            "recall_verify_or_block": _ratio(int((full_codes[mask] > 0).sum()), int(mask.sum())),
+            "recall_block_only": _ratio(int((full_codes[mask] == 2).sum()), int(mask.sum())),
+            "evidence_block_rate": _ratio(int(evidence_blocks[mask].sum()), int(mask.sum())),
+            "model_only_recall_verify_or_block": _ratio(int((model_only_codes[mask] > 0).sum()), int(mask.sum())),
+            "model_only_recall_block_only": _ratio(int((model_only_codes[mask] == 2).sum()), int(mask.sum())),
+            "single_victim_recall": _ratio(int((full_codes[mask & ~multi] > 0).sum()), int((mask & ~multi).sum())),
+            "multi_victim_recall": _ratio(int((full_codes[multi] > 0).sum()), int(multi.sum())),
+        }
+    per_anomaly_type: dict[str, Any] = {}
+    for name in sorted(set(anomaly_type) - {""}):
+        mask = anomaly_type == name
+        per_anomaly_type[name] = {
             "requests": int(mask.sum()),
             "verify_or_block_rate": float((full_codes[mask] > 0).mean()),
             "block_rate": float((full_codes[mask] == 2).mean()),
-            "evidence_block_rate": float(evidence_blocks[mask].mean()),
-            "model_only_verify_or_block_rate": float((model_only_codes[mask] > 0).mean()),
-            "model_only_block_rate": float((model_only_codes[mask] == 2).mean()),
         }
+    per_scenario = {
+        **{name: {"kind": "fraud", "requests": v["requests"], "verify_or_block_rate": v["recall_verify_or_block"],
+                  "block_rate": v["recall_block_only"], "evidence_block_rate": v["evidence_block_rate"],
+                  "model_only_verify_or_block_rate": v["model_only_recall_verify_or_block"],
+                  "model_only_block_rate": v["model_only_recall_block_only"]}
+           for name, v in per_fraud_type.items()},
+        **{name: {"kind": "legitimate", "requests": v["requests"], "verify_or_block_rate": v["verify_or_block_rate"],
+                  "block_rate": v["block_rate"], "evidence_block_rate": float(evidence_blocks[anomaly_type == name].mean()),
+                  "model_only_verify_or_block_rate": float((model_only_codes[anomaly_type == name] > 0).mean()),
+                  "model_only_block_rate": float((model_only_codes[anomaly_type == name] == 2).mean())}
+           for name, v in per_anomaly_type.items()},
+        "routine_payment": {"kind": "legitimate", "requests": int(routine_mask.sum()),
+                            "verify_or_block_rate": float((full_codes[routine_mask] > 0).mean()),
+                            "block_rate": float((full_codes[routine_mask] == 2).mean()),
+                            "evidence_block_rate": float(evidence_blocks[routine_mask].mean()),
+                            "model_only_verify_or_block_rate": float((model_only_codes[routine_mask] > 0).mean()),
+                            "model_only_block_rate": float((model_only_codes[routine_mask] == 2).mean())},
+    }
+    unseen_mask = np.isin(fraud_type, TEST_ONLY_FRAUD_TYPES)
+    multi_unseen = _victims_per_campaign(results, campaign, unseen_mask)
+    unseen = {
+        "fraud_types": list(TEST_ONLY_FRAUD_TYPES),
+        **_subset(full_codes, y, unseen_mask),
+        "campaigns": len(set(campaign[unseen_mask])),
+        "single_victim": _subset(full_codes, y, unseen_mask & ~multi_unseen),
+        "multi_victim": _subset(full_codes, y, multi_unseen),
+        "per_type": {name: per_fraud_type[name] for name in TEST_ONLY_FRAUD_TYPES},
+        "note": "Never present in train.json or validation.json.",
+    }
 
     latency = _measure_latency(test, keys, history, dataset, bundle, evidence, policy, point)
     decision_sources = Counter(f"{r.policy.decision}/{r.policy.decision_source}" for r in results)
@@ -312,15 +353,15 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     summary = {
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "scope": (
-            "Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this "
-            "generated data only; they are not evidence of real-world detection or fraud reduction."
+            "Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in MDL). "
+            "Results describe this generated data only; they are not evidence of real-world detection or fraud reduction."
         ),
         "model_version": bundle.version,
         "policy_version": policy.version,
         "operating_point": {"verify": point.verify, "block": point.block, "source": point.source, "version": point.version},
         "positive_definitions": {
-            "verify_or_block": "A request counts as flagged when the final action is Verify or Block.",
-            "block_only": "A request counts as flagged only when the final action is Block.",
+            "verify_or_block": "A payment counts as flagged when the final action is Verify or Block.",
+            "block_only": "A payment counts as flagged only when the final action is Block.",
         },
         "splits": split_counts,
         "test_requests": len(results),
@@ -340,6 +381,8 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
             "note": "All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection.",
         },
         "score_bands": score_bands(risk, y, full_codes, score_band_edges(point.verify, point.block)),
+        "per_fraud_type": per_fraud_type,
+        "per_anomaly_type": per_anomaly_type,
         "per_scenario": per_scenario,
         "unusual_legitimate": _subset(full_codes, y, unusual_mask),
         "routine_legitimate": _subset(full_codes, y, routine_mask),
@@ -349,9 +392,9 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
         "unseen_scenario": unseen,
         "drift_billers": {"biller_ids": drift_ids, **_subset(full_codes, y, drift_mask)},
         "confidence_intervals": {
-            **cluster_bootstrap(full_codes, y, np.where(y, campaign, [r.request.request_id for r in results])),
+            **cluster_bootstrap(full_codes, y, np.where(y, campaign, ids)),
             "method": (f"cluster bootstrap, {BOOTSTRAP_RESAMPLES} resamples, seed {BOOTSTRAP_SEED}; a fraud campaign "
-                       "or one legitimate request is the resampling unit; 2.5th-97.5th percentiles"),
+                       "or one legitimate payment is the resampling unit; 2.5th-97.5th percentiles"),
         },
         "weights": dict(point.weights or policy.weights),
         "segment_thresholds": {k: {"verify": v[0], "block": v[1]} for k, v in point.segments.items()},
@@ -372,6 +415,7 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
         "verify_rate": full["verify_rate"],
         "legitimate_false_block_rate": full["legitimate_false_block_rate"],
         "model_only_recall_verify_or_block": model_only["verify_or_block"]["recall"],
+        "test_only_fraud_recall_verify_or_block": unseen.get("verify_or_block", {}).get("recall"),
         "latency_p95_ms": latency["p95"],
     }
     settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -452,7 +496,7 @@ def render_markdown(s: dict[str, Any]) -> str:
         "| Partition | Requests | Fraud | Fraud share |",
         "|---|---:|---:|---:|",
     ]
-    for name in ("train", "calibration", "validation", "test"):
+    for name in ("train", "validation_mapping", "validation_selection", "test"):
         b = s["splits"][name]
         lines.append(f"| {name} | {b['requests']:,} | {b['fraud']} | {b['fraud_share']:.2%} |")
     lines += [
@@ -502,16 +546,29 @@ def render_markdown(s: dict[str, Any]) -> str:
     lines += [
         f"| combined risk score | — | — | — | — | {comb['average_precision']:.3f} | {comb['roc_auc']:.3f} |",
         "",
-        "## Per scenario (final test)",
+        "## Recall per fraud type (final test)",
         "",
-        "| Scenario | Kind | Requests | Verify or Block | Block | Evidence block | Model-only Verify or Block |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Fraud type | Test only | Payments | Campaigns | Verify or Block | Block | Evidence block | Model-only Verify or Block |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
     ]
-    for name, row in s["per_scenario"].items():
+    for name, row in s["per_fraud_type"].items():
         lines.append(
-            f"| {name} | {row['kind']} | {row['requests']:,} | {_pct(row['verify_or_block_rate'])} | {_pct(row['block_rate'])} "
-            f"| {_pct(row['evidence_block_rate'])} | {_pct(row['model_only_verify_or_block_rate'])} |"
+            f"| {name} | {'yes' if row['test_only'] else ''} | {row['requests']:,} | {row['campaigns']} | "
+            f"{_pct(row['recall_verify_or_block'])} | {_pct(row['recall_block_only'])} | "
+            f"{_pct(row['evidence_block_rate'])} | {_pct(row['model_only_recall_verify_or_block'])} |"
         )
+    lines += [
+        "",
+        "## Unusual but legitimate payments per anomaly type (final test)",
+        "",
+        "| Anomaly type | Payments | Verify or Block | Block |",
+        "|---|---:|---:|---:|",
+    ]
+    for name, row in s["per_anomaly_type"].items():
+        lines.append(f"| {name} | {row['requests']:,} | {_pct(row['verify_or_block_rate'])} | {_pct(row['block_rate'])} |")
+    routine = s["per_scenario"]["routine_payment"]
+    lines.append(f"| routine (no anomaly) | {routine['requests']:,} | {_pct(routine['verify_or_block_rate'])} | "
+                 f"{_pct(routine['block_rate'])} |")
     bands = s.get("score_bands")
     if bands:
         lines += [
@@ -594,8 +651,8 @@ def render_markdown(s: dict[str, Any]) -> str:
         "",
         "## Learned weights and segment thresholds",
         "",
-        f"- Weights (calibration AP search): {weights}",
-        f"- Segment thresholds (validation): {segments}",
+        f"- Weights (AP search on validation days 71-77): {weights}",
+        f"- Segment thresholds (validation days 78-85): {segments}",
         "",
         "## Confidence intervals (95%)",
         "",
@@ -605,11 +662,11 @@ def render_markdown(s: dict[str, Any]) -> str:
         f"- Verify rate: {_pct(ci['verify_rate'][0])} – {_pct(ci['verify_rate'][1])}",
         f"- Method: {ci['method']}",
         "",
-        "## Unseen scenario, holdout accounts and drift",
+        "## Test-only fraud types, holdout accounts and drift",
         "",
-        (f"- invoice_redirect ({unseen.get('requests', 0)} requests, {unseen['campaigns']} campaigns): "
-        f"flagged {flagged(unseen)}; single-victim {flagged(unseen['single_victim'])}, "
-        f"multi-victim {flagged(unseen['multi_victim'])}"),
+        (f"- Test-only fraud types {', '.join(unseen['fraud_types'])} ({unseen.get('requests', 0)} payments, "
+         f"{unseen['campaigns']} campaigns): flagged {flagged(unseen)}; single-victim {flagged(unseen['single_victim'])}, "
+         f"multi-victim {flagged(unseen['multi_victim'])}"),
         (f"- Holdout accounts ({holdout['accounts']} accounts, {holdout.get('requests', 0)} requests, "
         f"{holdout.get('fraud', 0)} fraud): recall {flagged(holdout)}, "
         f"verify rate {_pct(holdout.get('verify_rate'))}"),

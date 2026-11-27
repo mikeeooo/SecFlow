@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 import math
-import shutil
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+from datagen.dataset import load_partition, read_rows
+from datagen.generator import write_rows
+from datagen.records import Account, AuthEvent, PaymentRequest
 from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES, build_features
 from ml.replay import replay
-from datagen.dataset import load_dataset, read_jsonl
 from runtime.history import HistoryIndex
-from datagen.records import Account, AuthEvent, PaymentRequest
 
 T0 = 1_780_000_000
-ACCOUNT = Account("ACC-0001", "Amara Okafor", "personal", "DE", T0 - 400 * 86_400)
+ACCOUNT = Account("ACC-0001", "Ion Rusu", "personal", "MD", T0 - 400 * 86_400)
+BUSINESS = Account("ACC-0002", "Valea Verde Grocers", "business", "MD", T0 - 400 * 86_400)
 
 
 def request(rid: str, ts: int, amount: float = 50.0, recipient: str = "CP-00001", device: str = "DEV-1",
-            sender: str = "ACC-0001") -> PaymentRequest:
-    return PaymentRequest(rid, ts, sender, recipient, "counterparty", amount, "EUR", "mobile_app", device,
-                          f"S-{rid}", "biometric", "DE")
+            sender: str = "ACC-0001", scheme: str = "p2p_alias", qr: str | None = None) -> PaymentRequest:
+    return PaymentRequest(rid, ts, sender, recipient, "counterparty", amount, "MDL", "mobile_app", device,
+                          f"S-{rid}", "biometric", "MD", payment_scheme=scheme, qr_payload_merchant_id=qr)
 
 
 def build(events: list[PaymentRequest]) -> tuple[HistoryIndex, dict[str, int]]:
@@ -30,7 +31,7 @@ def build(events: list[PaymentRequest]) -> tuple[HistoryIndex, dict[str, int]]:
 def test_feature_vectors_have_stable_order_and_are_finite() -> None:
     index, keys = build([request("R1", T0)])
     snap = build_features(request("R1", T0), keys["R1"], index, ACCOUNT)
-    assert len(snap.payment_vector) == len(PAYMENT_FEATURES) == 24
+    assert len(snap.payment_vector) == len(PAYMENT_FEATURES) == 31
     assert len(snap.context_vector) == len(CONTEXT_FEATURES) == 8
     assert all(math.isfinite(v) for v in snap.payment_vector + snap.context_vector)
 
@@ -110,20 +111,17 @@ def test_auth_failures_count_only_before_request() -> None:
 
 
 def test_label_changes_do_not_alter_features(generated: dict[str, Path], tmp_path: Path) -> None:
-    copy = tmp_path / "demo"
-    shutil.copytree(generated["demo"], copy)
-    before = replay(load_dataset(copy))
-    labels = read_jsonl(copy / "evaluation_labels.jsonl")
-    with (copy / "evaluation_labels.jsonl").open("w") as handle:
-        for row in labels:
-            handle.write(f'{{"request_id":"{row["request_id"]}","is_fraud":true}}\n')
-    after = replay(load_dataset(copy, check_hashes=False))
+    before = replay(load_partition(generated["test"]))
+    rows = read_rows(generated["test"])
+    path = tmp_path / "test.json"
+    write_rows(path, [{**r, "is_fraud": True, "is_anomaly": True, "fraud_type": "money_mule"} for r in rows])
+    after = replay(load_partition(path))
     assert np.array_equal(before.payment, after.payment)
     assert np.array_equal(before.context, after.context)
 
 
 def test_replay_matches_truncated_history(generated: dict[str, Path]) -> None:
-    dataset = load_dataset(generated["demo"])
+    dataset = load_partition(generated["test"])
     full = replay(dataset, keep_facts_for=())
     cutoff = dataset.requests[5_000].ts
     from dataclasses import replace
@@ -149,7 +147,7 @@ def test_features_never_use_identifiers_or_labels(name: str) -> None:
     assert name in " ".join(PAYMENT_FEATURES) or name in {"new_recipient"}
 
 
-# -- beneficiary-side features (features-1.1.0) -------------------------------------------------
+# -- beneficiary-side features (since features-1.1.0) -------------------------------------------
 
 HOUR, DAY = 3_600, 86_400
 TARGET_TS = T0 + 30 * DAY
@@ -165,9 +163,10 @@ def _beneficiary_values(snap) -> list[float]:
     return [snap.payment_vector[PAYMENT_FEATURES.index(name)] for name in BENEFICIARY]
 
 
-def test_feature_vector_length_is_24() -> None:
-    assert len(PAYMENT_FEATURES) == 24 and FEATURE_VERSION == "features-1.1.0"
-    assert PAYMENT_FEATURES[-4:] == BENEFICIARY
+def test_feature_vector_layout_and_version() -> None:
+    assert len(PAYMENT_FEATURES) == 31 and FEATURE_VERSION == "features-2.0.0"
+    assert PAYMENT_FEATURES[20:24] == BENEFICIARY
+    assert PAYMENT_FEATURES[24:] == MIA
 
 
 def test_beneficiary_features_ignore_future_events() -> None:
@@ -218,3 +217,73 @@ def test_recipient_new_global_true_until_24h_after_first_payment_by_anyone() -> 
     assert snap.payment_vector[PAYMENT_FEATURES.index("recipient_new_global")] == 0.0
     never = _snapshot([request("A", TARGET_TS - HOUR, recipient="CP-1")], request("T", TARGET_TS, recipient="CP-NEW"))
     assert never.facts["recipient_new_global"] is True
+
+
+# -- MIA Plati Instant features (features-2.0.0) -------------------------------------------------
+
+MIA = ("amount_to_tx_cap_ratio", "daily_cumulative_to_cap_ratio", "near_cap_count_24h", "alias_rebound_age_hours",
+       "is_request_to_pay", "qr_merchant_mismatch", "scheme_novelty")
+
+
+def _value(snap, name: str) -> float:
+    return snap.payment_vector[PAYMENT_FEATURES.index(name)]
+
+
+def test_cap_ratios_use_the_segment_limits() -> None:
+    day = TARGET_TS - TARGET_TS % DAY
+    events = [request("Y", day - 2 * HOUR, amount=4_000), request("A", day + HOUR, amount=3_000)]
+    target = request("T", day + 5 * HOUR, amount=4_500)
+    snap = _snapshot(events, target)
+    assert _value(snap, "amount_to_tx_cap_ratio") == pytest.approx(4_500 / 5_000)
+    # only today's (UTC calendar day) earlier payments count toward the daily limit
+    assert _value(snap, "daily_cumulative_to_cap_ratio") == pytest.approx((3_000 + 4_500) / 10_000)
+    business = [request("B", TARGET_TS, amount=4_500, sender="ACC-0002")]
+    index, keys = build(business)
+    snap_b = build_features(business[0], keys["B"], index, BUSINESS)
+    assert _value(snap_b, "amount_to_tx_cap_ratio") == pytest.approx(4_500 / 100_000)
+    assert snap_b.facts["segment"] == "business" and snap_b.facts["tx_cap"] == 100_000
+
+
+def test_near_cap_count_counts_earlier_near_limit_payments_in_24h() -> None:
+    events = [request("A", TARGET_TS - 30 * HOUR, amount=4_900), request("B", TARGET_TS - 3 * HOUR, amount=4_800),
+              request("C", TARGET_TS - 2 * HOUR, amount=4_400), request("D", TARGET_TS - HOUR, amount=4_999)]
+    snap = _snapshot(events, request("T", TARGET_TS, amount=4_950))
+    assert snap.facts["near_cap_count_24h"] == 2  # B and D; A is older than 24 h, C is below 90% of the cap
+
+
+def test_alias_rebound_age_uses_only_earlier_rebinds() -> None:
+    target = request("T", TARGET_TS)
+    auth = [AuthEvent("A1", TARGET_TS - 5 * HOUR, "ACC-0001", "S", "DEV-9", "alias_rebound", "otp", "MD", "sim_replaced"),
+            AuthEvent("A2", TARGET_TS + 60, "ACC-0001", "S", "DEV-9", "alias_rebound", "otp", "MD", "sim_replaced")]
+    index, keys = HistoryIndex.from_events([target], auth, [])
+    snap = build_features(target, keys["T"], index, ACCOUNT)
+    assert snap.facts["alias_rebound_age_hours"] == pytest.approx(5.0)
+    assert _value(snap, "alias_rebound_age_hours") == pytest.approx(5.0)
+    none = _snapshot([], request("U", TARGET_TS))
+    assert none.facts["alias_rebound_age_hours"] is None and _value(none, "alias_rebound_age_hours") == 720.0
+
+
+def test_request_to_pay_qr_mismatch_and_scheme_novelty() -> None:
+    history = [request("A", TARGET_TS - 2 * DAY, scheme="p2p_alias")]
+    rtp = _snapshot(history, request("T", TARGET_TS, scheme="request_to_pay"))
+    assert _value(rtp, "is_request_to_pay") == 1.0 and _value(rtp, "scheme_novelty") == 1.0
+    again = _snapshot(history, request("T", TARGET_TS, scheme="p2p_alias"))
+    assert _value(again, "is_request_to_pay") == 0.0 and _value(again, "scheme_novelty") == 0.0
+    first_ever = _snapshot([], request("T", TARGET_TS, scheme="request_to_pay"))
+    assert _value(first_ever, "scheme_novelty") == 0.0  # no history: novelty is undefined, not a signal
+    tampered = _snapshot(history, request("T", TARGET_TS, recipient="CP-FAKE", scheme="p2b_qr_static", qr="CP-00343"))
+    assert _value(tampered, "qr_merchant_mismatch") == 1.0 and tampered.facts["qr_merchant_mismatch"] is True
+    honest = _snapshot(history, request("T", TARGET_TS, recipient="CP-00343", scheme="p2b_qr_static", qr="CP-00343"))
+    assert _value(honest, "qr_merchant_mismatch") == 0.0
+
+
+def test_mia_features_ignore_future_events() -> None:
+    past = [request("P", TARGET_TS - HOUR, amount=4_900)]
+    target = request("T", TARGET_TS, amount=4_800)
+    future = [request(f"F{i}", TARGET_TS + 60 + i, amount=4_990, scheme="request_to_pay") for i in range(3)]
+    auth_future = [AuthEvent("A", TARGET_TS + 30, "ACC-0001", "S", "D", "alias_rebound", "otp", "MD", None)]
+    index_a, keys_a = HistoryIndex.from_events(past + [target], [], [])
+    index_b, keys_b = HistoryIndex.from_events(past + [target] + future, auth_future, [])
+    a = build_features(target, keys_a["T"], index_a, ACCOUNT)
+    b = build_features(target, keys_b["T"], index_b, ACCOUNT)
+    assert [_value(a, n) for n in MIA] == [_value(b, n) for n in MIA]

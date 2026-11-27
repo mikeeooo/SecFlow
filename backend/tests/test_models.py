@@ -135,8 +135,9 @@ def test_saved_bundle_round_trip_and_schema_metadata() -> None:
     bundle = load_bundle(settings.models_dir)
     point = load_operating_point(settings.models_dir, bundle.version)
     assert tuple(bundle.metadata["payment_features"]) == PAYMENT_FEATURES
-    assert 50_000 < bundle.metadata["fit_rows"]["isolation_forest"] < 60_000  # minus holdout accounts
-    assert 8_000 < bundle.metadata["fit_rows"]["score_mapping_reference"] < 10_000  # calibration minus holdout
+    assert 55_000 < bundle.metadata["fit_rows"]["isolation_forest"] < 70_000  # train.json minus holdout accounts
+    assert 5_500 < bundle.metadata["fit_rows"]["score_mapping_reference"] < 7_000  # validation days 71-77 minus holdout
+    assert set(bundle.metadata["training_dataset"]["file_hashes"]) == {"train.json", "validation.json"}
     assert bundle.dbscan.core_samples is not None and len(bundle.dbscan.core_samples) > 0
     assert 0 < point.verify < point.block <= 100
     rows = np.zeros((3, len(PAYMENT_FEATURES)))
@@ -163,8 +164,9 @@ def test_training_never_fit_on_held_out_partitions() -> None:
     settings = load_settings()
     report = json.loads((settings.models_dir / "training_report.json").read_text())
     meta = json.loads((settings.models_dir / "metadata.json").read_text())
-    assert 50_000 < meta["fit_rows"]["preprocessing"] < 60_000  # train days minus holdout accounts
-    assert meta["fit_rows"]["dbscan"] <= 60_000
+    assert 55_000 < meta["fit_rows"]["preprocessing"] < 70_000  # train.json minus holdout accounts
+    assert meta["fit_rows"]["dbscan"] <= 70_000
+    assert meta["feature_version"] == "features-2.0.0" and len(meta["payment_features"]) == 31
     assert report["operating_point"]["source"].startswith("validated")
     assert len(report["search"]["lof"]) == 24
 
@@ -172,14 +174,10 @@ def test_training_never_fit_on_held_out_partitions() -> None:
 # -- training integration (runs train_models on the generated corpus) -------------------------
 
 
-def _train_rows_without(training_dir: Path, excluded: set[str]) -> int:
-    from datagen.dataset import load_splits, read_jsonl
+def _train_rows_without(train_path: Path, excluded: set[str]) -> int:
+    from datagen.dataset import read_rows
 
-    splits = load_splits(training_dir)
-    return sum(
-        1 for r in read_jsonl(training_dir / "requests.jsonl")
-        if splits[r["request_id"]] == "train" and r["sender_id"] not in excluded
-    )
+    return sum(1 for r in read_rows(train_path) if r["assessed"] and r["sender_id"] not in excluded)
 
 
 def test_holdout_accounts_never_in_fit_rows(trained: dict) -> None:
@@ -187,19 +185,19 @@ def test_holdout_accounts_never_in_fit_rows(trained: dict) -> None:
 
     report = trained["report"]
     holdout = set(report["holdout_accounts"]["account_ids"])
-    manifest = json.loads((trained["training_dir"] / "manifest.json").read_text())
+    manifest = json.loads(trained["manifest"].read_text())
     assert len(holdout) == 40
     assert holdout.isdisjoint(manifest["cold_start"]["account_ids"])
     meta = json.loads((trained["models_dir"] / "metadata.json").read_text())
-    expected = _train_rows_without(trained["training_dir"], holdout)
+    expected = _train_rows_without(trained["train"], holdout)
     assert meta["fit_rows"]["preprocessing"] == meta["fit_rows"]["isolation_forest"] == expected
 
 
-def test_weights_learned_on_calibration_not_validation(trained: dict) -> None:
+def test_weights_learned_on_validation_mapping_days(trained: dict) -> None:
     import json
 
     search = trained["report"]["weights_search"]
-    assert search["partition"] == "calibration"
+    assert search["partition"].startswith("validation_mapping")
     assert search["candidates"] == 1540
     point = json.loads((trained["models_dir"] / "operating_point.json").read_text())
     assert point["weights"] == search["selected"]
@@ -256,3 +254,19 @@ def test_segment_without_fraud_falls_back() -> None:
     _, report = select_segment_points(risk, np.full(2_000, 3), np.zeros(2_000, dtype=bool), y, segments, policy)
     assert report["segments"]["business"]["fallback"] is True
     assert "no fraud" in report["segments"]["business"]["reason"]
+
+
+def test_validation_file_is_split_by_date(trained: dict) -> None:
+    from datagen.dataset import load_partitions
+    from ml.training import split_assignments
+
+    dataset = load_partitions([trained["train"], trained["validation"]])
+    splits = split_assignments(dataset)
+    assert set(splits.values()) == {"train", "validation_mapping", "validation_selection"}
+    days = {}
+    first = min(r.ts for r in dataset.requests) // 86_400
+    for r in dataset.requests:
+        days.setdefault(splits[r.request_id], set()).add(r.ts // 86_400 - first + 1)
+    assert days["train"] == set(range(1, 71))
+    assert days["validation_mapping"] == set(range(71, 78))
+    assert days["validation_selection"] == set(range(78, 86))

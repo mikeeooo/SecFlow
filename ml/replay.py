@@ -8,8 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from ml.features import CONTEXT_FEATURES, PAYMENT_FEATURES, FeatureSnapshot, build_features
 from datagen.dataset import Dataset
+from ml.features import CONTEXT_FEATURES, PAYMENT_FEATURES, FeatureSnapshot, build_features
 from runtime.history import HistoryIndex
 
 

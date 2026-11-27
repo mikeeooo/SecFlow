@@ -14,9 +14,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from datagen.records import AuthEvent, PaymentRequest
 from ml.assess import AssessmentResult
 from runtime.history import HistoryIndex
-from datagen.records import AuthEvent, PaymentRequest
 
 
 class ConflictError(RuntimeError):
