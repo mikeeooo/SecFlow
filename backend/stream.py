@@ -2,7 +2,8 @@
 
 One producer task per backend process starts with the server. Browser tabs only read the feed
 and call start/stop; they never run their own timers, so opening several tabs cannot multiply
-submissions. The input generator builds payment *inputs* from observable history (recent
+submissions. The input generator builds MIA Plati Instant payment *inputs* (MDL, a payment
+scheme that fits the payee, the sender's MIA per-transaction limit) from observable history (recent
 recipients, devices, amounts) plus a few unusual patterns; decisions always come from the
 assessment policy, never from the generator.
 """
@@ -20,12 +21,12 @@ import numpy as np
 
 from backend.schemas import SimulationRequest
 from backend.service import SecFlowService
-from datagen.identities import FIRST_NAMES, LAST_NAMES
+from datagen.identities import BILLER_CATEGORIES, FIRST_NAMES, LAST_NAMES, QR_CATEGORIES
 from runtime.memory import utc_now_iso
 
 log = logging.getLogger("secflow.stream")
 BATCH_SIZES = {"continuous": 1, "batch_5": 5, "batch_10": 10, "batch_20": 20}
-FOREIGN = ("US", "GB", "AE", "TR", "UA")
+FOREIGN = ("NL", "US", "DE", "GB", "SG")
 
 
 class InputGenerator:
@@ -56,8 +57,34 @@ class InputGenerator:
     def _new_name(self) -> str:
         return f"{FIRST_NAMES[int(self.rng.integers(len(FIRST_NAMES)))]} {LAST_NAMES[int(self.rng.integers(len(LAST_NAMES)))]}"
 
-    def _amount(self, base: float, low: float, high: float) -> float:
-        return round(max(1.0, base * float(self.rng.uniform(low, high)) * math.exp(self.rng.normal(0, 0.2))), 2)
+    def _amount(self, base: float, low: float, high: float, sender: str | None = None) -> float:
+        value = max(1.0, base * float(self.rng.uniform(low, high)) * math.exp(self.rng.normal(0, 0.2)))
+        if sender is not None:  # never ask MIA for more than the sender's per-transaction limit
+            account = self.service.accounts[sender]
+            value = min(value, self.service.limits.for_segment(account.account_type).per_transaction * 0.999)
+        return round(value, 2)
+
+    def _scheme(self, sender: str, recipient: str | None) -> str:
+        """An MIA payment scheme that fits the sender and payee, like the dataset generator's choice."""
+        business_sender = self.service.accounts[sender].account_type == "business"
+        if recipient is None:
+            return "p2p_iban" if business_sender else "p2p_alias"
+        account = self.service.accounts.get(recipient)
+        counterparty = self.service.counterparties.get(recipient)
+        kind = ("business" if account.account_type == "business" else "person") if account else (
+            counterparty.kind if counterparty else "person")
+        category = counterparty.category if counterparty else "individual"
+        if kind == "public_institution":
+            return "p2g"
+        if business_sender:
+            return "p2p_iban" if kind == "person" else "b2b"
+        if kind == "business" and category in BILLER_CATEGORIES:
+            return str(self.rng.choice(["request_to_pay", "p2b_link", "p2b_qr_dynamic"], p=[0.25, 0.45, 0.30]))
+        if kind == "business" and category in QR_CATEGORIES:
+            return str(self.rng.choice(["p2b_qr_static", "p2b_qr_dynamic", "p2b_link"], p=[0.55, 0.30, 0.15]))
+        if kind == "business":
+            return "p2b_link"
+        return str(self.rng.choice(["p2p_alias", "p2p_iban"], p=[0.83, 0.17]))
 
     def next_payload(self) -> tuple[SimulationRequest, str | None]:
         """Return the next input and, for burst items, a token linking them to one beneficiary."""
@@ -76,30 +103,43 @@ class InputGenerator:
             "auth_method": str(self.rng.choice(["biometric", "biometric", "password", "password_otp"])),
             "failed_login_attempts": 1 if self.rng.random() < 0.03 else 0, "channel": "mobile_app",
         }
+
+        def known(low: float, high: float, **extra: Any) -> dict[str, Any]:
+            recipient = self._known_recipient(sender)
+            return {"recipient_id": recipient, "payment_scheme": self._scheme(sender, recipient),
+                    "amount": self._amount(base, low, high, sender), **extra}
+
+        new_person = "p2p_iban" if self.service.accounts[sender].account_type == "business" else "p2p_alias"
         if roll < 0.80:  # ordinary payment to a known recipient
-            spec.update(recipient_id=self._known_recipient(sender), amount=self._amount(base, 0.7, 1.3))
+            spec.update(known(0.7, 1.3))
         elif roll < 0.86:  # ordinary amount to someone new
-            spec.update(new_recipient_name=self._new_name(), amount=self._amount(base, 0.8, 2.0))
+            spec.update(new_recipient_name=self._new_name(), payment_scheme=new_person,
+                        amount=self._amount(base, 0.8, 2.0, sender))
         elif roll < 0.90:  # large planned purchase with strong authentication
-            spec.update(recipient_id=self._known_recipient(sender), amount=self._amount(base, 6, 14),
-                        auth_method="password_otp")
-        elif roll < 0.94:  # takeover-like access pattern
-            spec.update(new_recipient_name=self._new_name(), amount=self._amount(base, 3, 9), device_id=None,
+            spec.update(known(6, 14, auth_method="password_otp"))
+        elif roll < 0.93:  # phishing-like takeover: failed sign-ins, new device, near the MIA cap
+            spec.update(new_recipient_name=self._new_name(), payment_scheme=new_person, device_id=None,
+                        amount=self._amount(base, 30, 60, sender),
                         failed_login_attempts=int(self.rng.integers(2, 5)), auth_method="password",
                         ip_country=str(self.rng.choice(FOREIGN)) if self.rng.random() < 0.5 else home)
+        elif roll < 0.95 and new_person == "p2p_alias":  # Request-to-Pay from an unknown requester
+            spec.update(new_recipient_name=self._new_name(), payment_scheme="request_to_pay",
+                        amount=self._amount(base, 2, 6, sender))
         elif roll < 0.97:  # rapid burst to one new beneficiary
             name, token = self._new_name(), uuid.uuid4().hex
             for _ in range(int(self.rng.integers(3, 6))):  # later items pay the beneficiary the first one created
-                self.queue.append({**spec, "new_recipient_name": name, "amount": self._amount(base, 0.8, 1.6),
-                                   "_burst": token})
-            spec = {**spec, "new_recipient_name": name, "amount": self._amount(base, 0.8, 1.6), "_burst": token}
+                self.queue.append({**spec, "new_recipient_name": name, "payment_scheme": new_person,
+                                   "amount": self._amount(base, 0.8, 1.6, sender), "_burst": token})
+            spec = {**spec, "new_recipient_name": name, "payment_scheme": new_person,
+                    "amount": self._amount(base, 0.8, 1.6, sender), "_burst": token}
         else:  # payment to a beneficiary with active trusted evidence, when one exists
             flagged = self.service.simulator_options(None)["flagged_beneficiaries"]
             if flagged:
                 target = flagged[int(self.rng.integers(len(flagged)))]
-                spec.update(recipient_id=target["id"], amount=self._amount(base, 0.6, 1.4))
+                spec.update(recipient_id=target["id"], payment_scheme=self._scheme(sender, target["id"]),
+                            amount=self._amount(base, 0.6, 1.4, sender))
             else:
-                spec.update(recipient_id=self._known_recipient(sender), amount=self._amount(base, 0.7, 1.3))
+                spec.update(known(0.7, 1.3))
         return spec
 
 

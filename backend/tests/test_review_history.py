@@ -71,7 +71,7 @@ def test_review_log_falls_back_to_memory_when_the_file_breaks(tmp_path: Path) ->
     log = ReviewLog(tmp_path)
     entry = ReviewHistoryEntry("REV-00001", 1, "R1", "reject", "reason text", "Ana", "2026-01-01T00:00:00.00Z", 0,
                                "Verify", "Needs verification", 70.0, "rejected_after_review", "baseline",
-                               "2026-01-01T00:00:00Z", "ACC-1", "A", "CP-1", "B", 10.0, "EUR")
+                               "2026-01-01T00:00:00Z", "ACC-1", "A", "CP-1", "B", 10.0, "MDL")
     log.append(entry)
     log._db.close()  # simulate the file becoming unusable; the next write must not fail
     log.append(replace(entry, review_id="REV-00002", seq=2))
@@ -83,7 +83,7 @@ def test_review_log_rejects_duplicate_ids(tmp_path: Path) -> None:
     log = ReviewLog(tmp_path)
     entry = ReviewHistoryEntry("REV-00001", 1, "R1", "approve", "reason text", "Ana", "t", 0, "Verify",
                                "Needs verification", None, "approved_after_review", "baseline", "t", "A", "A", "B",
-                               "B", 1.0, "EUR")
+                               "B", 1.0, "MDL")
     log.append(entry)
     with pytest.raises(sqlite3.IntegrityError):
         log.append(entry)
@@ -104,4 +104,4 @@ def test_assessment_explains_score_with_observed_fraud_rate(tmp_path: Path) -> N
         assessment = client.get(f"/api/investigations/{rid}").json()["assessment"]
         band = assessment["score_band"]
         assert band is not None and band["low"] <= assessment["risk_score"] <= band["high"]
-        assert 0 <= band["fraud_rate"] <= 1 and band["evaluated_requests"] == 20_000
+        assert 0 <= band["fraud_rate"] <= 1 and band["evaluated_requests"] == 15_000

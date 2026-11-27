@@ -1,9 +1,9 @@
 """SecFlow command line: generate, validate, train, evaluate.
 
-    python -m backend.cli generate   # both seeded datasets + manifests
-    python -m backend.cli validate   # schema, counts, partitions, hashes, fingerprints
-    python -m backend.cli train      # fit on train, map on calibration, select on validation
-    python -m backend.cli evaluate   # one frozen evaluation on the final test period
+    python -m backend.cli generate   # storage/{train,validation,test}.json + datagen/manifest.json
+    python -m backend.cli validate   # structure, counts, MIA limits, partitions, hashes, fingerprints, reproducibility
+    python -m backend.cli train      # fit on train.json; map (days 71-77) and select (days 78-85) on validation.json
+    python -m backend.cli evaluate   # one frozen evaluation on test.json
 """
 
 from __future__ import annotations
@@ -13,34 +13,35 @@ import json
 import sys
 
 from config.settings import load_settings
+from datagen.dataset import cross_file_fingerprint_overlap, reproducibility_problems, validate_dataset
+from datagen.generator import generate_dataset
 from ml.policy import load_policy
-from datagen.dataset import cross_dataset_fingerprint_overlap, validate_dataset
-from datagen.generator import DEMO_SPEC, TRAINING_SPEC, generate_dataset
 
 
-def cmd_generate(_: argparse.Namespace) -> int:
+def cmd_generate(args: argparse.Namespace) -> int:
     settings = load_settings()
-    for spec, path in ((TRAINING_SPEC, settings.training_dir), (DEMO_SPEC, settings.demo_dir)):
-        manifest = generate_dataset(path, spec)
-        counts = manifest["counts"]
+    manifest = generate_dataset(settings.storage_dir, settings.manifest_path)
+    for name, part in manifest["partitions"].items():
         print(
-            f"{spec.name}: {counts['requests']} requests, {counts['fraud']} fraud, "
-            f"{counts['unusual_legitimate']} unusual-legitimate, {counts['security_events']} security events -> {path}"
+            f"{name}: {part['rows']:,} rows ({part['assessed_payments']:,} assessed payments, "
+            f"{part['context_credits']:,} incoming credits), {part['fraud']} fraud, "
+            f"{part['unusual_legitimate']} unusual-legitimate, {part['bytes'] / 1e6:.1f} MB -> {part['file']}"
         )
-    return cmd_validate(_)
+    print(f"manifest -> {settings.manifest_path}")
+    return cmd_validate(args)
 
 
 def cmd_validate(_: argparse.Namespace) -> int:
     settings = load_settings()
-    problems = []
-    for spec, path in ((TRAINING_SPEC, settings.training_dir), (DEMO_SPEC, settings.demo_dir)):
-        found = validate_dataset(path, spec)
-        problems += [f"{spec.name}: {p}" for p in found]
-        print(f"{spec.name}: {'valid' if not found else f'{len(found)} problem(s)'}")
-    overlap = cross_dataset_fingerprint_overlap(settings.training_dir, settings.demo_dir)
-    print(f"cross-dataset duplicate fingerprints: {overlap}")
+    problems = validate_dataset(settings.storage_dir, settings.manifest_path)
+    overlap = cross_file_fingerprint_overlap(settings.storage_dir) if not problems else 0
+    print(f"cross-file duplicate fingerprints: {overlap}")
     if overlap:
-        problems.append("duplicate request fingerprints across datasets")
+        problems.append("duplicate row fingerprints across files")
+    if not problems:
+        problems += reproducibility_problems(settings.storage_dir)
+        print(f"reproducible from the seed: {'yes' if not problems else 'no'}")
+    print(f"dataset: {'valid' if not problems else f'{len(problems)} problem(s)'}")
     for problem in problems:
         print(f"  - {problem}", file=sys.stderr)
     return 1 if problems else 0
@@ -50,7 +51,8 @@ def cmd_train(_: argparse.Namespace) -> int:
     from ml.training import train_models
 
     settings = load_settings()
-    report = train_models(settings.training_dir, settings.models_dir, load_policy(settings.policy_path))
+    report = train_models(settings.train_path, settings.validation_path, settings.models_dir,
+                          load_policy(settings.policy_path), settings.manifest_path)
     print(json.dumps(
         {
             "operating_point": report["operating_point"],

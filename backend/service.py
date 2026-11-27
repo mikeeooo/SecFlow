@@ -1,7 +1,8 @@
 """Assessment and review orchestration over local files plus temporary process memory.
 
-At startup the service loads the demonstration dataset (runtime files only), the frozen model
-bundle, the policy and its validated operating point, and the trusted security-evidence stream.
+At startup the service loads `storage/test.json` as its history (runtime view: label columns are
+dropped as the rows are read), the frozen model bundle, the policy and its validated operating point,
+and the trusted security evidence carried by the rows.
 It replays every baseline request through the shared assessment pipeline, each one seeing only
 its own event-time snapshot. Simulations then append to a temporary overlay of the same
 history index; they never rewrite baseline files and never retrain a model.
@@ -24,6 +25,7 @@ import numpy as np
 from backend import views
 from backend.analytics import ClusterGraphBuilder, dashboard
 from backend.schemas import (
+    OUTGOING_SCHEMES,
     AccountPage,
     AccountSummary,
     AssessmentDetail,
@@ -36,11 +38,22 @@ from backend.schemas import (
     SimulationRequest,
     TransactionPage,
 )
+from config.limits import MiaLimits
 from config.settings import Settings
+from datagen.dataset import Dataset, load_partition, read_manifest
+from datagen.generator import sha256_file
+from datagen.records import (
+    KEY_SCALE,
+    AuthEvent,
+    Counterparty,
+    PaymentEvent,
+    PaymentRequest,
+    format_ts,
+    make_key,
+)
 from ml.assess import assess_batch, assess_one, build_evidence_store
 from ml.model import BundleError, ModelBundle, load_bundle, load_operating_point
 from ml.policy import SEGMENTS, OperatingPoint, load_policy
-from datagen.dataset import Dataset, load_dataset
 from runtime.history import HistoryIndex
 from runtime.memory import (
     COMPLETED_OUTCOMES,
@@ -52,19 +65,15 @@ from runtime.memory import (
     ReviewRecord,
     utc_now_iso,
 )
-from datagen.records import (
-    KEY_SCALE,
-    AuthEvent,
-    Counterparty,
-    PaymentEvent,
-    PaymentRequest,
-    format_ts,
-    make_key,
-)
 from runtime.review_log import ReviewHistoryEntry, ReviewLog
 
 log = logging.getLogger("secflow.service")
 HISTOGRAM_BINS = 20
+FOREIGN_COUNTRIES = ("RO", "IT", "DE", "FR", "GB", "UA", "TR", "US", "NL")
+
+
+class MiaLimitError(ValueError):
+    """The payment breaks an MIA Plati Instant limit for the sender's account type (answered with 422)."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +102,12 @@ class SecFlowService:
         self.settings = settings
         self.started_at = utc_now_iso()
         self.policy = load_policy(settings.policy_path)
-        self.dataset: Dataset = load_dataset(settings.demo_dir)
+        self.dataset: Dataset = load_partition(settings.test_path)
+        self.manifest: dict[str, Any] = (read_manifest(settings.manifest_path)
+                                         if settings.manifest_path.exists() else {})
+        self.limits: MiaLimits = self.policy.limits  # type: ignore[assignment]
+        recorded = ((self.manifest.get("partitions") or {}).get("test") or {}).get("sha256")
+        self.hashes_verified = recorded is not None and recorded == sha256_file(settings.test_path)
         self.model_error: str | None = None
         self.bundle: ModelBundle | None
         try:
@@ -251,6 +265,13 @@ class SecFlowService:
             raise NotFoundError(f"Unknown recipient {payload.recipient_id}")
         if payload.recipient_id == payload.sender_id:
             raise ConflictError("Sender and recipient must differ")
+        segment = self.accounts[payload.sender_id].account_type
+        cap = self.limits.for_segment(segment).per_transaction
+        if payload.amount > cap:
+            raise MiaLimitError(
+                f"MIA Plati Instant accepts at most {cap:,.0f} MDL per transaction from a {segment} account; "
+                f"{payload.amount:,.2f} MDL was requested"
+            )
         record, replay = self.state.submit_once(
             payload.request_id, _fingerprint(payload), lambda: self._assess_and_commit(payload, producer)
         )
@@ -279,11 +300,17 @@ class SecFlowService:
                                 payload.auth_method, payload.ip_country, None))
         for event in events:
             history.add_auth(event, self._next_key(event.ts))
+        qr_merchant = None
+        if payload.payment_scheme in ("p2b_qr_static", "p2b_qr_dynamic"):
+            qr_merchant = payload.qr_payload_merchant_id or recipient_id
         request = PaymentRequest(
             request_id=payload.request_id, ts=success_ts + 8, sender_id=payload.sender_id, recipient_id=recipient_id,
             recipient_type="account" if recipient_id in self.accounts else "counterparty", amount=payload.amount,
             currency=payload.currency, channel=payload.channel, device_id=device, session_id=session,
             auth_method=payload.auth_method, ip_country=payload.ip_country, transfer_type=payload.transfer_type,
+            payment_scheme=payload.payment_scheme,
+            request_to_pay_id=f"RTP-SIM-{suffix}" if payload.payment_scheme == "request_to_pay" else None,
+            qr_payload_merchant_id=qr_merchant, recipient_alias=payload.recipient_alias,
         )
         key = self._next_key(request.ts)
         started = time.perf_counter()
@@ -471,7 +498,7 @@ class SecFlowService:
                 "completed": round(sum(volume[o] for o in COMPLETED_OUTCOMES), 2),
                 "pending_verification": round(volume["pending_verification"], 2),
                 "blocked_attempts": round(volume["blocked_attempt"] + volume["rejected_after_review"], 2),
-                "currency": "EUR",
+                "currency": "MDL",
                 "note": "Completed volume counts only permitted or approved simulated outcomes. "
                 "Blocked and pending attempts are excluded; no funds move through a bank.",
             },
@@ -584,9 +611,12 @@ class SecFlowService:
             series = self.state.history.sender.get(sender_id)
             recent = list(dict.fromkeys(reversed(series.recipients[-40:]))) if series else []
             amounts = sorted(series.amounts[-30:]) if series else []
+            account = self.accounts[sender_id]
             sender = {
                 "account_id": sender_id,
-                "home_country": self.accounts[sender_id].home_country,
+                "account_type": account.account_type,
+                "home_country": account.home_country,
+                "max_amount": self.limits.for_segment(account.account_type).per_transaction,
                 "known_devices": list(dict.fromkeys(reversed(self.state.history.auth[sender_id].devices)))[:4]
                 if sender_id in self.state.history.auth else [],
                 "recent_recipients": [self.party(r).model_dump() for r in recent[:8]],
@@ -594,9 +624,14 @@ class SecFlowService:
             }
         return {
             "simulation_time": format_ts(now),
-            "currencies": ["EUR"],
+            "currencies": ["MDL"],
+            "payment_schemes": list(OUTGOING_SCHEMES),
+            "limits": {
+                segment: {"per_transaction": lim.per_transaction, "per_day": lim.per_day, "per_month": lim.per_month}
+                for segment, lim in (("personal", self.limits.personal), ("business", self.limits.business))
+            },
             "auth_methods": ["biometric", "password_otp", "otp", "password"],
-            "countries": sorted({a.home_country for a in self.accounts.values()} | {"US", "GB", "AE", "TR", "UA"}),
+            "countries": sorted({a.home_country for a in self.accounts.values()} | set(FOREIGN_COUNTRIES)),
             "flagged_beneficiaries": flagged,
             "sender": sender,
         }
@@ -683,23 +718,27 @@ class SecFlowService:
         return {s: dict(zip(("verify", "block"), point.thresholds_for(s), strict=True)) for s in SEGMENTS}
 
     def health(self, stream: dict[str, Any]) -> dict[str, Any]:
-        manifest = self.dataset.manifest
+        manifest = self.manifest
         with self.state.lock:
             simulations = len(self.state.simulation_order)
             reviews = self.state.review_count
+        requests = self.dataset.requests
         return {
             "status": "ok" if self.bundle else "degraded",
             "started_at": self.started_at,
             "startup_seconds": self.startup_seconds,
             "data": {
                 "source": "local_files",
-                "dataset": manifest["dataset"],
-                "generator_version": manifest["generator_version"],
-                "seed": manifest["seed"],
-                "requests": manifest["counts"]["requests"],
-                "accounts": manifest["counts"]["accounts"],
-                "hashes_verified": True,
-                "date_range": manifest["date_range"],
+                "dataset": manifest.get("dataset", "secflow-mia-instant"),
+                "file": "storage/test.json",
+                "generator_version": manifest.get("generator_version"),
+                "seed": manifest.get("seed"),
+                "currency": "MDL",
+                "requests": len(requests),
+                "context_credits": self.dataset.context_credits,
+                "accounts": len(self.accounts),
+                "hashes_verified": self.hashes_verified,
+                "date_range": {"start": format_ts(requests[0].ts), "end": format_ts(requests[-1].ts)},
             },
             "model": {
                 "loaded": self.bundle is not None,

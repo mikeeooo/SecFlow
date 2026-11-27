@@ -17,10 +17,10 @@ from typing import Any
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
+from datagen.records import format_ts
 from ml.algorithms.dbscan_context import DBSCANContext
 from ml.policy import OperatingPoint
 from runtime.memory import COMPLETED_OUTCOMES, AssessmentRecord
-from datagen.records import format_ts
 
 WINDOWS = {
     "history": {"bucket_seconds": 86_400, "max_buckets": None, "label": "Demonstration history and session, per day"},
