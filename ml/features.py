@@ -15,8 +15,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from storage.history import HistoryIndex
-from storage.records import KEY_SCALE, Account, PaymentRequest
+from runtime.history import HistoryIndex
+from datagen.records import KEY_SCALE, Account, PaymentRequest
 
 FEATURE_VERSION = "features-1.1.0"
 HOUR = 3_600

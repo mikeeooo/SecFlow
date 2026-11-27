@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from backend.api import create_app
 from config.settings import load_settings
-from storage.review_log import ReviewHistoryEntry, ReviewLog
+from runtime.review_log import ReviewHistoryEntry, ReviewLog
 
 
 def _settings(state_dir: Path | None):

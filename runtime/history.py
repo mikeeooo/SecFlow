@@ -12,7 +12,7 @@ from bisect import bisect_left
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from storage.records import EVENT_RANK, AuthEvent, PaymentEvent, PaymentRequest, make_key
+from datagen.records import EVENT_RANK, AuthEvent, PaymentEvent, PaymentRequest, make_key
 
 
 @dataclass

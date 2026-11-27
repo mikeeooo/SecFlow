@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 
-from storage.identities import (
+from datagen.identities import (
     COUNTRIES,
     IDENTITY_SEED,
     AccountIdentity,
@@ -30,7 +30,7 @@ from storage.identities import (
     build_accounts,
     build_counterparties,
 )
-from storage.records import INSTANT_TRANSFER
+from datagen.records import INSTANT_TRANSFER
 
 GENERATOR_VERSION = "secflow-generator-1.2.0"
 SCHEMA_VERSION = "1.1"
@@ -188,7 +188,7 @@ def _build_base_counterparties() -> list[CounterpartyIdentity]:
     reserved = {a.display_name for a in build_accounts()}
     billers = []
     biller_kinds = ("Utilities", "Telecom", "Energy", "Insurance", "Property Management")
-    from storage.identities import BUSINESS_PREFIXES
+    from datagen.identities import BUSINESS_PREFIXES
 
     for index in range(POPULAR_BILLERS):
         name = f"{BUSINESS_PREFIXES[index % len(BUSINESS_PREFIXES)]} {biller_kinds[index % len(biller_kinds)]}"
@@ -204,7 +204,7 @@ def _build_base_counterparties() -> list[CounterpartyIdentity]:
 
 def _drift_billers(reserved: set[str]) -> list[CounterpartyIdentity]:
     """Billers that exist from the start but nobody pays before the drift adoption days."""
-    from storage.identities import BUSINESS_PREFIXES
+    from datagen.identities import BUSINESS_PREFIXES
 
     billers = []
     for index in range(DRIFT_BILLERS):
@@ -1310,7 +1310,7 @@ def _manifest(
         "seed": spec.seed,
         "identity_seed": IDENTITY_SEED,
         "provenance": (
-            "Fully synthetic data produced by storage/generator.py. Accounts, counterparties, payments, "
+            "Fully synthetic data produced by datagen/generator.py. Accounts, counterparties, payments, "
             "sessions and security evidence are generated; they describe no real people, businesses, or "
             "confirmed fraud cases. Security evidence is a simulated trusted server-side stream."
         ),

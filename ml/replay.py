@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 
 from ml.features import CONTEXT_FEATURES, PAYMENT_FEATURES, FeatureSnapshot, build_features
-from storage.dataset import Dataset
-from storage.history import HistoryIndex
+from datagen.dataset import Dataset
+from runtime.history import HistoryIndex
 
 
 @dataclass(frozen=True)

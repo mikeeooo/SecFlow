@@ -173,7 +173,7 @@ def test_training_never_fit_on_held_out_partitions() -> None:
 
 
 def _train_rows_without(training_dir: Path, excluded: set[str]) -> int:
-    from storage.dataset import load_splits, read_jsonl
+    from datagen.dataset import load_splits, read_jsonl
 
     splits = load_splits(training_dir)
     return sum(

@@ -40,9 +40,9 @@ from config.settings import Settings
 from ml.assess import assess_batch, assess_one, build_evidence_store
 from ml.model import BundleError, ModelBundle, load_bundle, load_operating_point
 from ml.policy import SEGMENTS, OperatingPoint, load_policy
-from storage.dataset import Dataset, load_dataset
-from storage.history import HistoryIndex
-from storage.memory import (
+from datagen.dataset import Dataset, load_dataset
+from runtime.history import HistoryIndex
+from runtime.memory import (
     COMPLETED_OUTCOMES,
     OUTCOME_FOR_DECISION,
     AssessmentRecord,
@@ -52,7 +52,7 @@ from storage.memory import (
     ReviewRecord,
     utc_now_iso,
 )
-from storage.records import (
+from datagen.records import (
     KEY_SCALE,
     AuthEvent,
     Counterparty,
@@ -61,7 +61,7 @@ from storage.records import (
     format_ts,
     make_key,
 )
-from storage.review_log import ReviewHistoryEntry, ReviewLog
+from runtime.review_log import ReviewHistoryEntry, ReviewLog
 
 log = logging.getLogger("secflow.service")
 HISTOGRAM_BINS = 20

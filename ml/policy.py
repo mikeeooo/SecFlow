@@ -17,7 +17,7 @@ from typing import Any
 
 import numpy as np
 
-from storage.evidence import SecurityEvidence
+from runtime.evidence import SecurityEvidence
 
 COMPONENTS = ("isolation_forest", "lof", "dbscan", "rules")
 
