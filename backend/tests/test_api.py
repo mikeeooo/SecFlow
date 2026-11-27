@@ -96,6 +96,7 @@ def test_missing_identifiers_return_404(client: TestClient) -> None:
         {"is_fraud": True},
         {"confirmed_fraud": True},
         {"currency": "USD"},
+        {"transfer_type": "standard"},  # only instant transfers are assessed
         {"request_id": "x"},
         {"new_recipient_name": "Someone", "recipient_id": "CP-00001"},  # both recipient fields
     ],

@@ -30,9 +30,10 @@ from storage.identities import (
     build_accounts,
     build_counterparties,
 )
+from storage.records import INSTANT_TRANSFER
 
-GENERATOR_VERSION = "secflow-generator-1.1.0"
-SCHEMA_VERSION = "1.0"
+GENERATOR_VERSION = "secflow-generator-1.2.0"
+SCHEMA_VERSION = "1.1"
 CURRENCY = "EUR"
 DAY_SECONDS = 86_400
 FRAUD_CATEGORIES = ("account_takeover", "mule_flow", "velocity", "social_engineering", "coordinated")
@@ -1161,6 +1162,7 @@ def generate_dataset(output_dir: Path, spec: DatasetSpec) -> dict[str, Any]:
                 "session_id": draft.session,
                 "auth_method": draft.auth_method,
                 "ip_country": draft.ip_country,
+                "transfer_type": INSTANT_TRANSFER,
             }
         )
         labels.append(

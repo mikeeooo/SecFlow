@@ -37,6 +37,7 @@ class SimulationRequest(StrictModel):
     failed_login_attempts: int = Field(default=0, ge=0, le=10)
     ip_country: str = Field(default="DE", pattern=r"^[A-Z]{2}$")
     channel: Literal["mobile_app", "web"] = "mobile_app"
+    transfer_type: Literal["instant"] = "instant"  # SecFlow assesses instant transfers only
 
     @field_validator("amount")
     @classmethod

@@ -14,6 +14,7 @@ from typing import Any
 
 from storage.generator import FRAUD_CATEGORIES, RUNTIME_FILES, DatasetSpec, request_fingerprint, sha256_file
 from storage.records import (
+    INSTANT_TRANSFER,
     Account,
     AuthEvent,
     Counterparty,
@@ -80,12 +81,16 @@ def load_dataset(path: Path, check_hashes: bool = True) -> Dataset:
         row["counterparty_id"]: Counterparty(row["counterparty_id"], row["display_name"], row["kind"], row["category"])
         for row in read_jsonl(path / "counterparties.jsonl")
     }
+    try:
+        requests = tuple(request_from_row(r) for r in read_jsonl(path / "requests.jsonl"))
+    except ValueError as error:
+        raise DatasetError(str(error)) from error
     return Dataset(
         path=path,
         manifest=manifest,
         accounts=accounts,
         counterparties=counterparties,
-        requests=tuple(request_from_row(r) for r in read_jsonl(path / "requests.jsonl")),
+        requests=requests,
         payment_events=tuple(payment_from_row(r) for r in read_jsonl(path / "payment_events.jsonl")),
         auth_events=tuple(auth_from_row(r) for r in read_jsonl(path / "authentication_events.jsonl")),
         security_events=tuple(read_jsonl(path / "security_events.jsonl")),
@@ -126,6 +131,11 @@ def validate_dataset(path: Path, spec: DatasetSpec) -> list[str]:
     forbidden = {"is_fraud", "is_anomaly", "scenario", "campaign_id", "partition", "label"}
     if requests and forbidden & set(requests[0]):
         problems.append("Runtime requests contain label fields")
+    not_instant = [r.get("request_id") for r in requests if r.get("transfer_type") != INSTANT_TRANSFER]
+    if not_instant:
+        problems.append(
+            f"{len(not_instant)} request(s) without mandatory transfer_type={INSTANT_TRANSFER!r}, first {not_instant[0]}"
+        )
     account_ids = {a["account_id"] for a in accounts}
     party_ids = account_ids | {c["counterparty_id"] for c in counterparties}
     for row in requests:
