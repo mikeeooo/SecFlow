@@ -33,8 +33,13 @@ def trained(tmp_path_factory, policy) -> dict:
     ml.training.load_labels = spy
     try:
         models = tmp_path_factory.mktemp("models")
-        report = train_models(STORAGE / "train.json", STORAGE / "validation.json", models, policy,
-                              ROOT / "datagen" / "manifest.json")
+        report = train_models(
+            STORAGE / "train.json",
+            STORAGE / "validation.json",
+            models,
+            policy,
+            ROOT / "datagen" / "manifest.json",
+        )
     finally:
         ml.training.load_labels = original
     return {"models": models, "report": report, "opened": opened}
@@ -73,7 +78,8 @@ def test_evaluation_meets_the_quality_bar(tmp_path: Path) -> None:
     assert report["per_fraud_type"]["qr_code_tampering"]["test_only"] is True
     committed = json.loads((ROOT / "artifacts" / "evaluation.json").read_text())
     assert {k: v for k, v in report["headline"].items() if k != "latency_p95_ms"} == {
-        k: v for k, v in committed["headline"].items() if k != "latency_p95_ms"}
+        k: v for k, v in committed["headline"].items() if k != "latency_p95_ms"
+    }
 
 
 def test_score_mapping_is_a_bounded_monotonic_cdf() -> None:
@@ -85,8 +91,9 @@ def test_score_mapping_is_a_bounded_monotonic_cdf() -> None:
 def test_dbscan_context_scores_distance_from_the_frozen_cores() -> None:
     rng = np.random.default_rng(1)
     context = DbscanContext(eps=0.5, min_samples=5).fit(rng.normal(0, 0.1, (300, 2)))
-    near, far, unknown = context.score(np.array([[0.0, 0.0], [50.0, 50.0], [0.0, 0.0]]),
-                                       ["ok", "ok", "insufficient_history"])
+    near, far, unknown = context.score(
+        np.array([[0.0, 0.0], [50.0, 50.0], [0.0, 0.0]]), ["ok", "ok", "insufficient_history"]
+    )
     assert (near.status, near.score) == ("within_context", 0.0)
     assert (far.status, far.score) == ("outside_context", 1.0)
     assert (unknown.status, unknown.score) == ("insufficient_history", 0.0)

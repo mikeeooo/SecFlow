@@ -76,8 +76,17 @@ def load_policy(path: Path) -> Policy:
         new_account_verify_reserve=float(raw["new_account_verify_reserve"]),
         min_families=int(raw["corroboration"]["min_distinct_families"]),
         families=raw["corroboration"]["families"],
-        rules=tuple(RuleSpec(r["code"], r["family"], float(r["weight"]), bool(r["corroborating"]), r["description"],
-                             r["params"]) for r in raw["rules"]),
+        rules=tuple(
+            RuleSpec(
+                r["code"],
+                r["family"],
+                float(r["weight"]),
+                bool(r["corroborating"]),
+                r["description"],
+                r["params"],
+            )
+            for r in raw["rules"]
+        ),
         cold_start_max_amount=float(raw["cold_start"]["max_amount_without_history"]),
         strong_auth_methods=frozenset(raw["cold_start"]["strong_auth_methods"]),
         trusted_sources=tuple(raw["evidence"]["trusted_sources"]),
@@ -104,7 +113,9 @@ def load_operating_point(directory: Path, model_version: str) -> OperatingPoint:
     raw = json.loads((directory / OPERATING_POINT_FILE).read_text())
     if raw["model_version"] != model_version:
         raise ValueError("The operating point was chosen for another model version; retrain.")
-    return OperatingPoint(float(raw["verify_threshold"]), float(raw["block_threshold"]), raw["source"], raw["version"])
+    return OperatingPoint(
+        float(raw["verify_threshold"]), float(raw["block_threshold"]), raw["source"], raw["version"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -138,31 +149,39 @@ def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: 
     p = rule.params
     z = f.get("amount_zscore_30d")
     recent_beneficiary = f.get("recipient_history_days") is None or f["recipient_history_days"] <= p.get(
-        "max_recipient_history_days", 7)
+        "max_recipient_history_days", 7
+    )
     code = rule.code
     if code == "AMOUNT_SPIKE":
         if not has_history or f.get("prior_requests_30d", 0) < 3:
             return None
         ratio = f["amount"] / f["max_amount_30d"] if f.get("max_amount_30d") else 0.0
         if (z is not None and z >= p["min_zscore"]) or ratio >= p["min_ratio_to_prior_max"]:
-            return (f"{_money(f['amount'])} versus a 30-day median of {_money(f.get('median_amount_30d'))} "
-                    f"(z-score {z if z is not None else 'n/a'}, {ratio:.1f}x the prior 30-day maximum)")
+            return (
+                f"{_money(f['amount'])} versus a 30-day median of {_money(f.get('median_amount_30d'))} "
+                f"(z-score {z if z is not None else 'n/a'}, {ratio:.1f}x the prior 30-day maximum)"
+            )
     elif code == "AMOUNT_ELEVATED":
         if has_history and "AMOUNT_SPIKE" not in fired and z is not None and z >= p["min_zscore"]:
             return f"z-score {z} against the sender's 30-day amounts"
     elif code == "VELOCITY_BURST":
         ratio = f.get("velocity_ratio_24h", 0.0)
         if (f["requests_1h"] >= p["min_requests_1h"] and ratio >= p["min_velocity_ratio"] / 2) or (
-                f["requests_24h"] >= p["min_requests_24h"] and ratio >= p["min_velocity_ratio"]):
+            f["requests_24h"] >= p["min_requests_24h"] and ratio >= p["min_velocity_ratio"]
+        ):
             return f"{f['requests_1h']} payments in the last hour, {f['requests_24h']} in 24 hours ({ratio:.1f}x usual pace)"
     elif code == "RECIPIENT_FANOUT":
-        if (f["unique_recipients_24h"] >= p["min_unique_recipients_24h"]
-                and f.get("velocity_ratio_24h", 0) >= p["min_velocity_ratio"]):
+        if (
+            f["unique_recipients_24h"] >= p["min_unique_recipients_24h"]
+            and f.get("velocity_ratio_24h", 0) >= p["min_velocity_ratio"]
+        ):
             return f"{f['unique_recipients_24h']} different recipients in 24 hours"
     elif code == "NEW_DEVICE_AFTER_FAILED_LOGINS":
         if has_history and f.get("device_change") and f["auth_failures_24h"] >= p["min_failures_24h"]:
-            return (f"device first seen {f.get('device_age_hours') or 0:.1f} h ago, "
-                    f"{f['auth_failures_24h']} failed sign-ins in 24 h")
+            return (
+                f"device first seen {f.get('device_age_hours') or 0:.1f} h ago, "
+                f"{f['auth_failures_24h']} failed sign-ins in 24 h"
+            )
     elif code == "REPEATED_FAILED_LOGINS":
         if f["auth_failures_24h"] >= p["min_failures_24h"]:
             return f"{f['auth_failures_24h']} failed sign-in attempts in 24 hours"
@@ -173,7 +192,11 @@ def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: 
         if f["foreign_ip"]:
             return f"session from {f['ip_country']}, home country {f['home_country']}"
     elif code == "SHARED_NEW_BENEFICIARY":
-        if f["new_recipient"] and f["recipient_senders_24h"] >= p["min_other_senders_24h"] and recent_beneficiary:
+        if (
+            f["new_recipient"]
+            and f["recipient_senders_24h"] >= p["min_other_senders_24h"]
+            and recent_beneficiary
+        ):
             return f"{f['recipient_senders_24h']} other accounts paid this beneficiary in the last 24 hours"
     elif code == "REPEAT_NEW_BENEFICIARY":
         prior = f.get("pair_requests_24h", 0)
@@ -185,21 +208,31 @@ def _rule_check(rule: RuleSpec, f: Mapping[str, Any], has_history: bool, fired: 
     elif code == "NEW_BENEFICIARY":
         if has_history and f["new_recipient"]:
             hours = f.get("recipient_relationship_hours")
-            return "first payment to this beneficiary" if hours is None else f"first paid {hours:.1f} hours ago"
+            return (
+                "first payment to this beneficiary" if hours is None else f"first paid {hours:.1f} hours ago"
+            )
     elif code == "PASS_THROUGH_FUNDS":
         incoming = f.get("incoming_24h", 0.0)
         outflow = f.get("sum_24h", 0.0) + f["amount"]
-        if incoming >= p["min_incoming_24h"] and outflow >= p["min_outflow_share"] * incoming and recent_beneficiary:
+        if (
+            incoming >= p["min_incoming_24h"]
+            and outflow >= p["min_outflow_share"] * incoming
+            and recent_beneficiary
+        ):
             return f"{_money(outflow)} sent in 24 hours after receiving {_money(incoming)}"
     elif code == "NEAR_TX_CAP":
         ratio = f.get("amount_to_tx_cap_ratio") or 0.0
         if ratio >= p["min_cap_ratio"]:
-            return f"{_money(f['amount'])} is {ratio:.0%} of the {_money(f.get('tx_cap'))} per-transaction limit"
+            return (
+                f"{_money(f['amount'])} is {ratio:.0%} of the {_money(f.get('tx_cap'))} per-transaction limit"
+            )
     elif code == "DAILY_CAP_PRESSURE":
         ratio = f.get("daily_cumulative_to_cap_ratio") or 0.0
         if ratio >= p["min_daily_cap_ratio"] and f["new_recipient"]:
-            return (f"{_money(f.get('sent_today_before', 0.0) + f['amount'])} sent today including this payment, "
-                    f"{ratio:.0%} of the {_money(f.get('daily_cap'))} daily limit")
+            return (
+                f"{_money(f.get('sent_today_before', 0.0) + f['amount'])} sent today including this payment, "
+                f"{ratio:.0%} of the {_money(f.get('daily_cap'))} daily limit"
+            )
     elif code == "CAP_STRUCTURING":
         ratio = f.get("amount_to_tx_cap_ratio") or 0.0
         prior = f.get("near_cap_count_24h", 0)
@@ -227,8 +260,11 @@ def evaluate_rules(facts: Mapping[str, Any], history_status: str, policy: Policy
         detail = _rule_check(rule, facts, has_history, fired)
         if detail is not None:
             fired.add(rule.code)
-            triggered.append(TriggeredRule(rule.code, rule.family, rule.weight, rule.corroborating, rule.description,
-                                           detail))
+            triggered.append(
+                TriggeredRule(
+                    rule.code, rule.family, rule.weight, rule.corroborating, rule.description, detail
+                )
+            )
     families = tuple(sorted({t.family for t in triggered if t.corroborating}))
     return RuleResult(min(1.0, sum(t.weight for t in triggered)), tuple(triggered), families)
 
@@ -249,16 +285,25 @@ def combine_scores(components: Mapping[str, float], weights: Mapping[str, float]
     return RiskBreakdown(sum(contributions.values()), contributions)
 
 
-def assessment_status(history_status: str, amount: float, auth_method: str, policy: Policy) -> tuple[str, list[str]]:
+def assessment_status(
+    history_status: str, amount: float, auth_method: str, policy: Policy
+) -> tuple[str, list[str]]:
     """Can the payment be judged on behaviour? Senders without history get a safeguard instead."""
     if history_status == "none":
         if amount > policy.cold_start_max_amount or auth_method not in policy.strong_auth_methods:
             return "insufficient_history", [
-                ("The sender has no earlier payments, so behavioural comparisons are unavailable; payments above "
-                f"{_money(policy.cold_start_max_amount)} or without strong authentication need verification.")]
-        return "limited_history", ["No earlier payments; assessed with strong authentication and a small amount."]
+                (
+                    "The sender has no earlier payments, so behavioural comparisons are unavailable; payments above "
+                    f"{_money(policy.cold_start_max_amount)} or without strong authentication need verification."
+                )
+            ]
+        return "limited_history", [
+            "No earlier payments; assessed with strong authentication and a small amount."
+        ]
     if history_status == "limited":
-        return "limited_history", ["Fewer than five earlier payments; behavioural baselines are less reliable."]
+        return "limited_history", [
+            "Fewer than five earlier payments; behavioural baselines are less reliable."
+        ]
     return "assessed", []
 
 
@@ -273,40 +318,80 @@ class PolicyResult:
     explanation: str
 
 
-def decide_action(risk: RiskBreakdown, rules: RuleResult, evidence: Sequence[SecurityEvidence], status: str,
-                  point: OperatingPoint, policy: Policy, segment: str = "personal") -> PolicyResult:
+def decide_action(
+    risk: RiskBreakdown,
+    rules: RuleResult,
+    evidence: Sequence[SecurityEvidence],
+    status: str,
+    point: OperatingPoint,
+    policy: Policy,
+    segment: str = "personal",
+) -> PolicyResult:
     """The decision table, highest priority first."""
     verify, block = point.verify, point.block
     families = rules.corroborating_families
     if evidence:
         kinds = ", ".join(sorted({e.evidence_type.replace("_", " ") for e in evidence}))
         return PolicyResult(
-            "Block", "confirmed_fraud_evidence", "Confirmed fraud evidence", status,
-            tuple(e.evidence_id for e in evidence), families,
+            "Block",
+            "confirmed_fraud_evidence",
+            "Confirmed fraud evidence",
+            status,
+            tuple(e.evidence_id for e in evidence),
+            families,
             f"Blocked automatically: active trusted security evidence ({kinds}) implicates this request. "
-            "The anomaly score is shown for context and did not decide this action.")
+            "The anomaly score is shown for context and did not decide this action.",
+        )
     if status == "insufficient_history":
         return PolicyResult(
-            "Verify", "assessment_safeguard", "Needs verification", status, (), families,
-            "Sent to verification because the request cannot be assessed safely with the information available.")
+            "Verify",
+            "assessment_safeguard",
+            "Needs verification",
+            status,
+            (),
+            families,
+            "Sent to verification because the request cannot be assessed safely with the information available.",
+        )
     if risk.total >= block and len(families) >= policy.min_families:
         return PolicyResult(
-            "Block", "risk_policy", "Preventive risk block", status, (), families,
+            "Block",
+            "risk_policy",
+            "Preventive risk block",
+            status,
+            (),
+            families,
             f"Preventive block: risk {risk.total:.1f} reached the {segment} block threshold {block:g} and "
-            f"{len(families)} distinct behavioural signals corroborate it. This is a risk decision, not confirmed fraud.")
+            f"{len(families)} distinct behavioural signals corroborate it. This is a risk decision, not confirmed fraud.",
+        )
     if risk.total >= verify:
-        reason = ("very high anomaly score without enough independent corroborating signals for a block"
-                  if risk.total >= block else "unusual behaviour above the verification threshold")
+        reason = (
+            "very high anomaly score without enough independent corroborating signals for a block"
+            if risk.total >= block
+            else "unusual behaviour above the verification threshold"
+        )
         return PolicyResult(
-            "Verify", "risk_policy", "Needs verification", status, (), families,
-            f"Needs verification: {reason} (risk {risk.total:.1f}, {segment} threshold {verify:g}).")
+            "Verify",
+            "risk_policy",
+            "Needs verification",
+            status,
+            (),
+            families,
+            f"Needs verification: {reason} (risk {risk.total:.1f}, {segment} threshold {verify:g}).",
+        )
     return PolicyResult(
-        "Permit", "risk_policy", "Permitted", status, (), families,
-        f"Permitted: risk {risk.total:.1f} is below the {segment} verification threshold {verify:g}.")
+        "Permit",
+        "risk_policy",
+        "Permitted",
+        status,
+        (),
+        families,
+        f"Permitted: risk {risk.total:.1f} is below the {segment} verification threshold {verify:g}.",
+    )
 
 
-def decision_codes(risk: np.ndarray, families: np.ndarray, unsafe: np.ndarray, verify: float, block: float,
-                   min_families: int) -> np.ndarray:
+def decision_codes(
+    risk: np.ndarray, families: np.ndarray, unsafe: np.ndarray, verify: float, block: float, min_families: int
+) -> np.ndarray:
     """`decide_action` for many payments at once without evidence: 0 Permit, 1 Verify, 2 Block.
 
     The threshold search tries thousands of (verify, block) pairs, so it needs the array form.

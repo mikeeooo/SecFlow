@@ -33,7 +33,11 @@ def test_committed_dataset_is_valid() -> None:
 def test_generator_reproduces_the_committed_files_byte_for_byte(tmp_path: Path) -> None:
     manifest = generate_dataset(tmp_path / "storage", tmp_path / "manifest.json")
     for name, part in manifest["partitions"].items():
-        assert sha256_file(tmp_path / "storage" / f"{name}.json") == sha256_file(STORAGE / f"{name}.json") == part["sha256"]
+        assert (
+            sha256_file(tmp_path / "storage" / f"{name}.json")
+            == sha256_file(STORAGE / f"{name}.json")
+            == part["sha256"]
+        )
 
 
 def test_partitions_hold_the_documented_counts(rows) -> None:
@@ -59,19 +63,29 @@ def test_every_row_is_an_instant_mdl_payment_within_the_personal_cap(rows) -> No
 def test_runtime_view_ignores_labels(tmp_path: Path) -> None:
     original = load_partitions([STORAGE / "test.json"])
     flipped = tmp_path / "test.json"
-    write_rows(flipped, [{**r, "is_fraud": not r["is_fraud"], "fraud_type": "money_mule", "campaign_id": "X"}
-                         for r in read_rows(STORAGE / "test.json")])
+    write_rows(
+        flipped,
+        [
+            {**r, "is_fraud": not r["is_fraud"], "fraud_type": "money_mule", "campaign_id": "X"}
+            for r in read_rows(STORAGE / "test.json")
+        ],
+    )
     changed = load_partitions([flipped])
     assert changed.requests == original.requests
     assert changed.auth_events == original.auth_events
     assert not {"is_fraud", "fraud_type", "campaign_id"} & set(type(original.requests[0]).__slots__)
 
 
-@pytest.mark.parametrize(("change", "message"), [
-    (lambda r: r.update(currency="EUR"), "not instant transfers in MDL"),
-    (lambda r: r.update(amount=9_000.0) if r["assessed"] and r["sender_type"] == "personal" else None,
-     "above 5,000 MDL"),
-])
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda r: r.update(currency="EUR"), "not instant transfers in MDL"),
+        (
+            lambda r: r.update(amount=9_000.0) if r["assessed"] and r["sender_type"] == "personal" else None,
+            "above 5,000 MDL",
+        ),
+    ],
+)
 def test_validation_reports_broken_rows(tmp_path: Path, change, message: str) -> None:
     storage = copy_storage(tmp_path)
     rows = read_rows(storage / "validation.json")
@@ -92,7 +106,10 @@ def test_validation_requires_exactly_three_files(tmp_path: Path) -> None:
 def test_validation_reports_copied_rows_across_files(tmp_path: Path) -> None:
     storage = copy_storage(tmp_path)
     test_rows = read_rows(storage / "test.json")
-    write_rows(storage / "test.json", [*test_rows, {**read_rows(storage / "train.json")[0], "transaction_id": "TX-COPY"}])
+    write_rows(
+        storage / "test.json",
+        [*test_rows, {**read_rows(storage / "train.json")[0], "transaction_id": "TX-COPY"}],
+    )
     assert any("duplicates a row of train.json" in p for p in validate_dataset(storage, MANIFEST))
 
 

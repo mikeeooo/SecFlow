@@ -46,7 +46,8 @@ def load_settings() -> Settings:
         models_dir=_path("SECFLOW_MODELS_DIR", ROOT / "ml" / "models"),
         artifacts_dir=_path("SECFLOW_ARTIFACTS_DIR", ROOT / "artifacts"),
         policy_path=_path("SECFLOW_POLICY_PATH", ROOT / "config" / "policy.json"),
-        autostart_stream=os.environ.get("SECFLOW_AUTOSTART_STREAM", "true").lower() in {"1", "true", "yes", "on"},
+        autostart_stream=os.environ.get("SECFLOW_AUTOSTART_STREAM", "true").lower()
+        in {"1", "true", "yes", "on"},
         stream_interval_seconds=float(os.environ.get("SECFLOW_STREAM_INTERVAL", "2")),
         batch_interval_seconds=float(os.environ.get("SECFLOW_BATCH_INTERVAL", "4")),
     )

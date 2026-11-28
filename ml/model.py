@@ -134,8 +134,12 @@ class ModelBundle:
         if_raw, lof_raw = self.raw_scores(payment)
         if_score, lof_score = cdf(self.if_reference, if_raw), cdf(self.lof_reference, lof_raw)
         contexts = self.dbscan.score(context, statuses)
-        return [Components(float(if_raw[i]), float(if_score[i]), float(lof_raw[i]), float(lof_score[i]), contexts[i])
-                for i in range(len(contexts))]
+        return [
+            Components(
+                float(if_raw[i]), float(if_score[i]), float(lof_raw[i]), float(lof_score[i]), contexts[i]
+            )
+            for i in range(len(contexts))
+        ]
 
     def save(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
@@ -149,7 +153,10 @@ def load_bundle(directory: Path) -> ModelBundle:
         raise BundleError(f"Model bundle not found at {path}. Run `python -m backend.cli train`.")
     bundle = joblib.load(path)
     meta = bundle.metadata
-    if (meta["feature_version"] != FEATURE_VERSION or tuple(meta["payment_features"]) != PAYMENT_FEATURES
-            or tuple(meta["context_features"]) != CONTEXT_FEATURES):
+    if (
+        meta["feature_version"] != FEATURE_VERSION
+        or tuple(meta["payment_features"]) != PAYMENT_FEATURES
+        or tuple(meta["context_features"]) != CONTEXT_FEATURES
+    ):
         raise BundleError("The model bundle was trained with different feature code; retrain it.")
     return bundle

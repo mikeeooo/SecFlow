@@ -37,11 +37,15 @@ class MiaLimits:
 def parse_limits(raw: dict) -> MiaLimits:
     def segment(block: dict) -> SegmentLimits:
         month = block.get("per_month")
-        return SegmentLimits(float(block["per_transaction"]), float(block["per_day"]),
-                             float(month) if month is not None else None)
+        return SegmentLimits(
+            float(block["per_transaction"]),
+            float(block["per_day"]),
+            float(month) if month is not None else None,
+        )
 
-    limits = MiaLimits(raw["currency"], segment(raw["personal"]), segment(raw["business"]),
-                       float(raw["fee_free_per_month"]))
+    limits = MiaLimits(
+        raw["currency"], segment(raw["personal"]), segment(raw["business"]), float(raw["fee_free_per_month"])
+    )
     if limits.currency != "MDL":
         raise ValueError("MIA limits must be expressed in MDL")
     return limits

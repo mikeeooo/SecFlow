@@ -45,16 +45,24 @@ class InputGenerator:
         """A multiple of the sender's typical amount, kept under the MIA per-transaction limit."""
         series = self.service.history.sender.get(sender)
         recent = sorted(series.amounts[-25:]) if series else [40.0]
-        value = recent[len(recent) // 2] * float(self.rng.uniform(low, high)) * math.exp(self.rng.normal(0, 0.2))
-        cap = self.service.limits.for_segment(self.service.accounts[sender].account_type).per_transaction * 0.999
+        value = (
+            recent[len(recent) // 2] * float(self.rng.uniform(low, high)) * math.exp(self.rng.normal(0, 0.2))
+        )
+        cap = (
+            self.service.limits.for_segment(self.service.accounts[sender].account_type).per_transaction
+            * 0.999
+        )
         return round(min(max(1.0, value), cap), 2)
 
     def scheme(self, sender: str, recipient: str) -> str:
         """An MIA scheme that fits the sender and the payee, as the dataset generator chooses it."""
         account = self.service.accounts.get(recipient)
         counterparty = self.service.counterparties.get(recipient)
-        kind = ("business" if account.account_type == "business" else "person") if account else (
-            counterparty.kind if counterparty else "person")
+        kind = (
+            ("business" if account.account_type == "business" else "person")
+            if account
+            else (counterparty.kind if counterparty else "person")
+        )
         category = counterparty.category if counterparty else "individual"
         if kind == "public_institution":
             return "p2g"
@@ -78,40 +86,73 @@ class InputGenerator:
         sender = self.pick(self.senders, list(self.weights))
         home = self.service.accounts[sender].home_country
         spec: dict[str, Any] = {
-            "sender_id": sender, "device_id": self.service.last_device(sender), "ip_country": home,
+            "sender_id": sender,
+            "device_id": self.service.last_device(sender),
+            "ip_country": home,
             "auth_method": self.pick(("biometric", "biometric", "password", "password_otp")),
-            "failed_login_attempts": int(self.rng.random() < 0.03), "channel": "mobile_app"}
+            "failed_login_attempts": int(self.rng.random() < 0.03),
+            "channel": "mobile_app",
+        }
         series = self.service.history.sender.get(sender)
         recipients = [r for r in (series.recipients[-30:] if series else []) if r != sender] or ["CP-00001"]
         known = self.pick(recipients)
-        new_person = {"new_recipient_name": f"{self.pick(FIRST_NAMES)} {self.pick(LAST_NAMES)}",
-                      "payment_scheme": "p2p_iban" if self.service.accounts[sender].account_type == "business"
-                      else "p2p_alias"}
+        new_person = {
+            "new_recipient_name": f"{self.pick(FIRST_NAMES)} {self.pick(LAST_NAMES)}",
+            "payment_scheme": "p2p_iban"
+            if self.service.accounts[sender].account_type == "business"
+            else "p2p_alias",
+        }
         roll = float(self.rng.random())
         if roll < 0.80:  # an ordinary payment to a known recipient
-            return {**spec, "recipient_id": known, "payment_scheme": self.scheme(sender, known),
-                    "amount": self.amount(sender, 0.7, 1.3)}
+            return {
+                **spec,
+                "recipient_id": known,
+                "payment_scheme": self.scheme(sender, known),
+                "amount": self.amount(sender, 0.7, 1.3),
+            }
         if roll < 0.86:  # an ordinary amount to someone new
             return {**spec, **new_person, "amount": self.amount(sender, 0.8, 2.0)}
         if roll < 0.90:  # a large planned purchase with strong sign-in
-            return {**spec, "recipient_id": known, "payment_scheme": self.scheme(sender, known),
-                    "amount": self.amount(sender, 6, 14), "auth_method": "password_otp"}
+            return {
+                **spec,
+                "recipient_id": known,
+                "payment_scheme": self.scheme(sender, known),
+                "amount": self.amount(sender, 6, 14),
+                "auth_method": "password_otp",
+            }
         if roll < 0.93:  # phishing-like takeover: failed sign-ins, a new device, near the cap
-            return {**spec, **new_person, "device_id": None, "amount": self.amount(sender, 30, 60),
-                    "failed_login_attempts": int(self.rng.integers(2, 5)), "auth_method": "password",
-                    "ip_country": self.pick(FOREIGN) if self.rng.random() < 0.5 else home}
+            return {
+                **spec,
+                **new_person,
+                "device_id": None,
+                "amount": self.amount(sender, 30, 60),
+                "failed_login_attempts": int(self.rng.integers(2, 5)),
+                "auth_method": "password",
+                "ip_country": self.pick(FOREIGN) if self.rng.random() < 0.5 else home,
+            }
         if roll < 0.95 and new_person["payment_scheme"] == "p2p_alias":  # Request to Pay from a stranger
-            return {**spec, **new_person, "payment_scheme": "request_to_pay", "amount": self.amount(sender, 2, 6)}
+            return {
+                **spec,
+                **new_person,
+                "payment_scheme": "request_to_pay",
+                "amount": self.amount(sender, 2, 6),
+            }
         if roll < 0.97:  # a rapid burst to one new beneficiary; later items pay the one the first created
             token = uuid.uuid4().hex
-            burst = [{**spec, **new_person, "amount": self.amount(sender, 0.8, 1.6), "_burst": token}
-                     for _ in range(int(self.rng.integers(4, 7)))]
+            burst = [
+                {**spec, **new_person, "amount": self.amount(sender, 0.8, 1.6), "_burst": token}
+                for _ in range(int(self.rng.integers(4, 7)))
+            ]
             self.queue.extend(burst[1:])
             return burst[0]
         flagged = self.service.simulator_options(None)["flagged_beneficiaries"]
         target = self.pick(flagged)["id"] if flagged else known  # a beneficiary with active trusted evidence
-        return {**spec, "recipient_id": target, "payment_scheme": self.scheme(sender, target),
-                "amount": self.amount(sender, 0.6, 1.4)}
+        return {
+            **spec,
+            "recipient_id": target,
+            "payment_scheme": self.scheme(sender, target),
+            "amount": self.amount(sender, 0.6, 1.4),
+        }
 
 
 class StreamController:
@@ -130,10 +171,17 @@ class StreamController:
         self._burst_recipients: dict[str, str] = {}
 
     def status(self) -> dict[str, Any]:
-        return {"running": self.running, "mode": self.mode,
-                "interval_seconds": self.interval if self.mode == "continuous" else self.batch_interval,
-                "produced": self.produced, "failures": self.failures, "last_error": self.last_error,
-                "started_at": self.started_at, "last_tick_at": self.last_tick_at, "owner": "backend"}
+        return {
+            "running": self.running,
+            "mode": self.mode,
+            "interval_seconds": self.interval if self.mode == "continuous" else self.batch_interval,
+            "produced": self.produced,
+            "failures": self.failures,
+            "last_error": self.last_error,
+            "started_at": self.started_at,
+            "last_tick_at": self.last_tick_at,
+            "owner": "backend",
+        }
 
     def start(self) -> dict[str, Any]:
         if not self.running:
@@ -169,8 +217,9 @@ class StreamController:
                 break
             payload, token = self.generator.next_payload()
             if token in self._burst_recipients:
-                payload = payload.model_copy(update={"recipient_id": self._burst_recipients[token],
-                                                     "new_recipient_name": None})
+                payload = payload.model_copy(
+                    update={"recipient_id": self._burst_recipients[token], "new_recipient_name": None}
+                )
             try:
                 detail, _ = await asyncio.to_thread(self.service.simulate, payload, "stream")
             except Exception as error:  # noqa: BLE001 - keep producing; the status shows the error
@@ -189,7 +238,11 @@ class StreamController:
         while True:
             if self.running:
                 await self.tick()
-            delay = (self.interval if self.mode == "continuous" else self.batch_interval) if self.running else 3600.0
+            delay = (
+                (self.interval if self.mode == "continuous" else self.batch_interval)
+                if self.running
+                else 3600.0
+            )
             self._wake.clear()
             try:
                 await asyncio.wait_for(self._wake.wait(), timeout=delay)

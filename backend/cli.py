@@ -1,9 +1,9 @@
 """SecFlow command line.
 
-    python -m backend.cli generate   # storage/{train,validation,test}.json + datagen/manifest.json
-    python -m backend.cli validate   # files, counts, MIA limits, fraud types, hashes, label stripping
-    python -m backend.cli train      # fit on train.json, choose thresholds on validation.json
-    python -m backend.cli evaluate   # one frozen evaluation on test.json
+python -m backend.cli generate   # storage/{train,validation,test}.json + datagen/manifest.json
+python -m backend.cli validate   # files, counts, MIA limits, fraud types, hashes, label stripping
+python -m backend.cli train      # fit on train.json, choose thresholds on validation.json
+python -m backend.cli evaluate   # one frozen evaluation on test.json
 """
 
 from __future__ import annotations
@@ -41,10 +41,22 @@ def cmd_train() -> int:
     from ml.training import train_models
 
     settings = load_settings()
-    report = train_models(settings.train_path, settings.validation_path, settings.models_dir,
-                          load_policy(settings.policy_path), settings.manifest_path)
-    print(json.dumps({key: report[key] for key in ("operating_point", "validation_component_average_precision",
-                                                     "training_seconds")}, indent=2))
+    report = train_models(
+        settings.train_path,
+        settings.validation_path,
+        settings.models_dir,
+        load_policy(settings.policy_path),
+        settings.manifest_path,
+    )
+    print(
+        json.dumps(
+            {
+                key: report[key]
+                for key in ("operating_point", "validation_component_average_precision", "training_seconds")
+            },
+            indent=2,
+        )
+    )
     print(json.dumps({"chosen": report["threshold_selection"]["chosen"]}, indent=2))
     return 0
 
@@ -63,8 +75,9 @@ COMMANDS = {"generate": cmd_generate, "validate": cmd_validate, "train": cmd_tra
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="secflow", description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="secflow", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("command", choices=COMMANDS)
     return COMMANDS[parser.parse_args(argv).command]()
 

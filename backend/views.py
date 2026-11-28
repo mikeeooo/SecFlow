@@ -41,10 +41,22 @@ SESSION_TITLES = {
 }
 OUTCOME_TEXT = {
     "permitted": ("Recorded as permitted", "Simulated outcome only: no funds moved through a bank."),
-    "pending_verification": ("Held for verification", "Not counted as a completed transfer until an analyst approves it."),
-    "blocked_attempt": ("Recorded as a blocked attempt", "Not executed and excluded from completed-payment totals."),
-    "approved_after_review": ("Approved after review", "Simulated outcome only: no funds moved through a bank."),
-    "rejected_after_review": ("Rejected after review", "Not executed and excluded from completed-payment totals."),
+    "pending_verification": (
+        "Held for verification",
+        "Not counted as a completed transfer until an analyst approves it.",
+    ),
+    "blocked_attempt": (
+        "Recorded as a blocked attempt",
+        "Not executed and excluded from completed-payment totals.",
+    ),
+    "approved_after_review": (
+        "Approved after review",
+        "Simulated outcome only: no funds moved through a bank.",
+    ),
+    "rejected_after_review": (
+        "Rejected after review",
+        "Not executed and excluded from completed-payment totals.",
+    ),
 }
 
 
@@ -58,8 +70,12 @@ def review_status(record: AssessmentRecord) -> str:
 
 def _scores(record: AssessmentRecord) -> dict[str, float]:
     c = record.result.components
-    return {"isolation_forest": c.if_score, "lof": c.lof_score, "dbscan": c.context.score,
-            "rules": record.result.rules.score}
+    return {
+        "isolation_forest": c.if_score,
+        "lof": c.lof_score,
+        "dbscan": c.context.score,
+        "rules": record.result.rules.score,
+    }
 
 
 def summary(record: AssessmentRecord, party: PartyLookup) -> AssessmentSummary:
@@ -94,11 +110,15 @@ def summary(record: AssessmentRecord, party: PartyLookup) -> AssessmentSummary:
 def _context_detail(record: AssessmentRecord) -> str:
     ctx = record.result.components.context
     if ctx.status == "within_context":
-        return (f"The trailing 24-hour account profile lies within a frozen DBSCAN core neighbourhood "
-                f"(distance {ctx.distance:.2f}, cluster {ctx.cluster}).")
+        return (
+            f"The trailing 24-hour account profile lies within a frozen DBSCAN core neighbourhood "
+            f"(distance {ctx.distance:.2f}, cluster {ctx.cluster})."
+        )
     if ctx.status == "outside_context":
-        return (f"The trailing 24-hour account profile lies outside every frozen core neighbourhood "
-                f"(nearest distance {ctx.distance:.2f}). This is context, not a fraud verdict.")
+        return (
+            f"The trailing 24-hour account profile lies outside every frozen core neighbourhood "
+            f"(nearest distance {ctx.distance:.2f}). This is context, not a fraud verdict."
+        )
     return "Fewer than three earlier payments: the context score is 0 and marked as insufficient history."
 
 
@@ -113,31 +133,69 @@ def _component_details(record: AssessmentRecord, policy: Policy) -> list[Compone
         "lof": f"Local density lower than for {c.lof_score:.0%} of reference-period requests.",
         "dbscan": _context_detail(record),
         "rules": f"{triggered} rule{'s' if triggered != 1 else ''} triggered; the rules score is the capped sum of "
-                 "their weights.",
+        "their weights.",
     }
-    return [ComponentView(key=name, label=COMPONENT_LABELS[name], score=round(scores[name], 4),
-                          weight=policy.weights[name], contribution=round(contributions[name], 3),
-                          raw=None if raw[name] is None else round(raw[name], 4), status=status[name],
-                          detail=detail[name]) for name in COMPONENTS]
+    return [
+        ComponentView(
+            key=name,
+            label=COMPONENT_LABELS[name],
+            score=round(scores[name], 4),
+            weight=policy.weights[name],
+            contribution=round(contributions[name], 3),
+            raw=None if raw[name] is None else round(raw[name], 4),
+            status=status[name],
+            detail=detail[name],
+        )
+        for name in COMPONENTS
+    ]
 
 
-def detail(record: AssessmentRecord, party: PartyLookup, policy: Policy, point: OperatingPoint, model_version: str,
-           replay: bool = False) -> AssessmentDetail:
+def detail(
+    record: AssessmentRecord,
+    party: PartyLookup,
+    policy: Policy,
+    point: OperatingPoint,
+    model_version: str,
+    replay: bool = False,
+) -> AssessmentDetail:
     result, request = record.result, record.request
     return AssessmentDetail(
         **summary(record, party).model_dump(),
         explanation=result.policy.explanation,
         status_notes=list(result.status_notes),
         component_details=_component_details(record, policy),
-        reasons=[ReasonView(code=t.code, family=t.family, description=t.description, detail=t.detail,
-                            weight=t.weight, corroborating=t.corroborating) for t in result.rules.triggered],
-        evidence=[EvidenceView(evidence_id=e.evidence_id, evidence_type=e.evidence_type, entity_type=e.entity_type,
-                               entity_id=e.entity_id, source=e.source, recorded_at=format_ts(e.recorded_at),
-                               effective_from=format_ts(e.effective_from),
-                               effective_until=format_ts(e.effective_until) if e.effective_until else None,
-                               note=e.note) for e in result.evidence],
-        thresholds=Thresholds(verify=point.verify, block=point.block, min_corroborating_families=policy.min_families,
-                              source=point.source, segment=result.segment),
+        reasons=[
+            ReasonView(
+                code=t.code,
+                family=t.family,
+                description=t.description,
+                detail=t.detail,
+                weight=t.weight,
+                corroborating=t.corroborating,
+            )
+            for t in result.rules.triggered
+        ],
+        evidence=[
+            EvidenceView(
+                evidence_id=e.evidence_id,
+                evidence_type=e.evidence_type,
+                entity_type=e.entity_type,
+                entity_id=e.entity_id,
+                source=e.source,
+                recorded_at=format_ts(e.recorded_at),
+                effective_from=format_ts(e.effective_from),
+                effective_until=format_ts(e.effective_until) if e.effective_until else None,
+                note=e.note,
+            )
+            for e in result.evidence
+        ],
+        thresholds=Thresholds(
+            verify=point.verify,
+            block=point.block,
+            min_corroborating_families=policy.min_families,
+            source=point.source,
+            segment=result.segment,
+        ),
         model_version=model_version,
         policy_version=policy.version,
         operating_point_version=point.version,
@@ -156,34 +214,63 @@ def detail(record: AssessmentRecord, party: PartyLookup, policy: Policy, point: 
 
 
 def review_view(review: ReviewRecord) -> ReviewView:
-    return ReviewView(review_id=review.review_id, action=review.action, reason=review.reason, actor=review.actor,
-                      created_at=review.created_at, original_decision=review.original_decision,
-                      original_risk_score=review.original_risk_score, resulting_outcome=review.resulting_outcome)
+    return ReviewView(
+        review_id=review.review_id,
+        action=review.action,
+        reason=review.reason,
+        actor=review.actor,
+        created_at=review.created_at,
+        original_decision=review.original_decision,
+        original_risk_score=review.original_risk_score,
+        resulting_outcome=review.resulting_outcome,
+    )
 
 
 def timeline(record: AssessmentRecord) -> list[TimelineEntry]:
     """Sign-ins, evidence, the request, the automated decision and any review, in time order."""
     request, policy = record.request, record.result.policy
     entries = [
-        TimelineEntry(at=format_ts(e.ts), kind="authentication", title=SESSION_TITLES.get(e.event_type, e.event_type),
-                      detail=f"{e.auth_method} on {e.device_id} from {e.ip_country}"
-                      + (f" ({e.reason.replace('_', ' ')})" if e.reason else ""))
+        TimelineEntry(
+            at=format_ts(e.ts),
+            kind="authentication",
+            title=SESSION_TITLES.get(e.event_type, e.event_type),
+            detail=f"{e.auth_method} on {e.device_id} from {e.ip_country}"
+            + (f" ({e.reason.replace('_', ' ')})" if e.reason else ""),
+        )
         for e in record.session_events
     ]
-    entries += [TimelineEntry(at=format_ts(e.recorded_at), kind="evidence",
-                              title=f"Security evidence recorded: {e.evidence_type.replace('_', ' ')}",
-                              detail=f"{e.evidence_id} from {e.source.replace('_', ' ')}") for e in record.result.evidence]
+    entries += [
+        TimelineEntry(
+            at=format_ts(e.recorded_at),
+            kind="evidence",
+            title=f"Security evidence recorded: {e.evidence_type.replace('_', ' ')}",
+            detail=f"{e.evidence_id} from {e.source.replace('_', ' ')}",
+        )
+        for e in record.result.evidence
+    ]
     at = format_ts(request.ts)
     title, text = OUTCOME_TEXT[OUTCOME_FOR_DECISION[policy.decision]]
     entries += [
-        TimelineEntry(at=at, kind="request", title="Payment request received",
-                      detail=f"{request.amount:,.2f} {request.currency} by MIA {request.payment_scheme.replace('_', ' ')} "
-                      f"via {request.channel.replace('_', ' ')}"),
-        TimelineEntry(at=at, kind="decision", title=f"Automated decision: {policy.label}", detail=policy.explanation),
+        TimelineEntry(
+            at=at,
+            kind="request",
+            title="Payment request received",
+            detail=f"{request.amount:,.2f} {request.currency} by MIA {request.payment_scheme.replace('_', ' ')} "
+            f"via {request.channel.replace('_', ' ')}",
+        ),
+        TimelineEntry(
+            at=at, kind="decision", title=f"Automated decision: {policy.label}", detail=policy.explanation
+        ),
         TimelineEntry(at=at, kind="outcome", title=title, detail=text),
     ]
     for review in record.reviews:
         title, text = OUTCOME_TEXT[review.resulting_outcome]
-        entries.append(TimelineEntry(at=format_ts(review.simulated_time), kind="review",
-                                     title=f"{title} by {review.actor}", detail=f"“{review.reason}” — {text}"))
+        entries.append(
+            TimelineEntry(
+                at=format_ts(review.simulated_time),
+                kind="review",
+                title=f"{title} by {review.actor}",
+                detail=f"“{review.reason}” — {text}",
+            )
+        )
     return sorted(entries, key=lambda e: e.at)

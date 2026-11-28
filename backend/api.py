@@ -72,7 +72,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     def error(status: int, code: str, message: str, details: Any = None) -> JSONResponse:
-        return JSONResponse(status_code=status, content={"error": {"code": code, "message": message, "details": details}})
+        return JSONResponse(
+            status_code=status, content={"error": {"code": code, "message": message, "details": details}}
+        )
 
     @app.exception_handler(MiaLimitError)
     async def mia_limit(_: Request, exc: MiaLimitError) -> JSONResponse:
@@ -132,7 +134,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return svc(request).account_detail(account_id)
 
     @app.get("/api/parties")
-    def parties(request: Request, q: str = "", limit: Annotated[int, Query(ge=1, le=50)] = 20) -> list[dict[str, Any]]:
+    def parties(
+        request: Request, q: str = "", limit: Annotated[int, Query(ge=1, le=50)] = 20
+    ) -> list[dict[str, Any]]:
         return svc(request).parties(q, limit)
 
     @app.get("/api/simulator/options")
@@ -154,8 +158,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         service = svc(request)
         items = service.live_feed(after, limit)
         next_cursor = max([after] + [i.cursor for i in items])
-        return LiveFeed(items=items, next_cursor=next_cursor, stream=StreamStatus(**stream_of(request).status()),
-                        simulation_time=format_ts(service.simulation_now()))
+        return LiveFeed(
+            items=items,
+            next_cursor=next_cursor,
+            stream=StreamStatus(**stream_of(request).status()),
+            simulation_time=format_ts(service.simulation_now()),
+        )
 
     @app.get("/api/simulation-stream", response_model=StreamStatus)
     def stream_status(request: Request) -> StreamStatus:
