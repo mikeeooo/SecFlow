@@ -1,6 +1,7 @@
 """Controls on the committed model and test.json: shuffled labels score at chance, and the combined risk
 score is not significantly worse than its best single component. The second bar replaced "beats every
-baseline with non-overlapping intervals", which the combined score fails (docs/AUDIT.md, F01).
+baseline with non-overlapping intervals", which the combined score fails. See
+docs/adr/0003-fixed-weights-and-the-rules-only-result.md.
 
 The scores come from `scripts/experiments.py`, which runs every payment through `ml.assess.Assessor`
 with the committed bundle. Nothing is retrained.
