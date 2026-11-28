@@ -229,9 +229,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-def _mount_frontend(app: FastAPI) -> None:
-    """Serve the production frontend build from the same process when it exists."""
-    dist = ROOT / "frontend" / "dist"
+def _mount_frontend(app: FastAPI, dist: Path = ROOT / "frontend" / "dist") -> None:
+    """Serve the production frontend build from the same process when it exists.
+
+    Files in the build are served as they are. Any other path gets the single-page app, except a path
+    with a file extension, which gets 404, so a missing robots.txt or image is not answered with HTML.
+    """
     if not (dist / "index.html").exists():
         return
     app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
@@ -243,6 +246,8 @@ def _mount_frontend(app: FastAPI) -> None:
         candidate = (dist / path).resolve()
         if path and candidate.is_file() and Path(dist.resolve()) in candidate.parents:
             return FileResponse(candidate)
+        if Path(path).suffix:
+            raise HTTPException(404, "File not found")
         return FileResponse(dist / "index.html")
 
 
