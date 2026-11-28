@@ -10,5 +10,6 @@ frontend/coverage/
 .vercel/
 .vercel
 .env*
+!.env.example
 .claude/
 .coverage
