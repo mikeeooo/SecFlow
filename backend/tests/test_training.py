@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import json
 from pathlib import Path
 
@@ -68,7 +67,7 @@ def test_retraining_reproduces_the_committed_models(trained) -> None:
 
 
 def test_evaluation_meets_the_quality_bar(tmp_path: Path) -> None:
-    settings = dataclasses.replace(load_settings(), artifacts_dir=tmp_path)
+    settings = load_settings().model_copy(update={"artifacts_dir": tmp_path})
     headline = run_evaluation(settings)["headline"]
     assert headline["recall_verify_or_block"] >= 0.767
     assert headline["verify_rate"] <= 0.05
