@@ -1,0 +1,3 @@
+$ GET /api/overview -> totals
+{'assessed': 15000, 'baseline': 15000, 'simulations': 0, 'permitted': 14118, 'needs_verification': 750, 'preventive_blocks': 108, 'confirmed_evidence_blocks': 24, 'awaiting_review': 750, 'reviewed': 0}
+verify rate 0.0500, block rate 0.0088

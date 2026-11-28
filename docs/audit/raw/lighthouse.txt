@@ -1,0 +1,20 @@
+$ npx lighthouse@12.8.2 http://127.0.0.1:8031/ --preset=desktop --only-categories=performance,accessibility,best-practices,seo
+3 runs. Port 8031: 8021 was already bound by another process (uvicorn EADDRINUSE).
+run 1: lighthouse 12.8.2, formFactor desktop, final URL http://127.0.0.1:8031/, runtimeError None
+   scores: {'performance': 99, 'accessibility': 100, 'best-practices': 100, 'seo': 91}
+   metrics: {'first-contentful-paint': '0.7\xa0s', 'largest-contentful-paint': '0.7\xa0s', 'total-blocking-time': '0\xa0ms', 'cumulative-layout-shift': '0', 'speed-index': '0.7\xa0s'}
+run 2: lighthouse 12.8.2, formFactor desktop, final URL http://127.0.0.1:8031/, runtimeError None
+   scores: {'performance': 100, 'accessibility': 100, 'best-practices': 100, 'seo': 91}
+   metrics: {'first-contentful-paint': '0.7\xa0s', 'largest-contentful-paint': '0.7\xa0s', 'total-blocking-time': '0\xa0ms', 'cumulative-layout-shift': '0', 'speed-index': '0.7\xa0s'}
+run 3: lighthouse 12.8.2, formFactor desktop, final URL http://127.0.0.1:8031/, runtimeError None
+   scores: {'performance': 100, 'accessibility': 100, 'best-practices': 100, 'seo': 91}
+   metrics: {'first-contentful-paint': '0.7\xa0s', 'largest-contentful-paint': '0.7\xa0s', 'total-blocking-time': '0\xa0ms', 'cumulative-layout-shift': '0', 'speed-index': '0.7\xa0s'}
+
+failing audits in run 1 (score < 1, scored audits only), by category:
+  [performance] first-contentful-paint: score 0.98 0.7 s | First Contentful Paint
+  [performance] largest-contentful-paint: score 0.98 0.7 s | Largest Contentful Paint
+  [seo] robots-txt: score 0 17 errors found | robots.txt is not valid
+       - {'index': '1', 'line': '<!doctype html>', 'message': 'Syntax not understood'}
+       - {'index': '2', 'line': '<html lang="en">', 'message': 'Syntax not understood'}
+       - {'index': '3', 'line': '  <head>', 'message': 'Syntax not understood'}
+       - {'index': '4', 'line': '    <meta charset="UTF-8" />', 'message': 'Syntax not understood'}

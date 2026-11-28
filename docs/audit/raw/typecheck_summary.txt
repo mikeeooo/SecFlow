@@ -1,0 +1,62 @@
+== mypy --strict: 105 errors
+by package: {'backend/tests': 35, 'ml': 33, 'backend': 29, 'datagen': 6, 'config': 2}
+by module:
+    17 ml/training.py
+    13 backend/views.py
+    11 backend/tests/test_training.py
+    11 backend/tests/test_policy.py
+     7 ml/model.py
+     7 backend/service.py
+     6 ml/evaluation.py
+     5 backend/tests/test_dataset.py
+     5 backend/tests/test_api.py
+     4 backend/analytics.py
+     3 backend/stream.py
+     2 config/limits.py
+     2 datagen/records.py
+     2 datagen/generator.py
+     2 datagen/dataset.py
+     2 backend/api.py
+     2 backend/tests/conftest.py
+     1 ml/evidence.py
+     1 ml/features.py
+     1 backend/tests/test_features.py
+     1 ml/assess.py
+by code:
+    27 no-untyped-def
+    22 arg-type
+    13 import-untyped
+    10 operator
+    10 no-any-return
+     9 type-arg
+     5 index
+     4 attr-defined
+     3 union-attr
+     1 var-annotated
+     1 type-var
+
+== pyright strict (from --outputjson): 687 errors, 32 files analyzed
+by package: {'backend/tests': 245, 'ml': 189, 'datagen': 142, 'backend': 98, 'config': 13}
+by rule:
+   175 reportUnknownMemberType
+   172 reportUnknownArgumentType
+   148 reportUnknownVariableType
+    41 reportArgumentType
+    38 reportUnknownParameterType
+    30 reportMissingParameterType
+    26 reportUnusedFunction
+    13 reportMissingTypeStubs
+     9 reportMissingTypeArgument
+     6 reportUnknownLambdaType
+     5 reportCallIssue
+     5 reportOptionalOperand
+     5 reportPrivateUsage
+     4 reportIndexIssue
+     3 reportOptionalMemberAccess
+     2 reportPossiblyUnboundVariable
+     1 reportFunctionMemberAccess
+     1 reportAttributeAccessIssue
+     1 reportUnusedVariable
+     1 reportOptionalSubscript
+     1 reportReturnType
+reportUnknown* + reportMissingTypeStubs (untyped sklearn/joblib/numpy results): 552

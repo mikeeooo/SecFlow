@@ -1,0 +1,34 @@
+$ ls frontend/eslint.config.* frontend/.eslintrc* eslint.config.* .eslintrc*
+<tmp>/run_frontend.sh:7: no matches found: frontend/eslint.config.*
+$ grep -c eslint frontend/package.json
+0
+--- temporary eslint.config.mjs (outside the repo) ---
+// Minimal temporary flat config for the audit: recommended JS + typescript-eslint (no type-aware rules) +
+// react-hooks. The repo has no ESLint config of its own.
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
+
+export default tseslint.config(
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser } },
+    plugins: { "react-hooks": reactHooks },
+    rules: { ...reactHooks.configs.recommended.rules },
+  },
+);
+---
+$ eslint --version
+v9.39.5
+$ eslint -c <temp eslint.config.mjs> frontend/src frontend/vite.config.ts
+
+<repo>/frontend/src/pages/Simulator.tsx
+  136:6  warning  React Hook useMemo has a missing dependency: 'nearCap'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 1 problem (0 errors, 1 warning)
+
+exit=0

@@ -1,0 +1,7 @@
+$ npm --prefix frontend audit
+found 0 vulnerabilities
+exit=0
+
+$ npm --prefix frontend audit --omit=dev
+found 0 vulnerabilities
+exit=0

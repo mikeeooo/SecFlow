@@ -1,0 +1,91 @@
+$ git check-ignore -v --no-index .env.local .env .env.example .vercel/ .vercel/project.json artifacts/ artifacts/evaluation.json .DS_Store frontend/.DS_Store frontend/dist/ ml/models/secflow_model.joblib storage/train.json
+.env.local: .gitignore:12:.env*	.env.local
+.env: .gitignore:12:.env*	.env
+.env.example: .gitignore:12:.env*	.env.example
+.vercel/: .gitignore:11:.vercel	.vercel/
+.vercel/project.json: .gitignore:11:.vercel	.vercel/project.json
+artifacts/: NOT IGNORED
+artifacts/evaluation.json: NOT IGNORED
+.DS_Store: .gitignore:9:.DS_Store	.DS_Store
+frontend/.DS_Store: .gitignore:9:.DS_Store	frontend/.DS_Store
+frontend/dist/: .gitignore:7:frontend/dist/	frontend/dist/
+ml/models/secflow_model.joblib: NOT IGNORED
+storage/train.json: NOT IGNORED
+
+$ git ls-files | grep -E "(^|/)(\.env|\.vercel|\.DS_Store)"   (tracked files that should be ignored)
+.vercelignore
+$ git ls-files artifacts
+artifacts/evaluation.json
+artifacts/evaluation.md
+$ git log --oneline -- artifacts | wc -l   (commits touching artifacts/)
+       7
+
+$ git ls-files -z | xargs -0 du -k | sort -rn | head -12   (largest tracked files, KiB)
+77956	storage/train.json
+16700	storage/test.json
+16672	storage/validation.json
+6320	ml/models/secflow_model.joblib
+220	scripts/api_contract.baseline.json
+212	uv.lock
+100	frontend/package-lock.json
+92	datagen/generator.py
+36	backend/service.py
+32	artifacts/evaluation.json
+28	frontend/src/pages/Algorithms.tsx
+24	ml/evaluation.py
+
+$ git count-objects -vH
+warning: garbage found: <main-clone>/.git/worktrees/agent-a19f082ff4cb663d2/refs
+count: 694
+size: 100.53 MiB
+in-pack: 0
+packs: 0
+size-pack: 0 bytes
+prune-packable: 0
+garbage: 1
+size-garbage: 64 bytes
+$ du -sh .git dir of the main clone
+101M	<main-clone>/.git
+
+$ git log --format="%h %ad %s" --date=short -- storage/train.json | wc -l   (versions of train.json in history)
+       1
+$ git log --format="%h" -- ml/models/secflow_model.joblib | wc -l
+       5
+$ git rev-list --objects --all | git cat-file --batch-check="%(objecttype) %(objectsize) %(rest)" | sort -k2 -rn | head -12   (largest blobs ever, bytes)
+blob 79825761 storage/train.json
+blob 31874292 storage/data/training/requests.jsonl
+blob 29912094 ml/models/secflow_model.joblib
+blob 29274292 storage/data/training/requests.jsonl
+blob 29271174 storage/data/training/requests.jsonl
+blob 23263207 storage/data/training/authentication_events.jsonl
+blob 23240762 storage/data/training/authentication_events.jsonl
+blob 20179459 storage/data/training/payment_events.jsonl
+blob 20178526 storage/data/training/payment_events.jsonl
+blob 17100018 storage/test.json
+blob 17068055 storage/validation.json
+blob 11136035 storage/data/training/evaluation_labels.jsonl
+
+$ ls lockfiles
+-rw-r--r--@ 1 misha  staff   99078 Nov 28 08:39 frontend/package-lock.json
+-rw-r--r--@ 1 misha  staff  214825 Nov 28 08:39 uv.lock
+$ uv lock --check
+Resolved 38 packages in 2ms
+exit=0
+$ git ls-files | grep -E "lock"
+frontend/package-lock.json
+uv.lock
+$ cat .python-version; grep requires-python pyproject.toml
+3.14
+requires-python = ">=3.12"
+$ ls .github 2>&1
+ls: .github: No such file or directory
+$ ls -d LICENSE LICENSE.md .env.example docs/adr
+ls: .env.example: No such file or directory
+ls: LICENSE: No such file or directory
+ls: LICENSE.md: No such file or directory
+ls: docs/adr: No such file or directory
+$ git ls-files .gitattributes; git lfs ls-files
+(git-lfs not installed; no .gitattributes tracked)
+$ git rev-list --all --merges --count; git rev-list --all --no-merges --count   (gitleaks scans commits that carry a patch)
+6
+72

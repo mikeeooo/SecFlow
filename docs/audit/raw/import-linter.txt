@@ -1,0 +1,211 @@
+$ uvx --from import-linter lint-imports <temp contracts.ini outside the repo> --no-cache
+--- contracts.ini ---
+[importlinter]
+root_packages =
+    backend
+    ml
+    datagen
+    config
+include_external_packages = False
+
+[importlinter:contract:proposed]
+name = Proposed layers backend -> ml -> config (datagen not placed)
+type = layers
+layers =
+    backend
+    ml
+    config
+
+[importlinter:contract:with-datagen]
+name = Alternative layers backend -> ml -> datagen -> config
+type = layers
+layers =
+    backend
+    ml
+    datagen
+    config
+
+[importlinter:contract:datagen-below-ml]
+name = datagen does not import ml or backend
+type = forbidden
+source_modules =
+    datagen
+forbidden_modules =
+    ml
+    backend
+
+[importlinter:contract:config-leaf]
+name = config imports no other first-party package
+type = forbidden
+source_modules =
+    config
+forbidden_modules =
+    backend
+    ml
+    datagen
+
+[importlinter:contract:sanity-reverse]
+name = SANITY CHECK, expected BROKEN: reversed layers config -> datagen -> ml -> backend
+type = layers
+layers =
+    config
+    datagen
+    ml
+    backend
+---
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Config files                                          ┃ Graph build duration ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
+│ ../../../../../../../private/tmp/claude-501/-Users-m… │               0.003s │
+└───────────────────────────────────────────────────────┴──────────────────────┘
+
+---------
+Contracts
+---------
+
+Analyzed 32 files, 84 dependencies.
+-----------------------------------
+
+Proposed layers backend -> ml -> config (datagen not placed) KEPT [0.000s]
+Alternative layers backend -> ml -> datagen -> config KEPT [0.000s]
+datagen does not import ml or backend KEPT [0.000s]
+config imports no other first-party package KEPT [0.000s]
+SANITY CHECK, expected BROKEN: reversed layers config -> datagen -> ml -> 
+backend BROKEN [0.001s]
+
+Contracts: 4 kept, 1 broken.
+
+
+----------------
+Broken contracts
+----------------
+
+SANITY CHECK, expected BROKEN: reversed layers config -> datagen -> ml -> 
+backend
+--------------------------------------------------------------------------------
+-
+
+ml is not allowed to import config:
+
+- ml.features -> config.limits (l.23)
+
+- ml.evaluation -> config.settings (l.21)
+
+- ml.policy -> config.limits (l.20)
+
+
+backend is not allowed to import datagen:
+
+- backend.tests.test_features -> datagen.records (l.7)
+
+- backend.service -> datagen.generator (l.44)
+
+- backend.views -> datagen.records (l.20)
+
+- backend.service -> datagen.records (l.45)
+
+- backend.service -> datagen.dataset (l.43)
+
+- backend.analytics -> datagen.records (l.20)
+
+- backend.tests.test_dataset -> datagen.generator (l.13)
+
+- backend.stream -> datagen.identities (l.22)
+
+- backend.cli -> datagen.generator (l.19)
+
+- backend.tests.test_dataset -> datagen.dataset (l.12)
+
+- backend.cli -> datagen.dataset (l.29)
+
+- backend.api -> datagen.records (l.38)
+
+
+ml is not allowed to import datagen:
+
+- ml.training -> datagen.dataset (l.28)
+
+- ml.features -> datagen.records (l.24)
+
+- ml.evaluation -> datagen.generator (l.23)
+
+- ml.evaluation -> datagen.dataset (l.22)
+
+- ml.evidence -> datagen.records (l.17)
+
+- ml.history -> datagen.records (l.15)
+
+- ml.assess -> datagen.records (l.14)
+
+
+backend is not allowed to import ml:
+
+- backend.tests.test_features -> ml.history (l.9)
+
+- backend.tests.test_training -> ml.evaluation (l.16)
+
+- backend.cli -> ml.evaluation (l.53)
+
+- backend.service -> ml.assess (l.54)
+
+- backend.service -> ml.model (l.56)
+
+- backend.service -> ml.policy (l.57)
+
+- backend.tests.test_policy -> ml.policy (l.14)
+
+- backend.analytics -> ml.model (l.21)
+
+- backend.tests.test_training -> ml.model (l.17)
+
+- backend.analytics -> ml.policy (l.22)
+
+- backend.tests.test_features -> ml.features (l.8)
+
+- backend.cli -> ml.policy (l.40)
+
+- backend.service -> ml.history (l.55)
+
+- backend.tests.test_training -> ml.training (l.13, l.18)
+
+- backend.views -> ml.policy (l.21)
+
+- backend.tests.conftest -> ml.policy (l.17)
+
+- backend.cli -> ml.training (l.41)
+
+- backend.tests.test_policy -> ml.evidence (l.13)
+
+
+datagen is not allowed to import config:
+
+- datagen.dataset -> config.limits (l.17)
+
+- datagen.generator -> config.limits (l.36)
+
+
+backend is not allowed to import config:
+
+- backend.api -> config.settings (l.37)
+
+- backend.tests.test_training -> config.settings (l.15)
+
+- backend.tests.conftest -> config.settings (l.16)
+
+- backend.service -> config.settings (l.42)
+
+- backend.cli -> config.settings (l.15)
+
+
+exit=1
