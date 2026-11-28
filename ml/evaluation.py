@@ -30,6 +30,7 @@ from ml.policy import COMPONENTS, Policy, decide_action, load_operating_point, l
 
 REVIEW_BUDGET = 0.05  # a component alone flags its top 5% (threshold taken from validation)
 LATENCY_SAMPLE = 300
+TIMINGS_FILE = "timings.json"  # generated_at and latency, kept out of evaluation.json
 BAND_EDGES = (0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 70.0, 80.0, 90.0, 100.0)
 CODES = {"Permit": 0, "Verify": 1, "Block": 2}
 
@@ -242,7 +243,6 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     unseen = np.isin(fraud_type, TEST_ONLY_FRAUD_TYPES)
     full, model_only = policy_metrics(codes, y), policy_metrics(model_codes, y)
     summary: dict[str, Any] = {
-        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "scope": (
             "Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in "
             "MDL). Results describe this generated data only; they are not evidence of real-world detection."
@@ -307,7 +307,6 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
             sorted(Counter(f"{r.policy.decision}/{r.policy.decision_source}" for r in results).items())
         ),
         "assessment_statuses": dict(sorted(Counter(r.policy.assessment_status for r in results).items())),
-        "latency_ms": _latency(assessor, results, keys, history, dataset.accounts),
         "validation_goals": dict(policy.goals),
         "goal_assessment": _goals(full, policy),
     }
@@ -322,12 +321,31 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
         "legitimate_false_block_rate": full["legitimate_false_block_rate"],
         "model_only_recall_verify_or_block": model_only["verify_or_block"]["recall"],
         "test_only_fraud_recall_verify_or_block": summary["unseen_scenario"]["verify_or_block"]["recall"],
-        "latency_p95_ms": summary["latency_ms"]["p95"],
+    }
+    # Wall-clock values change on every run, so they live in their own file and evaluation.json stays
+    # reproducible. The app merges them back into /api/evaluation.
+    timings = {
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "latency_ms": _latency(assessor, results, keys, history, dataset.accounts),
     }
     settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
     (settings.artifacts_dir / "evaluation.json").write_text(json.dumps(summary, indent=2) + "\n")
     (settings.artifacts_dir / "evaluation.md").write_text(render_markdown(summary))
-    return summary
+    (settings.artifacts_dir / TIMINGS_FILE).write_text(json.dumps(timings, indent=2) + "\n")
+    return with_timings(summary, timings)
+
+
+def with_timings(summary: dict[str, Any], timings: dict[str, Any] | None) -> dict[str, Any]:
+    """The evaluation with its run time and latency, in the shape /api/evaluation has always served."""
+    if timings is None:
+        return summary
+    latency = timings["latency_ms"]
+    return {
+        "generated_at": timings["generated_at"],
+        **summary,
+        "latency_ms": latency,
+        "headline": {**summary["headline"], "latency_p95_ms": latency["p95"]},
+    }
 
 
 def _splits(partition_of: Mapping[str, str], labels: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -409,7 +427,7 @@ def render_markdown(s: dict[str, Any]) -> str:
     lines = [
         "# SecFlow evaluation report",
         "",
-        f"Generated {s['generated_at']} · model `{s['model_version']}` · policy `{s['policy_version']}`",
+        f"Model `{s['model_version']}` · policy `{s['policy_version']}`",
         "",
         f"> {s['scope']}",
         "",
@@ -505,7 +523,7 @@ def render_markdown(s: dict[str, Any]) -> str:
             f"| {label} | {b['requests']:,} | {b['fraud']} | {recall} | "
             f"{_pct(b['legitimate_review_rate'], 2)} | {_pct(b['legitimate_false_block_rate'], 3)} |"
         )
-    ev, lat = s["evidence_channel"], s["latency_ms"]
+    ev = s["evidence_channel"]
     lines += [
         "",
         "## Evidence channel",
@@ -530,7 +548,7 @@ def render_markdown(s: dict[str, Any]) -> str:
         "",
         "## Latency",
         "",
-        f"{lat['requests_timed']} single payments: mean {lat['mean']} ms, p95 {lat['p95']} ms, p99 {lat['p99']} ms.",
+        "Measured on every run and written to timings.json, so this report stays the same between runs.",
         "",
         "Scores are anomaly-risk indices, not probabilities of fraud.",
         "",

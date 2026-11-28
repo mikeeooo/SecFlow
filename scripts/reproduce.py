@@ -5,10 +5,12 @@
 It runs `generate`, `train` twice and `evaluate` from `backend.cli` into a temporary directory through
 the SECFLOW_* variables, so the committed files are never touched.
 
-- The dataset, the manifest, metadata.json and operating_point.json must match byte for byte.
-- The JSON reports must match after the keys in VOLATILE are removed, with numbers equal to within
-  TOLERANCE. LOF distances differ in the last bits between macOS and Linux, which moves LOF average
-  precision by about 1e-6. No decision, threshold or reported digit changes.
+- The dataset, the manifest, metadata.json, operating_point.json and evaluation.md must match byte for
+  byte.
+- training_report.json and evaluation.json must match with numbers equal to within TOLERANCE. LOF
+  distances differ in the last bits between macOS and Linux, which moves LOF average precision by
+  about 1e-6. No decision, threshold or reported digit changes.
+- artifacts/timings.json holds wall-clock values and is not compared.
 - The model bundle pickles those floats, so it is compared with a second train on the same machine,
   not with the committed bytes. The evaluation, which the rebuilt bundle produces, covers its behaviour.
 """
@@ -25,34 +27,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-# Wall-clock values that change on every run. Paths are dotted keys; "*" matches every list item.
-VOLATILE = {
-    "training_report.json": [
-        "training_seconds",
-        "search.isolation_forest.*.fit_seconds",
-        "search.lof.*.fit_seconds",
-    ],
-    "evaluation.json": ["generated_at", "latency_ms", "headline.latency_p95_ms"],
-}
+NUMERIC = {"training_report.json", "evaluation.json"}  # compared within TOLERANCE, the rest by bytes
 TOLERANCE = 1e-5
-
-
-def drop(node: Any, keys: list[str]) -> None:
-    head, *rest = keys
-    if head == "*":
-        for item in node:
-            drop(item, rest)
-    elif not rest:
-        node.pop(head, None)
-    elif head in node:
-        drop(node[head], rest)
-
-
-def stable_json(path: Path, volatile: list[str]) -> Any:
-    data = json.loads(path.read_text())
-    for key in volatile:
-        drop(data, key.split("."))
-    return data
 
 
 def differences(a: Any, b: Any, where: str = "", tolerance: float = TOLERANCE) -> list[str]:
@@ -102,17 +78,17 @@ def main() -> int:
         for name in ("metadata.json", "operating_point.json", "training_report.json"):
             pairs.append((ROOT / "ml" / "models" / name, out / "models" / name))
         pairs.append((out / "models_again" / "secflow_model.joblib", out / "models" / "secflow_model.joblib"))
-        pairs.append((ROOT / "artifacts" / "evaluation.json", out / "artifacts" / "evaluation.json"))
+        for name in ("evaluation.json", "evaluation.md"):
+            pairs.append((ROOT / "artifacts" / name, out / "artifacts" / name))
 
         failures = 0
         for committed, rebuilt in pairs:
-            volatile = VOLATILE.get(committed.name)
-            if volatile is None:
+            if committed.name in NUMERIC:
+                diff = differences(json.loads(committed.read_text()), json.loads(rebuilt.read_text()))
+                how = f"json within {TOLERANCE:g}"
+            else:
                 diff = [] if committed.read_bytes() == rebuilt.read_bytes() else ["bytes differ"]
                 how = "bytes"
-            else:
-                diff = differences(stable_json(committed, volatile), stable_json(rebuilt, volatile))
-                how = f"json within {TOLERANCE:g}, without " + ", ".join(volatile)
             failures += bool(diff)
             name = committed.relative_to(out if committed.is_relative_to(out) else ROOT)
             print(f"{'DIFFERENT' if diff else 'same':9} {name} ({how})")

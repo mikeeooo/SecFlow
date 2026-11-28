@@ -65,19 +65,34 @@ def test_retraining_reproduces_the_committed_models(trained) -> None:
         assert json.loads((trained["models"] / name).read_text()) == json.loads((MODELS / name).read_text())
 
 
-def test_evaluation_meets_the_quality_bar(tmp_path: Path) -> None:
-    settings = load_settings().model_copy(update={"artifacts_dir": tmp_path})
-    headline = run_evaluation(settings)["headline"]
+@pytest.fixture(scope="module")
+def evaluated(tmp_path_factory) -> tuple[dict[str, Any], Path]:
+    """One frozen evaluation into a temporary directory: what run_evaluation returns, and where it wrote."""
+    artifacts = tmp_path_factory.mktemp("artifacts")
+    return run_evaluation(load_settings().model_copy(update={"artifacts_dir": artifacts})), artifacts
+
+
+def test_evaluation_meets_the_quality_bar(evaluated) -> None:
+    served, tmp_path = evaluated
+    headline = served["headline"]
     assert headline["recall_verify_or_block"] >= 0.767
     assert headline["verify_rate"] <= 0.05
     assert headline["legitimate_false_block_rate"] <= 0.001
     report = json.loads((tmp_path / "evaluation.json").read_text())
     assert len(report["per_fraud_type"]) == 12
     assert report["per_fraud_type"]["qr_code_tampering"]["test_only"] is True
-    committed = json.loads((ROOT / "artifacts" / "evaluation.json").read_text())
-    assert {k: v for k, v in report["headline"].items() if k != "latency_p95_ms"} == {
-        k: v for k, v in committed["headline"].items() if k != "latency_p95_ms"
-    }
+    assert report["headline"] == json.loads((ROOT / "artifacts" / "evaluation.json").read_text())["headline"]
+
+
+def test_wall_clock_values_stay_out_of_the_reports(evaluated) -> None:
+    served, tmp_path = evaluated
+    report = json.loads((tmp_path / "evaluation.json").read_text())
+    timings = json.loads((tmp_path / "timings.json").read_text())
+    assert {"generated_at", "latency_ms"}.isdisjoint(report) and "latency_p95_ms" not in report["headline"]
+    assert served["headline"]["latency_p95_ms"] == timings["latency_ms"]["p95"] > 0
+    training = json.loads((MODELS / "training_report.json").read_text())
+    assert "training_seconds" not in training
+    assert all("fit_seconds" not in row for rows in training["search"].values() for row in rows)
 
 
 def test_score_mapping_is_a_bounded_monotonic_cdf() -> None:

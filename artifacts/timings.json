@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-11-28T05:56:06Z",
+  "latency_ms": {
+    "requests_timed": 300,
+    "scope": "single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process",
+    "mean": 4.548,
+    "p50": 4.561,
+    "p95": 4.685,
+    "p99": 4.786,
+    "max": 5.147
+  }
+}

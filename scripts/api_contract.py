@@ -37,6 +37,7 @@ NULLABLE_LEAVES = {"recipient_history_days"}
 REMOVED = {
     "algorithms.training.calibration_component_average_precision": "validation is no longer split into two parts",
     "algorithms.training.search.lof[].training_lof_*": "LOF training diagnostics went with the LOF grid search",
+    "algorithms.training.search.*[].fit_seconds": "wall-clock timings are kept out of training_report.json",
     "algorithms.training.segment_thresholds.*.chosen": "one threshold pair serves both segments",
     "algorithms.training.segment_thresholds.*.feasible_candidates": "one threshold pair serves both segments",
     "evaluation.drift_billers": "drift subset removed",

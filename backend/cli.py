@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 
 from config.settings import load_settings
 
@@ -41,6 +42,7 @@ def cmd_train() -> int:
     from ml.training import train_models
 
     settings = load_settings()
+    started = time.perf_counter()
     report = train_models(
         settings.train_path,
         settings.validation_path,
@@ -50,13 +52,11 @@ def cmd_train() -> int:
     )
     print(
         json.dumps(
-            {
-                key: report[key]
-                for key in ("operating_point", "validation_component_average_precision", "training_seconds")
-            },
+            {key: report[key] for key in ("operating_point", "validation_component_average_precision")},
             indent=2,
         )
     )
+    print(f"Trained in {time.perf_counter() - started:.1f} s")
     print(json.dumps({"chosen": report["threshold_selection"]["chosen"]}, indent=2))
     return 0
 

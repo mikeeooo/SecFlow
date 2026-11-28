@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import time
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -87,13 +86,9 @@ def fit_detectors(payment: np.ndarray, context: np.ndarray, context_ok: np.ndarr
     """Fit the preprocessor and the three detectors on training rows only."""
     preprocessor = Preprocessor().fit(payment)
     x = preprocessor.transform(payment)
-    started = time.perf_counter()
     iforest = IsolationForest(n_estimators=IF_TREES, max_samples=IF_SAMPLES, random_state=SEED).fit(x)
-    if_seconds = time.perf_counter() - started
-    started = time.perf_counter()
     lof_rows = _subsample(x[:, LOF_COLUMNS], LOF_FIT_ROWS)
     lof = LocalOutlierFactor(n_neighbors=LOF_NEIGHBORS, novelty=True).fit(lof_rows)
-    lof_seconds = time.perf_counter() - started
     # DBSCAN's eps from the k-distance curve: the distance to the 5th neighbour that 90% of profiles stay under.
     profiles = _subsample(context[context_ok], DBSCAN_FIT_ROWS)
     scaled = StandardScaler().fit_transform(profiles)
@@ -108,8 +103,6 @@ def fit_detectors(payment: np.ndarray, context: np.ndarray, context_ok: np.ndarr
         "rows": len(x),
         "lof_rows": len(lof_rows),
         "dbscan_rows": len(profiles),
-        "if_seconds": if_seconds,
-        "lof_seconds": lof_seconds,
     }
 
 
@@ -213,7 +206,6 @@ def train_models(
     policy: Policy,
     manifest_path: Path | None = None,
 ) -> dict[str, Any]:
-    started = time.perf_counter()
     table = feature_table(load_partitions([train_path, validation_path]))
     is_train, is_val = table["partition"] == "train", table["partition"] == "validation"
     context_ok = np.array([s.context_status == "ok" for s in table["snapshots"]])
@@ -369,7 +361,6 @@ def train_models(
                     "n_estimators": IF_TREES,
                     "max_samples": IF_SAMPLES,
                     "validation_average_precision": _ap(y, components[:, 0]),
-                    "fit_seconds": round(fitted["if_seconds"], 3),
                 }
             ],
             "lof": [
@@ -379,7 +370,6 @@ def train_models(
                     "fit_rows_requested": LOF_FIT_ROWS,
                     "fit_rows": float(fitted["lof_rows"]),
                     "validation_average_precision": _ap(y, components[:, 1]),
-                    "fit_seconds": round(fitted["lof_seconds"], 3),
                 }
             ],
             "dbscan": [
@@ -418,7 +408,6 @@ def train_models(
             **{name: _ap(y, components[:, i]) for i, name in enumerate(COMPONENTS)},
             "combined": _ap(y, risk),
         },
-        "training_seconds": round(time.perf_counter() - started, 2),
     }
     (models_dir / "training_report.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
