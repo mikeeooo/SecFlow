@@ -1,0 +1,782 @@
+{
+  "inputs": {
+    "files_sha256": {
+      "train.json": "d4a24243f20b1c25eb085d0fa7551cd09da753dd49021c5c0a44316ee829f02b",
+      "validation.json": "49d4a674c196c41c189a2d3cd2bf79df25fda3e8b4be136ae19cc614d930ae89",
+      "test.json": "99c981ff70dddcb93f6ccc2e42301476844996d23f407673f1628a2fe4f0c668"
+    },
+    "model_bundle_sha256": "f2f6e985758089587121696d4821517970878eab76ef6fa4119f7d2e40d531b2",
+    "model_version": "secflow-sk-3.0-4b97752f19",
+    "policy_version": "secflow-evidence-first-3.0.0+c4573fe9",
+    "validation": {
+      "payments": 15000,
+      "fraud": 300
+    },
+    "test": {
+      "payments": 15000,
+      "fraud": 360,
+      "prevalence": 0.024
+    }
+  },
+  "method": {
+    "ap": "average precision (sklearn definition, ties grouped), the PR-AUC",
+    "recall_at_fpr": "threshold = lowest cut with at most FPR of validation legitimate payments strictly above it; the same cut is applied to test",
+    "bootstrap": "1000 payment-level resamples of test.json with replacement, seed 0, percentile 95% interval. Fraud arrives in campaigns, so payment-level resampling understates the spread.",
+    "best_single": "the component with the highest validation AP",
+    "weight_search": "simplex grid, step 0.05, maximise validation AP, first maximum in lexicographic grid order wins",
+    "self_checks": [
+      "fast AP == sklearn AP (unweighted and weighted)",
+      "Assessor risk == 100 x components @ weights",
+      "select_thresholds on these validation scores reproduces ml/models/operating_point.json"
+    ]
+  },
+  "a_combined_vs_single": {
+    "rows": [
+      {
+        "score": "combined_fixed_weights",
+        "validation_ap": 0.719263,
+        "test_ap": 0.668131,
+        "test_ap_95ci": [
+          0.62109,
+          0.713575
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.727323,
+          "validation_fpr": 0.01,
+          "test_recall": 0.669444,
+          "test_recall_95ci": [
+            0.619718,
+            0.718267
+          ],
+          "test_fpr": 0.01291
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.64962,
+          "validation_fpr": 0.05,
+          "test_recall": 0.836111,
+          "test_recall_95ci": [
+            0.796697,
+            0.874261
+          ],
+          "test_fpr": 0.067486
+        }
+      },
+      {
+        "score": "rules_only",
+        "validation_ap": 0.695822,
+        "test_ap": 0.674537,
+        "test_ap_95ci": [
+          0.628203,
+          0.720695
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.35,
+          "validation_fpr": 0.009048,
+          "test_recall": 0.661111,
+          "test_recall_95ci": [
+            0.610113,
+            0.710396
+          ],
+          "test_fpr": 0.010861
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.1,
+          "validation_fpr": 0.035782,
+          "test_recall": 0.861111,
+          "test_recall_95ci": [
+            0.824509,
+            0.898318
+          ],
+          "test_fpr": 0.04112
+        }
+      },
+      {
+        "score": "isolation_forest_only",
+        "validation_ap": 0.566055,
+        "test_ap": 0.49537,
+        "test_ap_95ci": [
+          0.444748,
+          0.55019
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.979333,
+          "validation_fpr": 0.01,
+          "test_recall": 0.522222,
+          "test_recall_95ci": [
+            0.475301,
+            0.572661
+          ],
+          "test_fpr": 0.018033
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.935733,
+          "validation_fpr": 0.05,
+          "test_recall": 0.680556,
+          "test_recall_95ci": [
+            0.632274,
+            0.726554
+          ],
+          "test_fpr": 0.067555
+        }
+      },
+      {
+        "score": "lof_only",
+        "validation_ap": 0.055952,
+        "test_ap": 0.051271,
+        "test_ap_95ci": [
+          0.036066,
+          0.071728
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.9884,
+          "validation_fpr": 0.01,
+          "test_recall": 0.061111,
+          "test_recall_95ci": [
+            0.037789,
+            0.086357
+          ],
+          "test_fpr": 0.020219
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.947933,
+          "validation_fpr": 0.05,
+          "test_recall": 0.102778,
+          "test_recall_95ci": [
+            0.071418,
+            0.135511
+          ],
+          "test_fpr": 0.056762
+        }
+      },
+      {
+        "score": "dbscan_only",
+        "validation_ap": 0.028057,
+        "test_ap": 0.035096,
+        "test_ap_95ci": [
+          0.028345,
+          0.044026
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 1.0,
+          "validation_fpr": 0.0,
+          "test_recall": 0.0,
+          "test_recall_95ci": [
+            0.0,
+            0.0
+          ],
+          "test_fpr": 0.0
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.034956,
+          "validation_fpr": 0.05,
+          "test_recall": 0.138889,
+          "test_recall_95ci": [
+            0.101365,
+            0.174938
+          ],
+          "test_fpr": 0.040779
+        }
+      }
+    ],
+    "best_single": "rules_only",
+    "comparison": {
+      "ap": {
+        "combined_95ci": [
+          0.62109,
+          0.713575
+        ],
+        "best_single_95ci": [
+          0.628203,
+          0.720695
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": -0.007018,
+        "paired_difference_95ci": [
+          -0.023437,
+          0.008939
+        ]
+      },
+      "recall@0.01": {
+        "combined_95ci": [
+          0.619718,
+          0.718267
+        ],
+        "best_single_95ci": [
+          0.610113,
+          0.710396
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": 0.007693,
+        "paired_difference_95ci": [
+          -0.025354,
+          0.039773
+        ]
+      },
+      "recall@0.05": {
+        "combined_95ci": [
+          0.796697,
+          0.874261
+        ],
+        "best_single_95ci": [
+          0.824509,
+          0.898318
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": -0.025627,
+        "paired_difference_95ci": [
+          -0.055274,
+          0.002925
+        ]
+      }
+    }
+  },
+  "b_ablation": {
+    "fixed_weights": {
+      "isolation_forest": 0.65,
+      "lof": 0.05,
+      "dbscan": 0.0,
+      "rules": 0.3
+    },
+    "researched_weights": {
+      "isolation_forest": 0.4,
+      "lof": 0.05,
+      "dbscan": 0.0,
+      "rules": 0.55
+    },
+    "researched_validation_ap": 0.724679,
+    "grid_points": 1771,
+    "all_four_researched": {
+      "score": "all_four_researched",
+      "validation_ap": 0.724678,
+      "test_ap": 0.689113,
+      "test_ap_95ci": [
+        0.643122,
+        0.733884
+      ],
+      "recall_at_fpr_0.01": {
+        "threshold_from_validation": 0.571067,
+        "validation_fpr": 0.01,
+        "test_recall": 0.663889,
+        "test_recall_95ci": [
+          0.615379,
+          0.713045
+        ],
+        "test_fpr": 0.012432
+      },
+      "recall_at_fpr_0.05": {
+        "threshold_from_validation": 0.433817,
+        "validation_fpr": 0.05,
+        "test_recall": 0.872222,
+        "test_recall_95ci": [
+          0.836414,
+          0.908832
+        ],
+        "test_fpr": 0.061202
+      }
+    },
+    "rows": [
+      {
+        "score": "without_isolation_forest",
+        "validation_ap": 0.709047,
+        "test_ap": 0.686359,
+        "test_ap_95ci": [
+          0.639879,
+          0.731526
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.361153,
+          "validation_fpr": 0.01,
+          "test_recall": 0.655556,
+          "test_recall_95ci": [
+            0.605263,
+            0.70338
+          ],
+          "test_fpr": 0.012637
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.120627,
+          "validation_fpr": 0.05,
+          "test_recall": 0.908333,
+          "test_recall_95ci": [
+            0.87647,
+            0.940172
+          ],
+          "test_fpr": 0.053074
+        },
+        "weights": {
+          "isolation_forest": 0.0,
+          "lof": 0.05,
+          "dbscan": 0.0,
+          "rules": 0.95
+        },
+        "grid_points": 231,
+        "drop_ap": {
+          "point": 0.002754,
+          "paired_95ci": [
+            -0.005628,
+            0.010278
+          ]
+        },
+        "drop_recall@0.05": {
+          "point": -0.036111,
+          "paired_95ci": [
+            -0.059159,
+            -0.017093
+          ]
+        }
+      },
+      {
+        "score": "without_lof",
+        "validation_ap": 0.723217,
+        "test_ap": 0.683944,
+        "test_ap_95ci": [
+          0.636579,
+          0.729669
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.620967,
+          "validation_fpr": 0.01,
+          "test_recall": 0.663889,
+          "test_recall_95ci": [
+            0.612485,
+            0.713116
+          ],
+          "test_fpr": 0.01209
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.4936,
+          "validation_fpr": 0.05,
+          "test_recall": 0.858333,
+          "test_recall_95ci": [
+            0.818942,
+            0.892378
+          ],
+          "test_fpr": 0.063525
+        },
+        "weights": {
+          "isolation_forest": 0.5,
+          "lof": 0.0,
+          "dbscan": 0.0,
+          "rules": 0.5
+        },
+        "grid_points": 231,
+        "drop_ap": {
+          "point": 0.005169,
+          "paired_95ci": [
+            -0.000187,
+            0.010523
+          ]
+        },
+        "drop_recall@0.05": {
+          "point": 0.013889,
+          "paired_95ci": [
+            0.0,
+            0.02895
+          ]
+        }
+      },
+      {
+        "score": "without_dbscan",
+        "validation_ap": 0.724678,
+        "test_ap": 0.689113,
+        "test_ap_95ci": [
+          0.643122,
+          0.733884
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.571067,
+          "validation_fpr": 0.01,
+          "test_recall": 0.663889,
+          "test_recall_95ci": [
+            0.615379,
+            0.713045
+          ],
+          "test_fpr": 0.012432
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.433817,
+          "validation_fpr": 0.05,
+          "test_recall": 0.872222,
+          "test_recall_95ci": [
+            0.836414,
+            0.908832
+          ],
+          "test_fpr": 0.061202
+        },
+        "weights": {
+          "isolation_forest": 0.4,
+          "lof": 0.05,
+          "dbscan": 0.0,
+          "rules": 0.55
+        },
+        "grid_points": 231,
+        "drop_ap": {
+          "point": 0.0,
+          "paired_95ci": [
+            0.0,
+            0.0
+          ]
+        },
+        "drop_recall@0.05": {
+          "point": 0.0,
+          "paired_95ci": [
+            0.0,
+            0.0
+          ]
+        }
+      },
+      {
+        "score": "without_rules",
+        "validation_ap": 0.566055,
+        "test_ap": 0.49537,
+        "test_ap_95ci": [
+          0.444748,
+          0.55019
+        ],
+        "recall_at_fpr_0.01": {
+          "threshold_from_validation": 0.979333,
+          "validation_fpr": 0.01,
+          "test_recall": 0.522222,
+          "test_recall_95ci": [
+            0.475301,
+            0.572661
+          ],
+          "test_fpr": 0.018033
+        },
+        "recall_at_fpr_0.05": {
+          "threshold_from_validation": 0.935733,
+          "validation_fpr": 0.05,
+          "test_recall": 0.680556,
+          "test_recall_95ci": [
+            0.632274,
+            0.726554
+          ],
+          "test_fpr": 0.067555
+        },
+        "weights": {
+          "isolation_forest": 1.0,
+          "lof": 0.0,
+          "dbscan": 0.0,
+          "rules": 0.0
+        },
+        "grid_points": 231,
+        "drop_ap": {
+          "point": 0.193743,
+          "paired_95ci": [
+            0.157904,
+            0.228954
+          ]
+        },
+        "drop_recall@0.05": {
+          "point": 0.191666,
+          "paired_95ci": [
+            0.150131,
+            0.235447
+          ]
+        }
+      }
+    ]
+  },
+  "c_shuffled_labels": {
+    "i_shuffled_test": {
+      "repeats": 200,
+      "score": "combined_fixed_weights",
+      "true_test_ap": 0.668131,
+      "prevalence": 0.024,
+      "first_shuffle_ap": 0.022376,
+      "mean_ap": 0.024508,
+      "range": [
+        0.020967,
+        0.028754
+      ]
+    },
+    "ii_shuffled_validation": {
+      "runs": [
+        {
+          "seed": 1000,
+          "weights": {
+            "isolation_forest": 0.0,
+            "lof": 1.0,
+            "dbscan": 0.0,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.022491,
+          "true_test_ap": 0.051271,
+          "true_test_recall_at_fpr_0.01": 0.058333,
+          "true_test_recall_at_fpr_0.05": 0.102778,
+          "policy_thresholds": "no feasible pair: No Verify/Block pair meets the goals on validation"
+        },
+        {
+          "seed": 1001,
+          "weights": {
+            "isolation_forest": 0.0,
+            "lof": 0.85,
+            "dbscan": 0.05,
+            "rules": 0.1
+          },
+          "shuffled_validation_ap": 0.021388,
+          "true_test_ap": 0.129811,
+          "true_test_recall_at_fpr_0.01": 0.130556,
+          "true_test_recall_at_fpr_0.05": 0.183333,
+          "policy_thresholds": {
+            "verify": 83.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.166667,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1002,
+          "weights": {
+            "isolation_forest": 0.45,
+            "lof": 0.3,
+            "dbscan": 0.25,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.023178,
+          "true_test_ap": 0.155174,
+          "true_test_recall_at_fpr_0.01": 0.066667,
+          "true_test_recall_at_fpr_0.05": 0.366667,
+          "policy_thresholds": {
+            "verify": 69.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.322222,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1003,
+          "weights": {
+            "isolation_forest": 0.7,
+            "lof": 0.0,
+            "dbscan": 0.05,
+            "rules": 0.25
+          },
+          "shuffled_validation_ap": 0.022681,
+          "true_test_ap": 0.639167,
+          "true_test_recall_at_fpr_0.01": 0.388889,
+          "true_test_recall_at_fpr_0.05": 0.747222,
+          "policy_thresholds": "no feasible pair: No Verify/Block pair meets the goals on validation"
+        },
+        {
+          "seed": 1004,
+          "weights": {
+            "isolation_forest": 0.0,
+            "lof": 0.95,
+            "dbscan": 0.0,
+            "rules": 0.05
+          },
+          "shuffled_validation_ap": 0.023929,
+          "true_test_ap": 0.103736,
+          "true_test_recall_at_fpr_0.01": 0.097222,
+          "true_test_recall_at_fpr_0.05": 0.130556,
+          "policy_thresholds": {
+            "verify": 92.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.116667,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1005,
+          "weights": {
+            "isolation_forest": 0.55,
+            "lof": 0.05,
+            "dbscan": 0.4,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.02086,
+          "true_test_ap": 0.194658,
+          "true_test_recall_at_fpr_0.01": 0.072222,
+          "true_test_recall_at_fpr_0.05": 0.344444,
+          "policy_thresholds": {
+            "verify": 65.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.130556,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1006,
+          "weights": {
+            "isolation_forest": 0.05,
+            "lof": 0.25,
+            "dbscan": 0.7,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.021925,
+          "true_test_ap": 0.073413,
+          "true_test_recall_at_fpr_0.01": 0.047222,
+          "true_test_recall_at_fpr_0.05": 0.191667,
+          "policy_thresholds": {
+            "verify": 43.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.119444,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1007,
+          "weights": {
+            "isolation_forest": 0.35,
+            "lof": 0.6,
+            "dbscan": 0.05,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.021832,
+          "true_test_ap": 0.14757,
+          "true_test_recall_at_fpr_0.01": 0.122222,
+          "true_test_recall_at_fpr_0.05": 0.322222,
+          "policy_thresholds": {
+            "verify": 83.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.302778,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1008,
+          "weights": {
+            "isolation_forest": 0.6,
+            "lof": 0.1,
+            "dbscan": 0.3,
+            "rules": 0.0
+          },
+          "shuffled_validation_ap": 0.024239,
+          "true_test_ap": 0.191296,
+          "true_test_recall_at_fpr_0.01": 0.066667,
+          "true_test_recall_at_fpr_0.05": 0.388889,
+          "policy_thresholds": {
+            "verify": 71.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.127778,
+          "true_test_policy_recall_block_only": 0.0
+        },
+        {
+          "seed": 1009,
+          "weights": {
+            "isolation_forest": 0.0,
+            "lof": 0.05,
+            "dbscan": 0.1,
+            "rules": 0.85
+          },
+          "shuffled_validation_ap": 0.021265,
+          "true_test_ap": 0.669982,
+          "true_test_recall_at_fpr_0.01": 0.394444,
+          "true_test_recall_at_fpr_0.05": 0.797222,
+          "policy_thresholds": {
+            "verify": 42.0,
+            "block": 100.0
+          },
+          "true_test_policy_recall_verify_or_block": 0.505556,
+          "true_test_policy_recall_block_only": 0.0
+        }
+      ],
+      "true_labels_reference": {
+        "weights": {
+          "isolation_forest": 0.4,
+          "lof": 0.05,
+          "dbscan": 0.0,
+          "rules": 0.55
+        },
+        "true_test_ap": 0.689113,
+        "verify": 68.0,
+        "block": 86.0,
+        "true_test_policy_recall_verify_or_block": 0.780556,
+        "true_test_policy_recall_block_only": 0.316667
+      }
+    }
+  },
+  "d_isolation_forest_permutation": {
+    "base_test_ap_raw_scores": 0.496963,
+    "repeats": 20,
+    "groups": [
+      {
+        "group": "amount",
+        "features": [
+          "log_amount",
+          "amount_zscore_30d",
+          "log_amount_to_prior_max_30d"
+        ],
+        "ap_drop_mean": 0.061701,
+        "ap_drop_std": 0.003851,
+        "ap_drop_min": 0.054523,
+        "ap_drop_max": 0.067536
+      },
+      {
+        "group": "velocity",
+        "features": [
+          "requests_1h",
+          "requests_24h",
+          "log_sum_24h",
+          "velocity_ratio_24h",
+          "unique_recipients_24h",
+          "log_requests_30d"
+        ],
+        "ap_drop_mean": -0.013774,
+        "ap_drop_std": 0.006675,
+        "ap_drop_min": -0.02639,
+        "ap_drop_max": -0.002
+      },
+      {
+        "group": "beneficiary",
+        "features": [
+          "new_recipient",
+          "recipient_senders_24h",
+          "log_recipient_history_days",
+          "log_recipient_unique_senders_7d",
+          "log_recipient_inbound_24h",
+          "pair_requests_24h",
+          "recipient_new_global",
+          "log_incoming_24h"
+        ],
+        "ap_drop_mean": 0.179811,
+        "ap_drop_std": 0.007007,
+        "ap_drop_min": 0.166613,
+        "ap_drop_max": 0.198483
+      },
+      {
+        "group": "device_auth",
+        "features": [
+          "log_device_age_hours",
+          "auth_failures_24h",
+          "foreign_ip",
+          "weak_auth"
+        ],
+        "ap_drop_mean": -0.000979,
+        "ap_drop_std": 0.00468,
+        "ap_drop_min": -0.009812,
+        "ap_drop_max": 0.008687
+      },
+      {
+        "group": "mia_specific",
+        "features": [
+          "amount_to_tx_cap_ratio",
+          "daily_cumulative_to_cap_ratio",
+          "near_cap_count_24h",
+          "alias_rebound_age_hours",
+          "is_request_to_pay",
+          "qr_merchant_mismatch",
+          "scheme_novelty"
+        ],
+        "ap_drop_mean": 0.272102,
+        "ap_drop_std": 0.010177,
+        "ap_drop_min": 0.249484,
+        "ap_drop_max": 0.29234
+      },
+      {
+        "group": "time",
+        "features": [
+          "hour_deviation",
+          "log_hours_since_last_request",
+          "log_account_age_days"
+        ],
+        "ap_drop_mean": 0.013828,
+        "ap_drop_std": 0.004735,
+        "ap_drop_min": 0.004136,
+        "ap_drop_max": 0.021163
+      }
+    ]
+  }
+}
