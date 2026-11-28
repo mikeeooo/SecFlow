@@ -3,8 +3,9 @@
 ```text
            offline (backend/cli.py)                            online (one uvicorn process)
 ┌──────────────────────────────────────────┐      ┌───────────────────────────────────────────────────┐
-│ generate ─► storage/{train,validation,   │      │ startup: load test.json without labels, the model │
-│              test}.json + manifest       │      │          bundle, the policy and the thresholds;   │
+│ generate ─► storage/{train,validation,   │      │ startup: load validation.json (history) and       │
+│              test}.json + manifest       │      │          test.json without labels, the model      │
+│                                          │      │          bundle, the policy and the thresholds;   │
 │ validate ─► dataset checks               │      │          assess all 15,000 test payments          │
 │ train    ─► fit IF, LOF, DBSCAN on train;│ ml/  │ request ─► MIA limit check ─► sign-in events      │
 │              CDF references + threshold  │models│          ─► Assessor (features, detectors, rules, │
@@ -68,7 +69,7 @@ receives its money.
 
 `SecFlowService` in `backend/service.py` keeps everything in memory: the history index, every
 assessment record, simulated counterparties and the review list. Nothing is written to disk, so a
-restart starts again from `test.json`.
+restart starts again from `validation.json` and `test.json`.
 
 - One lock serialises simulations and reviews. FastAPI runs requests in a thread pool, and the
   stream runs `simulate` in a thread, so the history index needs it.
@@ -83,7 +84,7 @@ their own copy.
 
 ## Simulation clock
 
-The baseline is the 15 days of `test.json`. The simulation clock starts one hour after the last
+The baseline is the 15 days of `test.json`, assessed on top of the 15 validation days as history. The simulation clock starts one hour after the last
 test event and then follows real time. Sign-in events and the request of a simulation are stamped
 after the latest event, so the history stays in order.
 

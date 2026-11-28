@@ -41,6 +41,13 @@ def test_health_reports_the_loaded_model_and_memory_state(client: TestClient) ->
     assert health["state"]["kind"] == "process_memory" and health["state"]["persisted"] is False
 
 
+def test_the_app_decides_like_the_evaluation(client: TestClient) -> None:
+    """The app replays test.json on top of the validation days, so its Verify rate matches the report."""
+    totals = client.get("/api/overview").json()["totals"]
+    assert totals["assessed"] == 15_000
+    assert totals["needs_verification"] / totals["assessed"] < 0.06
+
+
 def test_transactions_filter_sort_and_paginate(client: TestClient) -> None:
     page = client.get("/api/transactions", params={"decision": "Verify", "sort": "risk_desc", "page_size": 10}).json()
     assert page["total"] > 10 and len(page["items"]) == 10

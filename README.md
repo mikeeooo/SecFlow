@@ -71,9 +71,9 @@ Pentru a servi build-ul de producție direct din procesul backend, rulează
 Browserul apelează backend-ul pe același domeniu prin URL-uri relative `/api/...`, deci niciun
 serviciu nu apelează alt server și nu sunt necesare legături între servicii. Backend-ul își
 păstrează prefixul `/api`, deoarece Vercel transmite calea originală a cererii. Fișierele folosite
-doar offline (`storage/train.json` de 79,8 MB și `storage/validation.json`, testele, documentația și
-sursele frontend) sunt excluse din pachetul funcției backend.
-Backend-ul are nevoie doar de `storage/test.json`.
+doar offline (`storage/train.json` de 79,8 MB, testele, documentația și sursele frontend) sunt
+excluse din pachetul funcției backend. Backend-ul folosește `storage/validation.json` ca istoric și
+`storage/test.json` ca plăți afișate.
 
 Rulează ambele servicii local cu Vercel CLI:
 
@@ -241,10 +241,10 @@ pentru compromisurile din spatele acestor cifre.
 - **Totul este sintetic.** Conturile, contrapărțile, aliasurile de telefon, plățile și dovezile de
   securitate sunt generate. Numele sunt plauzibile, dar nu aparțin niciunei persoane sau firme
   verificate, iar numerele de telefon sunt aleatorii.
-- **Aplicația vede doar istoricul de test.** Serviciul încarcă numai `storage/test.json`, deci în
-  primele zile de test plățile nu au istoric anterior în aplicație, spre deosebire de evaluare, care
-  vede zilele 1–85 ca istoric. Scorurile afișate în aplicație pentru acele plăți pot diferi de cele
-  măsurate în evaluare.
+- **Aplicația are mai puțin istoric decât evaluarea.** Serviciul încarcă `storage/validation.json`
+  doar ca istoric și afișează plățile din `storage/test.json`. Vede deci zilele 71–100, iar evaluarea
+  vede zilele 1–100. Caracteristicile privesc cel mult 30 de zile în urmă, așa că rezultatele sunt
+  apropiate: circa 5% Verify în aplicație și 4,49% în raport.
 - **Blocările preventive sunt rare intenționat.** Punctul de operare validat păstrează cazurile
   ambigue cu risc mare în Verify în loc să le blocheze; vezi compromisul descris în documentație.
 - **Testul nu este complet neatins.** O primă rulare a trimis 5,81% din plățile de test la Verify.

@@ -30,6 +30,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE = Path(__file__).with_name("api_contract.baseline.json")
 sys.path.insert(0, str(ROOT))
 os.environ["SECFLOW_AUTOSTART_STREAM"] = "false"
+# Fields that are null by design (`ml/features.py` returns None for a never-paid beneficiary). The
+# baseline sample happened to see only numbers, so a null here is not a contract change.
+NULLABLE_LEAVES = {"recipient_history_days"}
+
 REMOVED = {
     "algorithms.training.calibration_component_average_precision": "validation is no longer split into two parts",
     "algorithms.training.search.lof[].training_lof_*": "LOF training diagnostics went with the LOF grid search",
@@ -175,6 +179,8 @@ def compare(base: dict[str, Any] | None, new: dict[str, Any] | None, path: str, 
         problems.append(f"missing: {path}")
         return
     base_types, new_types = set(base["types"]), set(new["types"])
+    if path.rsplit(".", 1)[-1] in NULLABLE_LEAVES:
+        base_types |= {"null"}
     if base_types != {"null"} and not new_types <= base_types:
         problems.append(f"type change: {path} was {sorted(base_types)}, now {sorted(new_types)}")
     for key, child in base.get("keys", {}).items():

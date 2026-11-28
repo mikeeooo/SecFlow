@@ -32,10 +32,10 @@ the code side, never in `storage/`.
 | `validation.json` | The reference scores for the IsolationForest and LOF score mapping (no labels), then the Verify/Block threshold search (labels). See `ml/training.py`. |
 | `test.json` | One frozen final evaluation (`ml/evaluation.py`). It is also the history the app serves, which the simulator and the live stream continue from. |
 
-There is no separate demonstration dataset. The service loads only `test.json` (its runtime view),
-so its features see the 15 test days and nothing earlier. The evaluation loads all three files, so
-test features also see days 1–85 as history. A test payment can therefore score differently in the
-app than in the evaluation, mostly in the first test days, where the app has little history.
+There is no separate demonstration dataset. The service loads `validation.json` as history only and
+assesses and shows the 15,000 payments of `test.json`, without labels. Features look back at most 30
+days, so the 15 validation days give each account and beneficiary its past, and the app decides close
+to the evaluation, which loads all three files.
 
 ## MIA facts used
 

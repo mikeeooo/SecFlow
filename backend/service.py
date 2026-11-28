@@ -118,10 +118,16 @@ class SecFlowService:
         self.limits = self.policy.limits
         self.bundle = load_bundle(settings.models_dir)
         self.point = load_operating_point(settings.models_dir, self.bundle.version)
-        self.dataset = load_partitions([settings.test_path])
+        # validation.json is history only: the 15 days before the test period give each account and
+        # beneficiary its past, as in the evaluation. Only test.json payments are assessed and shown.
+        self.dataset = load_partitions([settings.validation_path, settings.test_path])
+        self.shown = tuple(r for r in self.dataset.requests if self.dataset.partition_of[r.request_id] == "test")
         self.manifest = read_manifest(settings.manifest_path) if settings.manifest_path.exists() else {}
-        recorded = self.manifest.get("partitions", {}).get("test", {}).get("sha256")
-        self.hashes_verified = recorded == sha256_file(settings.test_path)
+        recorded = self.manifest.get("partitions", {})
+        self.hashes_verified = all(
+            recorded.get(path.stem, {}).get("sha256") == sha256_file(path)
+            for path in (settings.validation_path, settings.test_path)
+        )
         self.evidence = evidence_store(self.dataset.security_events, self.policy)
         self.assessor = Assessor(self.bundle, self.evidence, self.policy, self.point)
         self.accounts = self.dataset.accounts
@@ -150,7 +156,7 @@ class SecFlowService:
         sessions: dict[str, list[AuthEvent]] = defaultdict(list)
         for event in self.dataset.auth_events:
             sessions[event.session_id].append(event)
-        ordered = sorted(self.dataset.requests, key=lambda r: keys[r.request_id])
+        ordered = sorted(self.shown, key=lambda r: keys[r.request_id])
         now = utc_now_iso()
         for request, result in zip(ordered, self.assessor.assess_batch(ordered, keys, self.history, self.accounts),
                                    strict=True):
@@ -593,7 +599,7 @@ class SecFlowService:
         return self._graph.build(self._all(), self.party, max_anomalies)
 
     def health(self, stream: dict[str, Any]) -> dict[str, Any]:
-        requests = self.dataset.requests
+        requests = self.shown
         simulations = sum(1 for r in self._all() if r.origin == "simulation")
         return {
             "status": "ok",

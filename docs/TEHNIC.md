@@ -246,8 +246,9 @@ Pe Vercel, `vercel.json` publică backend-ul și interfața ca două servicii î
 
 ## Limitări
 
-- Aplicația încarcă doar `test.json`. În primele zile de test, plățile nu au istoric anterior în
-  aplicație. Scorurile din aplicație pot diferi de cele din evaluare.
+- Aplicația încarcă `validation.json` doar ca istoric și afișează plățile din `test.json`. Vede
+  zilele 71–100, iar evaluarea vede zilele 1–100. Rata Verify este circa 5% în aplicație și 4,49% în
+  raport.
 - Simulările, fluxul live și reviziile există doar în memoria procesului. O repornire le șterge.
   Rulează un singur proces backend, pentru că fiecare proces are propria stare.
 - Aplicația nu are autentificare. Numele revizorului este doar text afișat.

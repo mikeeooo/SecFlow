@@ -255,5 +255,6 @@ Other measurements:
   5,000 MDL are reviewed almost every time. The two-family rule keeps most of them out of Block.
 - **The data is synthetic.** The numbers describe this generated dataset only. They are not evidence
   of real-world detection.
-- **The app has less history than the evaluation.** The app loads only `test.json`, while the
-  evaluation sees days 1–85 as history. Early test payments can score differently in the app.
+- **The app has less history than the evaluation.** The app loads `validation.json` as history and
+  assesses `test.json`, so it sees days 71–100. The evaluation sees days 1–100. Features look back
+  at most 30 days, so the two give close results: about 5% Verify in the app and 4.49% in the report.
