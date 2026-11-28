@@ -21,7 +21,7 @@ from datagen.records import format_ts
 from ml.model import DbscanContext
 from ml.policy import OperatingPoint
 
-WINDOWS = {
+WINDOWS: dict[str, dict[str, Any]] = {
     "history": {
         "bucket_seconds": 86_400,
         "max_buckets": None,

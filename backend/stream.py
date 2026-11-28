@@ -13,6 +13,7 @@ import logging
 import math
 import uuid
 from collections import deque
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -38,7 +39,7 @@ class InputGenerator:
         self.weights = weights / weights.sum()
         self.queue: deque[dict[str, Any]] = deque()  # the rest of a burst
 
-    def pick(self, options: list[Any] | tuple[Any, ...], p: list[float] | None = None) -> Any:
+    def pick[T](self, options: Sequence[T], p: list[float] | None = None) -> T:
         return options[int(self.rng.choice(len(options), p=p))]
 
     def amount(self, sender: str, low: float, high: float) -> float:

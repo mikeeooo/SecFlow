@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import joblib
 import numpy as np
@@ -12,6 +13,7 @@ import pytest
 import ml.training
 from backend.tests.conftest import ROOT, STORAGE
 from config.settings import load_settings
+from datagen.dataset import load_labels
 from ml.evaluation import run_evaluation
 from ml.model import BundleError, DbscanContext, cdf, load_bundle
 from ml.training import train_models
@@ -20,17 +22,16 @@ MODELS = ROOT / "ml" / "models"
 
 
 @pytest.fixture(scope="module")
-def trained(tmp_path_factory, policy) -> dict:
+def trained(tmp_path_factory, policy) -> dict[str, Any]:
     """Retrain from the committed files into a temporary directory, recording which labels were opened."""
     opened: list[list[Path]] = []
-    original = ml.training.load_labels
 
     def spy(paths):
         opened.append(list(paths))
-        return original(paths)
+        return load_labels(paths)
 
-    ml.training.load_labels = spy
-    try:
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(ml.training, "load_labels", spy)
         models = tmp_path_factory.mktemp("models")
         report = train_models(
             STORAGE / "train.json",
@@ -39,8 +40,6 @@ def trained(tmp_path_factory, policy) -> dict:
             policy,
             ROOT / "datagen" / "manifest.json",
         )
-    finally:
-        ml.training.load_labels = original
     return {"models": models, "report": report, "opened": opened}
 
 

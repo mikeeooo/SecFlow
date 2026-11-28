@@ -142,7 +142,7 @@ def _component_details(record: AssessmentRecord, policy: Policy) -> list[Compone
             score=round(scores[name], 4),
             weight=policy.weights[name],
             contribution=round(contributions[name], 3),
-            raw=None if raw[name] is None else round(raw[name], 4),
+            raw=None if (value := raw[name]) is None else round(value, 4),
             status=status[name],
             detail=detail[name],
         )

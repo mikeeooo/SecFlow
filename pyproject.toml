@@ -54,9 +54,15 @@ layers = ["backend", "ml", "datagen", "config"]
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["config", "datagen", "ml"]
+files = ["config", "datagen", "ml", "backend"]
 
 [[tool.mypy.overrides]]
 # scikit-learn and joblib ship no type information.
 module = ["sklearn", "sklearn.*", "joblib"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Tests may leave fixtures and helpers unannotated. Everything else stays strict.
+module = ["backend.tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import importlib.util
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.tests.conftest import ROOT
+from backend.tests.conftest import load_script
 
 
 def sender_and_recipient(client: TestClient) -> tuple[str, str]:
@@ -33,9 +33,7 @@ def payment(client: TestClient, request_id: str = "SIM-000001", **changes: Any) 
 
 
 def test_responses_keep_the_shape_the_frontend_was_built_against() -> None:
-    spec = importlib.util.spec_from_file_location("api_contract", ROOT / "scripts" / "api_contract.py")
-    contract = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(contract)
+    contract = load_script("api_contract")
     problems, _ = contract.check(contract.capture())
     assert problems == []
 
@@ -183,6 +181,7 @@ def test_the_stream_is_started_and_stopped_by_the_backend(client: TestClient) ->
 
 
 def test_one_stream_tick_records_assessed_payments(client: TestClient) -> None:
+    assert isinstance(client.app, FastAPI) and client.portal is not None
     stream = client.app.state.stream
     stream.running, stream.mode = True, "batch_20"
     assert client.portal.call(stream.tick) == 20

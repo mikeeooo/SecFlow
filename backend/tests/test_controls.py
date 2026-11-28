@@ -8,22 +8,20 @@ with the committed bundle. Nothing is retrained.
 
 from __future__ import annotations
 
-import importlib.util
+from typing import Any
 
 import numpy as np
 import pytest
 
-from backend.tests.conftest import ROOT
+from backend.tests.conftest import load_script
 
-_spec = importlib.util.spec_from_file_location("experiments", ROOT / "scripts" / "experiments.py")
-experiments = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(experiments)
+experiments = load_script("experiments")
 
 COMBINED = "combined"
 
 
 @pytest.fixture(scope="module")
-def scores() -> dict:
+def scores() -> dict[str, Any]:
     data = experiments.assessed_partitions()
     weights = experiments.as_vector(dict(data["policy"].weights))
     out = {}

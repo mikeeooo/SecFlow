@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -16,7 +17,7 @@ MANIFEST = ROOT / "datagen" / "manifest.json"
 
 
 @pytest.fixture(scope="module")
-def rows() -> dict[str, list[dict]]:
+def rows() -> dict[str, list[dict[str, Any]]]:
     return {name: read_rows(STORAGE / f"{name}.json") for name in ("train", "validation", "test")}
 
 
