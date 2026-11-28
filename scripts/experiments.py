@@ -2,10 +2,12 @@
 outside docs/audit/.
 
     uv run python scripts/experiments.py            # writes docs/audit/ml_experiments.json, prints markdown
+    uv run python scripts/experiments.py --check    # exit 1 unless every number is within 1e-4 of that file
 
 a. The combined risk score against each component alone on test.json: average precision (PR-AUC) and
    recall at a fixed false-positive rate (1% and 5%, threshold set on validation.json), each with a
-   payment-level bootstrap 95% interval (1,000 resamples, seed 0).
+   payment-level bootstrap 95% interval (1,000 resamples, seed 0). The combined-against-best comparison
+   is repeated with campaign-level resamples, because fraud arrives in campaigns.
 b. Leave-one-out ablation: drop a component, re-search the weights on validation (simplex grid, step
    0.05, maximise validation AP), evaluate on test.
 c. Shuffled-label controls: (i) shuffled test labels, (ii) shuffled validation labels driving the
@@ -143,6 +145,36 @@ def bootstrap_weights(n: int) -> np.ndarray:
     return np.stack([np.bincount(rng.integers(0, n, n), minlength=n).astype(float) for _ in range(BOOTSTRAP)])
 
 
+def campaign_bootstrap_weights(campaigns: np.ndarray) -> np.ndarray:
+    """BOOTSTRAP x n multiplicities from resampling whole campaigns (seed 0).
+
+    A payment outside every campaign is a group of its own.
+    """
+    _, group = np.unique(campaigns, return_inverse=True)
+    k = int(group.max()) + 1
+    rng = np.random.default_rng(SEED)
+    return np.stack(
+        [np.bincount(rng.integers(0, k, k), minlength=k)[group].astype(float) for _ in range(BOOTSTRAP)]
+    )
+
+
+def compare(combined: dict[str, Any], best: dict[str, Any]) -> dict[str, Any]:
+    """Intervals of two evaluate_score rows and the paired bootstrap difference, combined minus best."""
+    comparison = {}
+    for metric, key in (("ap", "test_ap_95ci"), *((f"recall@{f}", f"recall_at_fpr_{f}") for f in FPRS)):
+        c_ci = combined[key] if metric == "ap" else combined[key]["test_recall_95ci"]
+        b_ci = best[key] if metric == "ap" else best[key]["test_recall_95ci"]
+        diff = combined["_draws"][metric] - best["_draws"][metric]
+        comparison[metric] = {
+            "combined_95ci": c_ci,
+            "best_single_95ci": b_ci,
+            "cis_do_not_overlap_and_combined_higher": bool(c_ci[0] > b_ci[1]),
+            "paired_difference_mean": round(float(np.nanmean(diff)), 6),
+            "paired_difference_95ci": ci(diff),
+        }
+    return comparison
+
+
 def evaluate_score(
     name: str, val: np.ndarray, test: np.ndarray, y_val: np.ndarray, y_test: np.ndarray, boot: np.ndarray
 ) -> dict[str, Any]:
@@ -225,6 +257,9 @@ def assessed_partitions() -> dict[str, Any]:
             "unsafe": np.array([r.policy.assessment_status == "insufficient_history" for r in results]),
             "risk": np.array([r.risk.total for r in results]),
             "y": np.array([bool(labels[r.request.request_id]["is_fraud"]) for r in results]),
+            "campaign": np.array(
+                [labels[r.request.request_id]["campaign_id"] or r.request.request_id for r in results]
+            ),
         }
     return out
 
@@ -256,29 +291,29 @@ def main() -> int:
 
     # a. Combined vs each component alone.
     singles = {"rules_only": 3, "isolation_forest_only": 0, "lof_only": 1, "dbscan_only": 2}
-    rows = [
-        evaluate_score(
-            "combined_fixed_weights", val["components"] @ as_vector(fixed), probe, y_val, y_test, boot
-        )
-    ]
+    val_combined = val["components"] @ as_vector(fixed)
+    rows = [evaluate_score("combined_fixed_weights", val_combined, probe, y_val, y_test, boot)]
     rows += [
         evaluate_score(name, val["components"][:, i], test["components"][:, i], y_val, y_test, boot)
         for name, i in singles.items()
     ]
     combined = rows[0]
     best_single = max(rows[1:], key=lambda r: r["validation_ap"])
-    comparison = {}
-    for metric, key in (("ap", "test_ap_95ci"), *((f"recall@{f}", f"recall_at_fpr_{f}") for f in FPRS)):
-        c_ci = combined[key] if metric == "ap" else combined[key]["test_recall_95ci"]
-        b_ci = best_single[key] if metric == "ap" else best_single[key]["test_recall_95ci"]
-        diff = combined["_draws"][metric] - best_single["_draws"][metric]
-        comparison[metric] = {
-            "combined_95ci": c_ci,
-            "best_single_95ci": b_ci,
-            "cis_do_not_overlap_and_combined_higher": bool(c_ci[0] > b_ci[1]),
-            "paired_difference_mean": round(float(np.nanmean(diff)), 6),
-            "paired_difference_95ci": ci(diff),
-        }
+    comparison = compare(combined, best_single)
+    # The same comparison with campaign-level resamples, which keep each campaign's payments together.
+    campaign_boot = campaign_bootstrap_weights(test["campaign"])
+    best_column = singles[best_single["score"]]
+    comparison_campaign = compare(
+        evaluate_score("combined_fixed_weights", val_combined, probe, y_val, y_test, campaign_boot),
+        evaluate_score(
+            best_single["score"],
+            val["components"][:, best_column],
+            test["components"][:, best_column],
+            y_val,
+            y_test,
+            campaign_boot,
+        ),
+    )
 
     # b. Leave-one-out ablation with re-searched weights.
     full_weights, full_val_ap, full_grid = search_weights(val["components"], y_val, [0, 1, 2, 3])
@@ -423,6 +458,8 @@ def main() -> int:
             "it; the same cut is applied to test",
             "bootstrap": f"{BOOTSTRAP} payment-level resamples of test.json with replacement, seed {SEED}, percentile "
             "95% interval. Fraud arrives in campaigns, so payment-level resampling understates the spread.",
+            "campaign_bootstrap": f"{BOOTSTRAP} resamples of whole campaigns of test.json, seed {SEED}. A payment "
+            f"outside every campaign is its own group. {len(np.unique(test['campaign']))} groups.",
             "best_single": "the component with the highest validation AP",
             "weight_search": f"simplex grid, step {GRID_STEP}, maximise validation AP, first maximum in "
             "lexicographic grid order wins",
@@ -436,6 +473,7 @@ def main() -> int:
             "rows": [public(r) for r in rows],
             "best_single": best_single["score"],
             "comparison": comparison,
+            "comparison_campaign_bootstrap": comparison_campaign,
         },
         "b_ablation": {
             "fixed_weights": fixed,
@@ -473,9 +511,18 @@ def main() -> int:
             "groups": importance,
         },
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(report, indent=2) + "\n")
+    text = json.dumps(report, indent=2) + "\n"
     print(render_markdown(report))
+    if "--check" in sys.argv:
+        # The committed bundle scores validation and test with last-bit differences on Linux. At a
+        # near-tied cut that moves one payment, which changes a rate by about 7e-5, and AP by less.
+        from reproduce import differences
+
+        diff = differences(json.loads(OUT.read_text()), json.loads(text), tolerance=1e-4)
+        print("\n".join(diff) or f"Results match {OUT.relative_to(ROOT)}.")
+        return 1 if diff else 0
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(text)
     return 0
 
 
@@ -519,12 +566,13 @@ def render_markdown(r: dict[str, Any]) -> str:
         ),
         "|---|---:|---:|---|---:|",
     ]
-    for metric, row in a["comparison"].items():
-        lines.append(
-            f"| {metric} | {_ci(row['combined_95ci'])} | {_ci(row['best_single_95ci'])} | "
-            f"{'yes' if row['cis_do_not_overlap_and_combined_higher'] else 'no'} | "
-            f"{row['paired_difference_mean']:+.3f} {_ci(row['paired_difference_95ci'])} |"
-        )
+    for label, key in (("payment", "comparison"), ("campaign", "comparison_campaign_bootstrap")):
+        for metric, row in a[key].items():
+            lines.append(
+                f"| {metric}, {label} resamples | {_ci(row['combined_95ci'])} | {_ci(row['best_single_95ci'])} | "
+                f"{'yes' if row['cis_do_not_overlap_and_combined_higher'] else 'no'} | "
+                f"{row['paired_difference_mean']:+.3f} {_ci(row['paired_difference_95ci'])} |"
+            )
     w = b["researched_weights"]
     lines += [
         "",

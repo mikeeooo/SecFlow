@@ -22,6 +22,7 @@
     "ap": "average precision (sklearn definition, ties grouped), the PR-AUC",
     "recall_at_fpr": "threshold = lowest cut with at most FPR of validation legitimate payments strictly above it; the same cut is applied to test",
     "bootstrap": "1000 payment-level resamples of test.json with replacement, seed 0, percentile 95% interval. Fraud arrives in campaigns, so payment-level resampling understates the spread.",
+    "campaign_bootstrap": "1000 resamples of whole campaigns of test.json, seed 0. A payment outside every campaign is its own group. 14313 groups.",
     "best_single": "the component with the highest validation AP",
     "weight_search": "simplex grid, step 0.05, maximise validation AP, first maximum in lexicographic grid order wins",
     "self_checks": [
@@ -226,6 +227,56 @@
         "paired_difference_95ci": [
           -0.055274,
           0.002925
+        ]
+      }
+    },
+    "comparison_campaign_bootstrap": {
+      "ap": {
+        "combined_95ci": [
+          0.592609,
+          0.734784
+        ],
+        "best_single_95ci": [
+          0.600845,
+          0.738438
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": -0.006868,
+        "paired_difference_95ci": [
+          -0.031732,
+          0.01698
+        ]
+      },
+      "recall@0.01": {
+        "combined_95ci": [
+          0.599361,
+          0.742502
+        ],
+        "best_single_95ci": [
+          0.585815,
+          0.736122
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": 0.008556,
+        "paired_difference_95ci": [
+          -0.031582,
+          0.050977
+        ]
+      },
+      "recall@0.05": {
+        "combined_95ci": [
+          0.7847,
+          0.884869
+        ],
+        "best_single_95ci": [
+          0.804286,
+          0.912334
+        ],
+        "cis_do_not_overlap_and_combined_higher": false,
+        "paired_difference_mean": -0.025761,
+        "paired_difference_95ci": [
+          -0.062516,
+          0.012267
         ]
       }
     }

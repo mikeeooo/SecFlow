@@ -55,18 +55,22 @@ def stable_json(path: Path, volatile: list[str]) -> Any:
     return data
 
 
-def differences(a: Any, b: Any, where: str = "") -> list[str]:
+def differences(a: Any, b: Any, where: str = "", tolerance: float = TOLERANCE) -> list[str]:
     """Dotted paths of the leaves where two JSON values differ."""
     if isinstance(a, dict) and isinstance(b, dict):
         return [
-            d for k in sorted(a.keys() | b.keys()) for d in differences(a.get(k), b.get(k), f"{where}.{k}")
+            d
+            for k in sorted(a.keys() | b.keys())
+            for d in differences(a.get(k), b.get(k), f"{where}.{k}", tolerance)
         ]
     if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
         return [
-            d for i, (x, y) in enumerate(zip(a, b, strict=True)) for d in differences(x, y, f"{where}[{i}]")
+            d
+            for i, (x, y) in enumerate(zip(a, b, strict=True))
+            for d in differences(x, y, f"{where}[{i}]", tolerance)
         ]
     numbers = all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b))
-    same = math.isclose(a, b, rel_tol=0, abs_tol=TOLERANCE) if numbers else a == b
+    same = math.isclose(a, b, rel_tol=0, abs_tol=tolerance) if numbers else a == b
     return [] if same else [f"{where}: {a!r} != {b!r}"]
 
 
