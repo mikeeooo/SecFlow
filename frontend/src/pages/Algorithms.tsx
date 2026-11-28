@@ -127,7 +127,7 @@ function ModelsAndEvaluation() {
         <p className="mt-2 text-[12px] text-label-2">
           {policy.weights_source === "learned"
             ? "Weights learned by exhaustive search on the simplex (step 0.05, LOF ≥ 0.05), maximising average precision on validation days 71–77."
-            : "Learned weights unavailable: showing the policy fallback weights."}
+            : "Fixed weights from config/policy.json. Only the Verify and Block thresholds are chosen on validation."}
         </p>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Personal accounts" value={`${policy.segments.personal.verify} / ${policy.segments.personal.block}`} hint="Verify / Block thresholds, chosen on validation" tone="verify" />
