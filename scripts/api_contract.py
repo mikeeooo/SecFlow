@@ -3,19 +3,24 @@
     uv run python scripts/api_contract.py            # record scripts/api_contract.baseline.json
     uv run python scripts/api_contract.py --check    # compare the running code with the baseline
 
-The script boots the FastAPI app in process (TestClient, stream autostart off, reviews kept in
-memory), calls the routes in `frontend/src/api/client.ts` with the parameters the pages send, and
+The script boots the FastAPI app in process (TestClient, stream autostart off), calls the routes in `frontend/src/api/client.ts` with the parameters the pages send, and
 records each response's shape: keys and value types, recursively, with the union shape of a
 list's items. Values are ignored, so retraining or a different random sample does not matter.
 
 `--check` fails on a missing key or a type change. Added keys are fine. `int` and `float` both
-count as `number`. A field that was never `null` in the baseline must not become `null`.
+count as `number`. A field that was never `null` in the baseline must not become `null`. A field
+seen only as `null` (like an empty list) has no known type, so it is not compared.
+
+`REMOVED` lists report fields that described machinery deleted on purpose. The frontend renders
+each of them conditionally or not at all. `--check` prints them and fails on any other missing key.
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -25,7 +30,20 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE = Path(__file__).with_name("api_contract.baseline.json")
 sys.path.insert(0, str(ROOT))
 os.environ["SECFLOW_AUTOSTART_STREAM"] = "false"
-os.environ["SECFLOW_PERSIST_REVIEWS"] = "false"  # never touch runtime/state while pinning
+REMOVED = {
+    "algorithms.training.calibration_component_average_precision": "validation is no longer split into two parts",
+    "algorithms.training.search.lof[].training_lof_*": "LOF training diagnostics went with the LOF grid search",
+    "algorithms.training.segment_thresholds.*.chosen": "one threshold pair serves both segments",
+    "algorithms.training.segment_thresholds.*.feasible_candidates": "one threshold pair serves both segments",
+    "evaluation.drift_billers": "drift subset removed",
+    "evaluation.holdout_accounts": "holdout accounts removed",
+    "evaluation.per_fraud_type.*.*_victim_recall": "single/multi-victim campaign split removed",
+    "evaluation.per_scenario": "repeated per_fraud_type and per_anomaly_type",
+    "evaluation.splits.validation_*": "validation is no longer split into two parts",
+    "evaluation.unseen_scenario.campaigns": "single/multi-victim campaign split removed",
+    "evaluation.unseen_scenario.*_victim": "single/multi-victim campaign split removed",
+    "evaluation.unseen_scenario.per_type": "repeated per_fraud_type",
+}
 
 
 def kind(value: Any) -> str:
@@ -157,7 +175,7 @@ def compare(base: dict[str, Any] | None, new: dict[str, Any] | None, path: str, 
         problems.append(f"missing: {path}")
         return
     base_types, new_types = set(base["types"]), set(new["types"])
-    if not new_types <= base_types:
+    if base_types != {"null"} and not new_types <= base_types:
         problems.append(f"type change: {path} was {sorted(base_types)}, now {sorted(new_types)}")
     for key, child in base.get("keys", {}).items():
         if key not in new.get("keys", {}):
@@ -168,23 +186,34 @@ def compare(base: dict[str, Any] | None, new: dict[str, Any] | None, path: str, 
         compare(base["items"], new.get("items"), f"{path}[]", problems)
 
 
+def check(shapes: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """(problems, removed): differences from the baseline, minus the paths in `REMOVED`."""
+    found: list[str] = []
+    for name, base in json.loads(BASELINE.read_text()).items():
+        compare(base, shapes.get(name), name, found)
+    removed = [p for p in found if p.startswith("missing: ")
+               and any(fnmatch.fnmatchcase(p.removeprefix("missing: "), pattern) for pattern in REMOVED)]
+    return [p for p in found if p not in removed], removed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="compare with the committed baseline")
     args = parser.parse_args()
+    logging.disable(logging.INFO)
     shapes = capture()
     if not args.check:
         BASELINE.write_text(json.dumps(shapes, indent=1, sort_keys=True) + "\n")
         print(f"recorded {len(shapes)} response shapes -> {BASELINE.relative_to(ROOT)}")
         return 0
-    baseline = json.loads(BASELINE.read_text())
-    problems: list[str] = []
-    for name, base in baseline.items():
-        compare(base, shapes.get(name), name, problems)
+    problems, removed = check(shapes)
+    for pattern, reason in REMOVED.items():
+        if hits := sum(fnmatch.fnmatchcase(p.removeprefix("missing: "), pattern) for p in removed):
+            print(f"removed on purpose: {pattern} ({hits} path(s)): {reason}")
     for problem in problems:
         print(problem)
-    print(f"{len(baseline)} responses checked: {sum(p.startswith('missing') for p in problems)} missing key(s), "
-          f"{sum(p.startswith('type') for p in problems)} type change(s)")
+    print(f"{len(shapes)} responses checked: {sum(p.startswith('missing') for p in problems)} missing key(s), "
+          f"{sum(p.startswith('type') for p in problems)} type change(s), {len(removed)} path(s) removed on purpose")
     return 1 if problems else 0
 
 
