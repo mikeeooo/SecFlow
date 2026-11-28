@@ -84,6 +84,23 @@ class ReviewRequest(StrictModel):
         return cleaned
 
 
+class TransactionQuery(BaseModel):
+    """Query parameters of GET /api/transactions."""
+
+    q: str | None = None
+    decision: Decision | None = None
+    decision_source: DecisionSource | None = None
+    origin: Literal["baseline", "simulation"] | None = None
+    review_status: Literal["pending", "approved", "rejected", "not_applicable"] | None = None
+    date_from: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    date_to: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    min_score: float | None = Field(default=None, ge=0, le=100)
+    max_score: float | None = Field(default=None, ge=0, le=100)
+    sort: Literal["time_desc", "time_asc", "risk_desc"] = "time_desc"
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=25, ge=1, le=100)
+
+
 class StreamModeRequest(StrictModel):
     mode: Literal["continuous", "batch_5", "batch_10", "batch_20"]
 
@@ -315,9 +332,3 @@ class LiveFeed(BaseModel):
     next_cursor: int
     stream: StreamStatus
     simulation_time: str
-
-
-class ErrorBody(BaseModel):
-    code: str
-    message: str
-    details: Any | None = None

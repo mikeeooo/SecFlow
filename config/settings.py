@@ -1,8 +1,5 @@
-"""Paths and validated runtime settings for SecFlow.
-
-All paths are local. Environment variables may override them so that tests can use
-temporary directories without touching the committed dataset or model bundle.
-"""
+"""File locations and stream settings. Environment variables override them, so tests can point the
+app at temporary copies without touching the committed data or models."""
 
 from __future__ import annotations
 
@@ -13,65 +10,43 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _env_path(name: str, default: Path) -> Path:
+def _path(name: str, default: Path) -> Path:
     value = os.environ.get(name)
     return Path(value).resolve() if value else default
-
-
-def _env_bool(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _env_float(name: str, default: float) -> float:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    parsed = float(value)
-    if parsed <= 0:
-        raise ValueError(f"{name} must be positive, got {value}")
-    return parsed
 
 
 @dataclass(frozen=True)
 class Settings:
     storage_dir: Path  # exactly train.json, validation.json and test.json
-    train_path: Path
-    validation_path: Path
-    test_path: Path  # final evaluation and the history the app serves
     manifest_path: Path
     models_dir: Path
     artifacts_dir: Path
     policy_path: Path
-    state_dir: Path | None  # durable review history; None keeps it in process memory only
     autostart_stream: bool
     stream_interval_seconds: float
     batch_interval_seconds: float
 
+    @property
+    def train_path(self) -> Path:
+        return self.storage_dir / "train.json"
 
-def _default_state_dir() -> Path | None:
-    if not _env_bool("SECFLOW_PERSIST_REVIEWS", True):
-        return None
-    if os.environ.get("VERCEL"):  # the deployment bundle is read-only; /tmp is the only writable path
-        return Path("/tmp/secflow-state")
-    return ROOT / "runtime" / "state"
+    @property
+    def validation_path(self) -> Path:
+        return self.storage_dir / "validation.json"
+
+    @property
+    def test_path(self) -> Path:  # the final evaluation and the history the app serves
+        return self.storage_dir / "test.json"
 
 
 def load_settings() -> Settings:
-    storage_dir = _env_path("SECFLOW_STORAGE_DIR", ROOT / "storage")
     return Settings(
-        storage_dir=storage_dir,
-        train_path=storage_dir / "train.json",
-        validation_path=storage_dir / "validation.json",
-        test_path=storage_dir / "test.json",
-        manifest_path=_env_path("SECFLOW_MANIFEST_PATH", ROOT / "datagen" / "manifest.json"),
-        models_dir=_env_path("SECFLOW_MODELS_DIR", ROOT / "ml" / "models"),
-        artifacts_dir=_env_path("SECFLOW_ARTIFACTS_DIR", ROOT / "artifacts"),
-        policy_path=_env_path("SECFLOW_POLICY_PATH", ROOT / "config" / "policy.json"),
-        state_dir=_env_path("SECFLOW_STATE_DIR", default_state) if (default_state := _default_state_dir()) else None,
-        autostart_stream=_env_bool("SECFLOW_AUTOSTART_STREAM", True),
-        stream_interval_seconds=_env_float("SECFLOW_STREAM_INTERVAL", 2.0),
-        batch_interval_seconds=_env_float("SECFLOW_BATCH_INTERVAL", 4.0),
+        storage_dir=_path("SECFLOW_STORAGE_DIR", ROOT / "storage"),
+        manifest_path=_path("SECFLOW_MANIFEST_PATH", ROOT / "datagen" / "manifest.json"),
+        models_dir=_path("SECFLOW_MODELS_DIR", ROOT / "ml" / "models"),
+        artifacts_dir=_path("SECFLOW_ARTIFACTS_DIR", ROOT / "artifacts"),
+        policy_path=_path("SECFLOW_POLICY_PATH", ROOT / "config" / "policy.json"),
+        autostart_stream=os.environ.get("SECFLOW_AUTOSTART_STREAM", "true").lower() in {"1", "true", "yes", "on"},
+        stream_interval_seconds=float(os.environ.get("SECFLOW_STREAM_INTERVAL", "2")),
+        batch_interval_seconds=float(os.environ.get("SECFLOW_BATCH_INTERVAL", "4")),
     )

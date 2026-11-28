@@ -7,7 +7,7 @@
       "entrypoint": "backend.api:app",
       "functions": {
         "backend/api.py": {
-          "excludeFiles": "{frontend/**,storage/train.json,storage/validation.json,runtime/state/**,artifacts/features/**,backend/tests/**,docs/**,.claude/**,.venv/**}"
+          "excludeFiles": "{frontend/**,storage/train.json,storage/validation.json,backend/tests/**,docs/**,.claude/**,.venv/**}"
         }
       }
     },
