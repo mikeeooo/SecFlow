@@ -6,9 +6,9 @@ long monitoring sessions. Navigation uses a sidebar and system type; identity li
 ## The signature: the risk composition bar
 
 Every assessment draws its 0–100 index as the literal sum of its four weighted parts, using the
-weights learned in training (currently 0.80·IF + 0.05·LOF + 0.00·DBSCAN + 0.15·rules), with the
-Verify and Block thresholds of the sender's segment (personal or business) marked on the same
-scale. Under the bar, each part prints its own arithmetic (`0.80 × 0.94 = 75.2`). The interface
+fixed weights from `config/policy.json` (currently 0.65·IF + 0.05·LOF + 0.00·DBSCAN + 0.30·rules), with
+the Verify and Block thresholds marked on the same scale. Both account segments use the same pair.
+Under the bar, each part prints its own arithmetic (`0.65 × 0.94 = 61.1`). The interface
 never hard-codes the weights; it reads them from the API.
 
 This is the product's point of view: a decision is only as good as its explanation. Everything

@@ -15,9 +15,9 @@ fraudă. Toate datele sunt sintetice.
 |---|---|
 | `storage/` | Doar date: `train.json`, `validation.json`, `test.json` |
 | `datagen/` | Generatorul cu seed, identitățile, încărcarea și validarea datelor, `manifest.json` |
-| `runtime/` | Indexul de istoric ordonat în timp, dovezile de securitate, starea din memorie, jurnalul de revizii |
-| `config/` | `settings.py`, `policy.json` (reguli, ponderi, limite MIA), `limits.py` |
-| `ml/` | Caracteristici, algoritmi scikit-learn, politica de decizie, antrenare, evaluare, modelul salvat în `ml/models/` |
+| `config/` | `settings.py`, `policy.json` (ponderi, reguli, obiective, limite MIA), `limits.py` |
+| `ml/` | Istoricul ordonat în timp, caracteristici, cei trei algoritmi scikit-learn, reguli și decizie, dovezi de securitate, antrenare, evaluare, modelul salvat în `ml/models/` |
+| `scripts/` | `api_contract.py`, verificarea formei răspunsurilor API de care depinde interfața |
 | `backend/` | Aplicația FastAPI, serviciul de evaluare, fluxul live simulat, CLI, teste |
 | `frontend/` | Interfața React, TypeScript, Vite și Tailwind, cu teste |
 | `artifacts/` | Raportul de evaluare: `evaluation.json` și `evaluation.md` |
@@ -112,15 +112,31 @@ Plățile neobișnuite, dar legitime, au unul dintre aceste 14 tipuri:
 
 ### Cum se evaluează o plată
 
-Funcția din `ml/assess.py` este singura cale de la o plată la o decizie. O folosesc simulatorul,
-fluxul live și evaluarea. Pașii sunt următorii:
+`Assessor.assess_batch` din `ml/assess.py` este singura cale de la o plată la o decizie. O folosesc
+aplicația la pornire, simulatorul, fluxul live și evaluarea. Pașii sunt următorii:
 
 1. `build_features` calculează caracteristicile doar din evenimentele anterioare plății.
 2. `ModelBundle.score_batch` rulează IsolationForest, LocalOutlierFactor și contextul DBSCAN.
 3. `evaluate_rules` aplică regulile și întoarce coduri de motiv.
-4. `combine_scores` calculează indicele de risc cu ponderile învățate.
+4. `combine_scores` calculează indicele de risc cu ponderile fixe din `config/policy.json`.
 5. `EvidenceStore.active_for` caută dovezi de securitate active la momentul plății.
 6. `decide_action` alege Permit, Verify sau Block.
+
+### Antrenarea
+
+Cei trei algoritmi nu folosesc etichete. Toți sunt antrenați doar pe `train.json`, cu parametri
+ficși:
+
+| Algoritm | Parametri |
+|---|---|
+| IsolationForest | 200 de arbori, 256 de plăți pe arbore |
+| LocalOutlierFactor (`novelty=True`) | 20 de vecini, 3 caracteristici de sumă, un eșantion de 20.000 de plăți |
+| DBSCAN | `min_samples = 5`, `eps` = percentila 90 a distanței până la al 5-lea vecin (0,705) |
+
+Scorurile brute IF și LOF sunt transformate în procente prin distribuția lor pe cele 15.000 de plăți
+din `validation.json`, fără etichete. Etichetele din `validation.json` servesc doar la alegerea
+pragurilor. Etichetele din `test.json` servesc doar la evaluarea finală. Antrenarea durează în jur
+de 5 secunde.
 
 ### Caracteristici și reguli
 
@@ -135,24 +151,23 @@ caracteristici de context. Șapte dintre caracteristicile de plată sunt specifi
 - `qr_merchant_mismatch`
 - `scheme_novelty`
 
-Politica `secflow-evidence-first`, revizia 2.0.0, are 19 reguli. Șase reguli sunt specifice MIA:
+Politica `secflow-evidence-first`, revizia 3.0.0, are 19 reguli. Șase reguli sunt specifice MIA:
 `NEAR_TX_CAP`, `DAILY_CAP_PRESSURE`, `CAP_STRUCTURING`, `RECENT_ALIAS_REBOUND`,
 `UNKNOWN_RTP_REQUESTER` și `QR_MERCHANT_MISMATCH`.
 
 ### Formula și pragurile
 
-Ponderile sunt învățate pe zilele 71–77 din `validation.json`:
+Ponderile sunt fixe, în `config/policy.json`:
 
 ```text
 risk_score = 100 × (0.65 × IF + 0.05 × LOF + 0.00 × DBSCAN + 0.30 × rules)
 ```
 
-Pragurile sunt alese pe zilele 78–85 din `validation.json`.
-
-| Segment | Verify de la | Block de la |
-|---|---:|---:|
-| Persoană fizică | 71 | 91 |
-| Firmă | 69 | 91 |
+Pragurile sunt alese printr-o căutare pe grilă pe `validation.json`. Căutarea păstrează perechile cu
+cel mult 4% plăți trimise la Verify, cel mult 0,1% plăți legitime blocate și cel puțin 99% fraude
+printre blocări, apoi o alege pe cea care prinde cele mai multe fraude. Obiectivul Verify este 5%,
+dar un punct procentual rămâne liber pentru conturile noi, care lipsesc din validare. Pragurile alese
+sunt **Verify de la 68** și **Block de la 86**, aceleași pentru persoane fizice și firme.
 
 Block pe baza scorului cere cel puțin două familii de reguli diferite. O dovadă de securitate de
 încredere și activă blochează plata indiferent de scor. Dovezile expirate, retrase, neconfirmate
@@ -165,14 +180,14 @@ reale.
 
 | Metrică | Valoare |
 |---|---|
-| Fraude trimise la Verify sau Block | 76,7% (276 din 360) |
-| Fraude blocate | 30,8% (111 din 360) |
-| Precizia blocărilor | 96,5% (111 din 115). Obiectivul de 99% nu este atins. |
-| Rata Verify | 4,58%. Obiectivul de cel mult 5% este atins. |
-| Blocări false pentru plăți legitime | 0,03% |
+| Fraude trimise la Verify sau Block | 78,6% (283 din 360) |
+| Fraude blocate | 34,7% (125 din 360) |
+| Precizia blocărilor | 96,9% (125 din 129). Obiectivul de 99% nu este atins. |
+| Rata Verify | 4,49%. Obiectivul de cel mult 5% este atins. |
+| Blocări false pentru plăți legitime | 0,03% (4 din 14.640). Obiectivul de cel mult 0,1% este atins. |
 
-Detecția este slabă pentru `investment_scam` și `romance_scam`, cu 36,7% fiecare. Pentru
-`invoice_redirect` este 50%. Tabelul complet pe tipuri de fraudă și de anomalie este în
+Detecția este slabă pentru `romance_scam` (40%), `investment_scam` (50%) și `invoice_redirect`
+(33,3%). Tabelul complet pe tipuri de fraudă și de anomalie este în
 [raportul de evaluare](../artifacts/evaluation.md). Comanda `uv run python -m backend.cli evaluate`
 îl regenerează.
 
@@ -218,13 +233,14 @@ Rulează comenzile din rădăcina proiectului.
 | Comandă | Efect |
 |---|---|
 | `uv run python -m backend.cli generate` | Scrie cele trei fișiere din `storage/` și `datagen/manifest.json` |
-| `uv run python -m backend.cli validate` | Verifică structura, numărul de rânduri, limitele MIA, partițiile, hash-urile și reproductibilitatea |
-| `uv run python -m backend.cli train` | Antrenează pe `train.json` și alege ponderile și pragurile pe `validation.json` |
+| `uv run python -m backend.cli validate` | Verifică fișierele, hash-urile, numărul de plăți, limitele MIA, tipurile de fraudă și eliminarea etichetelor |
+| `uv run python -m backend.cli train` | Antrenează pe `train.json` și alege pragurile pe `validation.json` |
 | `uv run python -m backend.cli evaluate` | Evaluează o singură dată pe `test.json` |
 | `uv run uvicorn backend.api:app --host 127.0.0.1 --port 8001` | Pornește backend-ul |
 | `npm --prefix frontend run dev` | Pornește interfața pe <http://localhost:5173> |
 | `uv run pytest` | Rulează testele backend |
 | `npm --prefix frontend test -- --run` | Rulează testele frontend |
+| `uv run python scripts/api_contract.py --check` | Verifică forma răspunsurilor API față de `scripts/api_contract.baseline.json` |
 
 Pe Vercel, `vercel.json` publică backend-ul și interfața ca două servicii în același proiect.
 
@@ -232,7 +248,9 @@ Pe Vercel, `vercel.json` publică backend-ul și interfața ca două servicii î
 
 - Aplicația încarcă doar `test.json`. În primele zile de test, plățile nu au istoric anterior în
   aplicație. Scorurile din aplicație pot diferi de cele din evaluare.
-- Simulările și fluxul live există doar în memoria procesului. O repornire le șterge.
-- Istoricul reviziilor este scris în `runtime/state/review_history.sqlite3`. Rulează un singur
-  proces backend, pentru că fiecare proces are propria stare.
+- Simulările, fluxul live și reviziile există doar în memoria procesului. O repornire le șterge.
+  Rulează un singur proces backend, pentru că fiecare proces are propria stare.
 - Aplicația nu are autentificare. Numele revizorului este doar text afișat.
+- Testul nu este complet neatins. O primă rulare a trimis 5,81% din plățile de test la Verify. Rezerva
+  pentru conturile noi și ponderile a cinci reguli au fost alese apoi pe cifre din validare, dar
+  motivul căutării a venit din rezultatul pe test. Detalii în [ALGORITHMS.md](ALGORITHMS.md).
