@@ -17,6 +17,7 @@ import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -177,7 +178,7 @@ class SecFlowService:
             )
 
     @staticmethod
-    def _read_json(path) -> dict[str, Any] | None:
+    def _read_json(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text()) if path.exists() else None
 
     # -- helpers -------------------------------------------------------------
@@ -752,7 +753,7 @@ class SecFlowService:
         def histogram(values: list[float], top: float = 1.0) -> list[int]:
             return np.histogram(values, bins=HISTOGRAM_BINS, range=(0.0, top))[0].tolist()
 
-        daily: dict[str, Counter] = defaultdict(Counter)
+        daily: dict[str, Counter[str]] = defaultdict(Counter)
         for r in records:
             daily[format_ts(r.request.ts)[:10]][r.result.components.context.status] += 1
         training = self.training

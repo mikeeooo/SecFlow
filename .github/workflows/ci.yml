@@ -38,9 +38,8 @@ jobs:
         run: uv run --frozen pytest --cov --cov-report=term
       - name: API contract against scripts/api_contract.baseline.json
         run: uv run --frozen python scripts/api_contract.py --check
-      - name: mypy --strict (not blocking yet)
-        continue-on-error: true
-        run: uv run --frozen mypy backend ml datagen config
+      - name: mypy --strict, configured in pyproject.toml
+        run: uv run --frozen mypy
 
   supply-chain:
     runs-on: ubuntu-latest

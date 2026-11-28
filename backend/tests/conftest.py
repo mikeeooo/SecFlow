@@ -3,8 +3,10 @@ directories, so they never change the dataset, the models or the evaluation repo
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -18,6 +20,15 @@ from ml.policy import load_policy
 
 ROOT = Path(__file__).resolve().parents[2]
 STORAGE = ROOT / "storage"
+
+
+def load_script(name: str) -> ModuleType:
+    """Import scripts/<name>.py, which is not part of a package."""
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="session")

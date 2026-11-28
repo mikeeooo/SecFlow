@@ -100,10 +100,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return error(exc.status_code, "http_error", str(exc.detail))
 
     def svc(request: Request) -> SecFlowService:
-        return request.app.state.service
+        service: SecFlowService = request.app.state.service
+        return service
 
     def stream_of(request: Request) -> StreamController:
-        return request.app.state.stream
+        stream: StreamController = request.app.state.stream
+        return stream
 
     @app.get("/api/health")
     def health(request: Request) -> dict[str, Any]:
