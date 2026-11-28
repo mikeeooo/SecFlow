@@ -95,7 +95,9 @@ class HistoryIndex:
         series = self.auth.setdefault(event.account_id, _AuthSeries())
         series.keys.append(key)
         series.devices.append(event.device_id)
-        series.cum_failures.append(series.cum_failures[-1] + (1 if event.event_type == "login_failure" else 0))
+        series.cum_failures.append(
+            series.cum_failures[-1] + (1 if event.event_type == "login_failure" else 0)
+        )
         if event.event_type == "alias_rebound":
             series.alias_rebounds.append(key)
         elif event.event_type == "limit_changed":

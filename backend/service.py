@@ -121,7 +121,9 @@ class SecFlowService:
         # validation.json is history only: the 15 days before the test period give each account and
         # beneficiary its past, as in the evaluation. Only test.json payments are assessed and shown.
         self.dataset = load_partitions([settings.validation_path, settings.test_path])
-        self.shown = tuple(r for r in self.dataset.requests if self.dataset.partition_of[r.request_id] == "test")
+        self.shown = tuple(
+            r for r in self.dataset.requests if self.dataset.partition_of[r.request_id] == "test"
+        )
         self.manifest = read_manifest(settings.manifest_path) if settings.manifest_path.exists() else {}
         recorded = self.manifest.get("partitions", {})
         self.hashes_verified = all(
@@ -132,8 +134,9 @@ class SecFlowService:
         self.assessor = Assessor(self.bundle, self.evidence, self.policy, self.point)
         self.accounts = self.dataset.accounts
         self.counterparties: dict[str, Counterparty] = dict(self.dataset.counterparties)
-        self.history, keys = HistoryIndex.from_events(self.dataset.requests, self.dataset.auth_events,
-                                                      self.dataset.payment_events)
+        self.history, keys = HistoryIndex.from_events(
+            self.dataset.requests, self.dataset.auth_events, self.dataset.payment_events
+        )
         self.lock = threading.RLock()
         self.records: dict[str, AssessmentRecord] = {}  # insertion order = time order
         self.reviews: list[ReviewHistoryItem] = []
@@ -158,11 +161,20 @@ class SecFlowService:
             sessions[event.session_id].append(event)
         ordered = sorted(self.shown, key=lambda r: keys[r.request_id])
         now = utc_now_iso()
-        for request, result in zip(ordered, self.assessor.assess_batch(ordered, keys, self.history, self.accounts),
-                                   strict=True):
+        for request, result in zip(
+            ordered, self.assessor.assess_batch(ordered, keys, self.history, self.accounts), strict=True
+        ):
             self.records[request.request_id] = AssessmentRecord(
-                self._next_seq(), "baseline", None, request, keys[request.request_id], result, now,
-                tuple(sessions.get(request.session_id, ())), OUTCOME_FOR_DECISION[result.policy.decision])
+                self._next_seq(),
+                "baseline",
+                None,
+                request,
+                keys[request.request_id],
+                result,
+                now,
+                tuple(sessions.get(request.session_id, ())),
+                OUTCOME_FOR_DECISION[result.policy.decision],
+            )
 
     @staticmethod
     def _read_json(path) -> dict[str, Any] | None:
@@ -177,7 +189,9 @@ class SecFlowService:
         if account := self.accounts.get(party_id):
             return PartyRef(id=party_id, name=account.display_name, kind="account")
         counterparty = self.counterparties.get(party_id)
-        return PartyRef(id=party_id, name=counterparty.display_name if counterparty else party_id, kind="counterparty")
+        return PartyRef(
+            id=party_id, name=counterparty.display_name if counterparty else party_id, kind="counterparty"
+        )
 
     def _record(self, request_id: str) -> AssessmentRecord:
         if (record := self.records.get(request_id)) is None:
@@ -210,8 +224,11 @@ class SecFlowService:
         for i, band in enumerate(bands["bands"]):
             last = i == len(bands["bands"]) - 1
             if band["low"] <= score and (score <= band["high"] if last else score < band["high"]):
-                return ScoreBand(**{k: band[k] for k in ScoreBand.model_fields if k in band},
-                                 base_fraud_rate=bands["base_fraud_rate"], evaluated_requests=bands["requests"])
+                return ScoreBand(
+                    **{k: band[k] for k in ScoreBand.model_fields if k in band},
+                    base_fraud_rate=bands["base_fraud_rate"],
+                    evaluated_requests=bands["requests"],
+                )
         return None
 
     def _detail(self, record: AssessmentRecord, replay: bool = False) -> AssessmentDetail:
@@ -225,71 +242,137 @@ class SecFlowService:
         gets the stored answer; the same ID with another payload is a conflict."""
         if payload.sender_id not in self.accounts:
             raise NotFoundError(f"Unknown sender {payload.sender_id}")
-        if payload.recipient_id and not (payload.recipient_id in self.accounts or payload.recipient_id in self.counterparties):
+        if payload.recipient_id and not (
+            payload.recipient_id in self.accounts or payload.recipient_id in self.counterparties
+        ):
             raise NotFoundError(f"Unknown recipient {payload.recipient_id}")
         if payload.recipient_id == payload.sender_id:
             raise ConflictError("Sender and recipient must differ")
         segment = self.accounts[payload.sender_id].account_type
         cap = self.limits.for_segment(segment).per_transaction
         if payload.amount > cap:
-            raise MiaLimitError(f"MIA Plati Instant accepts at most {cap:,.0f} MDL per transaction from a {segment} "
-                                f"account; {payload.amount:,.2f} MDL was requested")
-        fingerprint = hashlib.sha256(json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+            raise MiaLimitError(
+                f"MIA Plati Instant accepts at most {cap:,.0f} MDL per transaction from a {segment} "
+                f"account; {payload.amount:,.2f} MDL was requested"
+            )
+        fingerprint = hashlib.sha256(
+            json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()
+        ).hexdigest()
         with self.lock:
             if (existing := self.records.get(payload.request_id)) is not None:
                 if existing.fingerprint != fingerprint:
-                    raise ConflictError(f"Request ID {payload.request_id} was already used with a different payload")
+                    raise ConflictError(
+                        f"Request ID {payload.request_id} was already used with a different payload"
+                    )
                 return self._detail(existing, replay=True), True
             record = self._assess_and_commit(payload, producer, fingerprint)
             self.records[payload.request_id] = record
             return self._detail(record), False
 
-    def _assess_and_commit(self, payload: SimulationRequest, producer: str, fingerprint: str) -> AssessmentRecord:
+    def _assess_and_commit(
+        self, payload: SimulationRequest, producer: str, fingerprint: str
+    ) -> AssessmentRecord:
         """Append the sign-in events, assess the payment as of now, then record the attempt."""
         suffix = f"{self._seq + 1:06d}"
         recipient_id = payload.recipient_id
         if recipient_id is None:
             recipient_id = f"CP-SIM-{suffix}"
-            self.counterparties[recipient_id] = Counterparty(recipient_id, payload.new_recipient_name or recipient_id,
-                                                             "person", "simulated")
+            self.counterparties[recipient_id] = Counterparty(
+                recipient_id, payload.new_recipient_name or recipient_id, "person", "simulated"
+            )
         device = payload.device_id or f"DEV-SIM-{suffix}"
         session = f"SES-SIM-{suffix}"
         ts = self._clock()
-        events = [AuthEvent(f"AE-SIM-{suffix}-{i}", ts + 20 * i, payload.sender_id, session, device, "login_failure",
-                            payload.auth_method, payload.ip_country, "invalid_credentials")
-                  for i in range(payload.failed_login_attempts)]
+        events = [
+            AuthEvent(
+                f"AE-SIM-{suffix}-{i}",
+                ts + 20 * i,
+                payload.sender_id,
+                session,
+                device,
+                "login_failure",
+                payload.auth_method,
+                payload.ip_country,
+                "invalid_credentials",
+            )
+            for i in range(payload.failed_login_attempts)
+        ]
         signed_in = ts + 20 * payload.failed_login_attempts
-        events.append(AuthEvent(f"AE-SIM-{suffix}-ok", signed_in, payload.sender_id, session, device, "login_success",
-                                payload.auth_method, payload.ip_country, None))
+        events.append(
+            AuthEvent(
+                f"AE-SIM-{suffix}-ok",
+                signed_in,
+                payload.sender_id,
+                session,
+                device,
+                "login_success",
+                payload.auth_method,
+                payload.ip_country,
+                None,
+            )
+        )
         for event in events:
             self.history.add_auth(event, self._next_key(event.ts))
         qr = payload.payment_scheme in ("p2b_qr_static", "p2b_qr_dynamic")
         request = PaymentRequest(
-            request_id=payload.request_id, ts=signed_in + 8, sender_id=payload.sender_id, recipient_id=recipient_id,
-            recipient_type="account" if recipient_id in self.accounts else "counterparty", amount=payload.amount,
-            currency=payload.currency, channel=payload.channel, device_id=device, session_id=session,
-            auth_method=payload.auth_method, ip_country=payload.ip_country, transfer_type=payload.transfer_type,
+            request_id=payload.request_id,
+            ts=signed_in + 8,
+            sender_id=payload.sender_id,
+            recipient_id=recipient_id,
+            recipient_type="account" if recipient_id in self.accounts else "counterparty",
+            amount=payload.amount,
+            currency=payload.currency,
+            channel=payload.channel,
+            device_id=device,
+            session_id=session,
+            auth_method=payload.auth_method,
+            ip_country=payload.ip_country,
+            transfer_type=payload.transfer_type,
             payment_scheme=payload.payment_scheme,
             request_to_pay_id=f"RTP-SIM-{suffix}" if payload.payment_scheme == "request_to_pay" else None,
             qr_payload_merchant_id=(payload.qr_payload_merchant_id or recipient_id) if qr else None,
-            recipient_alias=payload.recipient_alias)
+            recipient_alias=payload.recipient_alias,
+        )
         key = self._next_key(request.ts)
         started = time.perf_counter()
-        [result] = self.assessor.assess_batch([request], {request.request_id: key}, self.history, self.accounts)
+        [result] = self.assessor.assess_batch(
+            [request], {request.request_id: key}, self.history, self.accounts
+        )
         latency_ms = round((time.perf_counter() - started) * 1_000, 3)
         self.history.add_request(request, key)  # an attempt counts as activity whatever the decision
         outcome = OUTCOME_FOR_DECISION[result.policy.decision]
         if outcome == "permitted":
             self._settle(request, request.ts + 2)
         self._last_ts = request.ts + 2
-        return AssessmentRecord(self._next_seq(), "simulation", producer, request, key, result, utc_now_iso(),
-                                tuple(events), outcome, fingerprint, latency_ms=latency_ms)
+        return AssessmentRecord(
+            self._next_seq(),
+            "simulation",
+            producer,
+            request,
+            key,
+            result,
+            utc_now_iso(),
+            tuple(events),
+            outcome,
+            fingerprint,
+            latency_ms=latency_ms,
+        )
 
     def _settle(self, request: PaymentRequest, ts: int) -> None:
         """A completed payment credits the recipient, which feeds their incoming-funds features."""
-        self.history.add_payment(PaymentEvent(f"PE-SIM-{request.request_id}", ts, "transfer_settled",
-                                              request.sender_id, request.recipient_id, request.amount,
-                                              request.currency, request.request_id), self._next_key(ts))
+        self.history.add_payment(
+            PaymentEvent(
+                f"PE-SIM-{request.request_id}",
+                ts,
+                "transfer_settled",
+                request.sender_id,
+                request.recipient_id,
+                request.amount,
+                request.currency,
+                request.request_id,
+            ),
+            self._next_key(ts),
+        )
 
     # -- reviews -------------------------------------------------------------
     def review(self, request_id: str, payload: ReviewRequest) -> Investigation:
@@ -305,45 +388,87 @@ class SecFlowService:
             now = self._clock()
             request = record.request
             review = ReviewRecord(
-                review_id=f"REV-{len(self.reviews) + 1:05d}", request_id=request_id, action=payload.action,
-                reason=payload.reason, actor=payload.actor, created_at=utc_now_iso(), simulated_time=now,
-                original_decision=policy.decision, original_risk_score=round(record.result.risk.total, 2),
-                resulting_outcome="approved_after_review" if approved else "rejected_after_review")
+                review_id=f"REV-{len(self.reviews) + 1:05d}",
+                request_id=request_id,
+                action=payload.action,
+                reason=payload.reason,
+                actor=payload.actor,
+                created_at=utc_now_iso(),
+                simulated_time=now,
+                original_decision=policy.decision,
+                original_risk_score=round(record.result.risk.total, 2),
+                resulting_outcome="approved_after_review" if approved else "rejected_after_review",
+            )
             record.reviews.append(review)
             record.outcome = review.resulting_outcome
             if approved and record.origin == "simulation":
                 self._settle(request, now)
-            self.reviews.append(ReviewHistoryItem(
-                review_id=review.review_id, request_id=request_id, action=review.action, reason=review.reason,
-                actor=review.actor, created_at=review.created_at, original_decision=review.original_decision,
-                original_decision_label=policy.label, original_risk_score=review.original_risk_score,
-                resulting_outcome=review.resulting_outcome, origin=record.origin, event_time=format_ts(request.ts),
-                sender_id=request.sender_id, sender_name=self.party(request.sender_id).name,
-                recipient_id=request.recipient_id, recipient_name=self.party(request.recipient_id).name,
-                amount=request.amount, currency=request.currency, investigation_available=True))
+            self.reviews.append(
+                ReviewHistoryItem(
+                    review_id=review.review_id,
+                    request_id=request_id,
+                    action=review.action,
+                    reason=review.reason,
+                    actor=review.actor,
+                    created_at=review.created_at,
+                    original_decision=review.original_decision,
+                    original_decision_label=policy.label,
+                    original_risk_score=review.original_risk_score,
+                    resulting_outcome=review.resulting_outcome,
+                    origin=record.origin,
+                    event_time=format_ts(request.ts),
+                    sender_id=request.sender_id,
+                    sender_name=self.party(request.sender_id).name,
+                    recipient_id=request.recipient_id,
+                    recipient_name=self.party(request.recipient_id).name,
+                    amount=request.amount,
+                    currency=request.currency,
+                    investigation_available=True,
+                )
+            )
             return self.investigation(request_id)
 
-    def review_history(self, action: str | None, q: str | None, page: int, page_size: int,
-                       sort: str) -> ReviewHistoryPage:
+    def review_history(
+        self, action: str | None, q: str | None, page: int, page_size: int, sort: str
+    ) -> ReviewHistoryPage:
         with self.lock:
             entries = list(self.reviews)
         query = (q or "").strip().lower()
-        selected = [e for e in entries if (not action or e.action == action) and (not query or query in f"{e.request_id} {e.sender_name} {e.recipient_name} {e.sender_id} {e.recipient_id} {e.actor} {e.reason}".lower())]
+        selected = [
+            e
+            for e in entries
+            if (not action or e.action == action)
+            and (
+                not query
+                or query
+                in f"{e.request_id} {e.sender_name} {e.recipient_name} {e.sender_id} {e.recipient_id} {e.actor} {e.reason}".lower()
+            )
+        ]
         if sort != "oldest":
             selected.reverse()
         counts = Counter(e.action for e in entries)
         start = (page - 1) * page_size
-        return ReviewHistoryPage(items=selected[start:start + page_size], total=len(selected), page=page,
-                                 page_size=page_size, approved=counts["approve"], rejected=counts["reject"],
-                                 persisted=False, storage_note="Reviews live in memory; a restart clears them.")
+        return ReviewHistoryPage(
+            items=selected[start : start + page_size],
+            total=len(selected),
+            page=page,
+            page_size=page_size,
+            approved=counts["approve"],
+            rejected=counts["reject"],
+            persisted=False,
+            storage_note="Reviews live in memory; a restart clears them.",
+        )
 
     # -- queries -------------------------------------------------------------
     def investigation(self, request_id: str) -> Investigation:
         with self.lock:
             record = self._record(request_id)
-            return Investigation(assessment=self._detail(record), timeline=views.timeline(record),
-                                 reviews=[views.review_view(r) for r in record.reviews],
-                                 can_review=record.result.policy.decision == "Verify" and not record.reviews)
+            return Investigation(
+                assessment=self._detail(record),
+                timeline=views.timeline(record),
+                reviews=[views.review_view(r) for r in record.reviews],
+                can_review=record.result.policy.decision == "Verify" and not record.reviews,
+            )
 
     def transactions(self, f: TransactionQuery) -> TransactionPage:
         query = (f.q or "").strip().lower()
@@ -365,7 +490,10 @@ class SecFlowService:
             if not query:
                 return True
             request = r.request
-            return query in f"{request.request_id} {request.sender_id} {request.recipient_id} {self.party(request.sender_id).name} {self.party(request.recipient_id).name}".lower()
+            return (
+                query
+                in f"{request.request_id} {request.sender_id} {request.recipient_id} {self.party(request.sender_id).name} {self.party(request.recipient_id).name}".lower()
+            )
 
         selected = [r for r in self._all() if matches(r)]
         if f.sort == "risk_desc":
@@ -373,8 +501,12 @@ class SecFlowService:
         else:
             selected.sort(key=lambda r: r.key, reverse=f.sort != "time_asc")
         start = (f.page - 1) * f.page_size
-        return TransactionPage(items=[views.summary(r, self.party) for r in selected[start:start + f.page_size]],
-                               total=len(selected), page=f.page, page_size=f.page_size)
+        return TransactionPage(
+            items=[views.summary(r, self.party) for r in selected[start : start + f.page_size]],
+            total=len(selected),
+            page=f.page,
+            page_size=f.page_size,
+        )
 
     def live_feed(self, after: int, limit: int) -> list[Any]:
         simulated = [r for r in self._all() if r.origin == "simulation" and r.seq > after]
@@ -389,12 +521,17 @@ class SecFlowService:
         for r in records:
             volume[r.outcome] += r.request.amount
             day = format_ts(r.request.ts)[:10]
-            bucket = days.setdefault(day, {"date": day, "requests": 0, "risk": [], "Permit": 0, "Verify": 0, "Block": 0})
+            bucket = days.setdefault(
+                day, {"date": day, "requests": 0, "risk": [], "Permit": 0, "Verify": 0, "Block": 0}
+            )
             bucket["requests"] += 1
             bucket[r.result.policy.decision] += 1
             bucket["risk"].append(r.result.risk.total)
-        pending = sorted((r for r in records if views.review_status(r) == "pending"),
-                         key=lambda r: r.result.risk.total, reverse=True)
+        pending = sorted(
+            (r for r in records if views.review_status(r) == "pending"),
+            key=lambda r: r.result.risk.total,
+            reverse=True,
+        )
         return {
             "totals": {
                 "assessed": len(records),
@@ -414,42 +551,78 @@ class SecFlowService:
                 "blocked_attempts": round(volume["blocked_attempt"] + volume["rejected_after_review"], 2),
                 "currency": "MDL",
                 "note": "Completed volume counts only permitted or approved simulated outcomes. "
-                        "Blocked and pending attempts are excluded; no funds move through a bank.",
+                "Blocked and pending attempts are excluded; no funds move through a bank.",
             },
-            "trend": [{"date": b["date"], "requests": b["requests"], "permit": b["Permit"], "verify": b["Verify"],
-                       "block": b["Block"], "mean_risk": round(float(np.mean(b["risk"])), 2)}
-                      for b in sorted(days.values(), key=lambda b: b["date"])],
-            "recent": [views.summary(r, self.party) for r in sorted(records, key=lambda r: r.key, reverse=True)[:8]],
+            "trend": [
+                {
+                    "date": b["date"],
+                    "requests": b["requests"],
+                    "permit": b["Permit"],
+                    "verify": b["Verify"],
+                    "block": b["Block"],
+                    "mean_risk": round(float(np.mean(b["risk"])), 2),
+                }
+                for b in sorted(days.values(), key=lambda b: b["date"])
+            ],
+            "recent": [
+                views.summary(r, self.party) for r in sorted(records, key=lambda r: r.key, reverse=True)[:8]
+            ],
             "review_queue": [views.summary(r, self.party) for r in pending[:8]],
             "simulation_time": format_ts(self.simulation_now()),
         }
 
-    def accounts_page(self, q: str | None, page: int, page_size: int, account_type: str | None) -> AccountPage:
+    def accounts_page(
+        self, q: str | None, page: int, page_size: int, account_type: str | None
+    ) -> AccountPage:
         stats: dict[str, dict[str, Any]] = {}
         for r in self._all():
-            s = stats.setdefault(r.request.sender_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
+            s = stats.setdefault(
+                r.request.sender_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None}
+            )
             s["requests"] += 1
             s["flagged"] += r.result.policy.decision != "Permit"
             s["rejected"] += r.outcome == "rejected_after_review"
             if s["last"] is None or r.key > s["last"].key:
                 s["last"] = r
         query = (q or "").strip().lower()
-        accounts = sorted((a for a in self.accounts.values()
-                           if (not query or query in a.display_name.lower() or query in a.account_id.lower())
-                           and (not account_type or a.account_type == account_type)), key=lambda a: a.display_name)
+        accounts = sorted(
+            (
+                a
+                for a in self.accounts.values()
+                if (not query or query in a.display_name.lower() or query in a.account_id.lower())
+                and (not account_type or a.account_type == account_type)
+            ),
+            key=lambda a: a.display_name,
+        )
         items = []
-        for a in accounts[(page - 1) * page_size:page * page_size]:
+        for a in accounts[(page - 1) * page_size : page * page_size]:
             s = stats.get(a.account_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
             last = s["last"]
-            items.append(AccountSummary(
-                account_id=a.account_id, display_name=a.display_name, account_type=a.account_type,
-                home_country=a.home_country, created_at=format_ts(a.created_at), requests=s["requests"],
-                flagged=s["flagged"], rejected=s["rejected"], last_activity=format_ts(last.request.ts) if last else None,
-                last_decision=last.result.policy.decision if last else None))
+            items.append(
+                AccountSummary(
+                    account_id=a.account_id,
+                    display_name=a.display_name,
+                    account_type=a.account_type,
+                    home_country=a.home_country,
+                    created_at=format_ts(a.created_at),
+                    requests=s["requests"],
+                    flagged=s["flagged"],
+                    rejected=s["rejected"],
+                    last_activity=format_ts(last.request.ts) if last else None,
+                    last_decision=last.result.policy.decision if last else None,
+                )
+            )
         types = Counter(a.account_type for a in self.accounts.values())
-        return AccountPage(items=items, total=len(accounts), page=page, page_size=page_size,
-                           all_accounts=len(self.accounts), personal=types["personal"], business=types["business"],
-                           active=sum(1 for a in self.accounts if a in stats))
+        return AccountPage(
+            items=items,
+            total=len(accounts),
+            page=page,
+            page_size=page_size,
+            all_accounts=len(self.accounts),
+            personal=types["personal"],
+            business=types["business"],
+            active=sum(1 for a in self.accounts if a in stats),
+        )
 
     def account_detail(self, account_id: str) -> dict[str, Any]:
         if (account := self.accounts.get(account_id)) is None:
@@ -461,45 +634,68 @@ class SecFlowService:
         devices: dict[str, dict[str, Any]] = {}
         if auth := self.history.auth.get(account_id):
             for key, device in zip(auth.keys, auth.devices, strict=True):
-                entry = devices.setdefault(device, {"device_id": device, "first_seen": format_ts(key // KEY_SCALE),
-                                                    "sign_ins": 0})
+                entry = devices.setdefault(
+                    device, {"device_id": device, "first_seen": format_ts(key // KEY_SCALE), "sign_ins": 0}
+                )
                 entry["sign_ins"] += 1
                 entry["last_seen"] = format_ts(key // KEY_SCALE)
         latest = max(sent, key=lambda r: r.key) if sent else None
         context = None
         if latest:
             ctx = latest.result.components.context
-            context = {"request_id": latest.request.request_id, "status": ctx.status, "score": ctx.score,
-                       "distance": ctx.distance, "cluster": ctx.cluster, "at": format_ts(latest.request.ts)}
+            context = {
+                "request_id": latest.request.request_id,
+                "status": ctx.status,
+                "score": ctx.score,
+                "distance": ctx.distance,
+                "cluster": ctx.cluster,
+                "at": format_ts(latest.request.ts),
+            }
         return {
-            "account": {"account_id": account.account_id, "display_name": account.display_name,
-                        "account_type": account.account_type, "home_country": account.home_country,
-                        "created_at": format_ts(account.created_at)},
+            "account": {
+                "account_id": account.account_id,
+                "display_name": account.display_name,
+                "account_type": account.account_type,
+                "home_country": account.home_country,
+                "created_at": format_ts(account.created_at),
+            },
             "profile": {
                 "requests_sent": len(sent),
                 "requests_received": len(received),
                 "median_amount": amounts[len(amounts) // 2] if amounts else None,
                 "p90_amount": amounts[int(len(amounts) * 0.9)] if amounts else None,
                 "typical_hour": round(float(np.median([(r.request.ts % 86_400) / 3_600 for r in sent])), 1)
-                if sent else None,
+                if sent
+                else None,
                 "decisions": dict(Counter(r.result.policy.decision for r in sent)),
-                "top_recipients": [{**self.party(rid).model_dump(), "payments": n}
-                                   for rid, n in Counter(r.request.recipient_id for r in sent).most_common(6)],
+                "top_recipients": [
+                    {**self.party(rid).model_dump(), "payments": n}
+                    for rid, n in Counter(r.request.recipient_id for r in sent).most_common(6)
+                ],
                 "devices": sorted(devices.values(), key=lambda d: d["first_seen"]),
             },
-            "context": {"latest": context, "counts": dict(Counter(r.result.components.context.status for r in sent))},
-            "activity": [views.summary(r, self.party)
-                         for r in sorted(sent + received, key=lambda r: r.key, reverse=True)[:30]],
+            "context": {
+                "latest": context,
+                "counts": dict(Counter(r.result.components.context.status for r in sent)),
+            },
+            "activity": [
+                views.summary(r, self.party)
+                for r in sorted(sent + received, key=lambda r: r.key, reverse=True)[:30]
+            ],
         }
 
     def parties(self, q: str, limit: int) -> list[dict[str, Any]]:
         query = q.strip().lower()
-        found = [{"id": a.account_id, "name": a.display_name, "kind": "account", "detail": a.account_type}
-                 for a in self.accounts.values()
-                 if not query or query in a.display_name.lower() or query in a.account_id.lower()]
-        found += [{"id": c.counterparty_id, "name": c.display_name, "kind": "counterparty", "detail": c.category}
-                  for c in self.counterparties.values()
-                  if query and (query in c.display_name.lower() or query in c.counterparty_id.lower())]
+        found = [
+            {"id": a.account_id, "name": a.display_name, "kind": "account", "detail": a.account_type}
+            for a in self.accounts.values()
+            if not query or query in a.display_name.lower() or query in a.account_id.lower()
+        ]
+        found += [
+            {"id": c.counterparty_id, "name": c.display_name, "kind": "counterparty", "detail": c.category}
+            for c in self.counterparties.values()
+            if query and (query in c.display_name.lower() or query in c.counterparty_id.lower())
+        ]
         return found[:limit]
 
     def simulator_options(self, sender_id: str | None) -> dict[str, Any]:
@@ -524,14 +720,25 @@ class SecFlowService:
             "simulation_time": format_ts(now),
             "currencies": ["MDL"],
             "payment_schemes": list(OUTGOING_SCHEMES),
-            "limits": {segment: {"per_transaction": lim.per_transaction, "per_day": lim.per_day,
-                                 "per_month": lim.per_month}
-                       for segment, lim in (("personal", self.limits.personal), ("business", self.limits.business))},
+            "limits": {
+                segment: {
+                    "per_transaction": lim.per_transaction,
+                    "per_day": lim.per_day,
+                    "per_month": lim.per_month,
+                }
+                for segment, lim in (("personal", self.limits.personal), ("business", self.limits.business))
+            },
             "auth_methods": ["biometric", "password_otp", "otp", "password"],
             "countries": sorted({a.home_country for a in self.accounts.values()} | set(FOREIGN_COUNTRIES)),
             "flagged_beneficiaries": [
-                {"evidence_id": e.evidence_id, "id": e.entity_id, "name": self.party(e.entity_id).name,
-                 "evidence_type": e.evidence_type} for e in self.evidence.active_entities("counterparty", now)],
+                {
+                    "evidence_id": e.evidence_id,
+                    "id": e.entity_id,
+                    "name": self.party(e.entity_id).name,
+                    "evidence_type": e.evidence_type,
+                }
+                for e in self.evidence.active_entities("counterparty", now)
+            ],
             "sender": sender,
         }
 
@@ -558,14 +765,29 @@ class SecFlowService:
                 "weights": dict(self.policy.weights),
                 "weights_source": "policy",
                 "segments": self._thresholds(),
-                "operating_point": {"verify": point.verify, "block": point.block, "source": point.source,
-                                    "version": point.version},
+                "operating_point": {
+                    "verify": point.verify,
+                    "block": point.block,
+                    "source": point.source,
+                    "version": point.version,
+                },
                 "min_corroborating_families": self.policy.min_families,
                 "families": dict(self.policy.families),
-                "rules": [{"code": r.code, "family": r.family, "weight": r.weight, "corroborating": r.corroborating,
-                           "description": r.description, "params": dict(r.params)} for r in self.policy.rules],
-                "cold_start": {"max_amount_without_history": self.policy.cold_start_max_amount,
-                               "strong_auth_methods": sorted(self.policy.strong_auth_methods)},
+                "rules": [
+                    {
+                        "code": r.code,
+                        "family": r.family,
+                        "weight": r.weight,
+                        "corroborating": r.corroborating,
+                        "description": r.description,
+                        "params": dict(r.params),
+                    }
+                    for r in self.policy.rules
+                ],
+                "cold_start": {
+                    "max_amount_without_history": self.policy.cold_start_max_amount,
+                    "strong_auth_methods": sorted(self.policy.strong_auth_methods),
+                },
                 "trusted_sources": list(self.policy.trusted_sources),
             },
             "distributions": {
@@ -580,9 +802,11 @@ class SecFlowService:
                 "status_counts": dict(Counter(r.result.components.context.status for r in records)),
                 "daily": [{"date": d, **dict(c)} for d, c in sorted(daily.items())],
             },
-            "decision_sources": dict(Counter(f"{r.result.policy.decision}/{r.result.policy.decision_source}"
-                                             for r in records)),
-            "training": training and {
+            "decision_sources": dict(
+                Counter(f"{r.result.policy.decision}/{r.result.policy.decision_source}" for r in records)
+            ),
+            "training": training
+            and {
                 "validation_component_average_precision": training["validation_component_average_precision"],
                 "threshold_selection": training["threshold_selection"],
                 "search": training["search"],
@@ -621,8 +845,13 @@ class SecFlowService:
             "model": {"loaded": True, "version": self.bundle.version, "error": None},
             "policy": {
                 "version": self.policy.version,
-                "operating_point": {"verify": self.point.verify, "block": self.point.block, "source": self.point.source,
-                                    "weights": dict(self.policy.weights), "segments": self._thresholds()},
+                "operating_point": {
+                    "verify": self.point.verify,
+                    "block": self.point.block,
+                    "source": self.point.source,
+                    "weights": dict(self.policy.weights),
+                    "segments": self._thresholds(),
+                },
             },
             "state": {
                 "kind": "process_memory",
@@ -632,7 +861,7 @@ class SecFlowService:
                 "shared_across_workers": False,
                 "review_history": {"persisted": False, "path": None, "error": None},
                 "note": "Simulations and reviews live in this process only; a restart discards them. "
-                        "Run a single backend process.",
+                "Run a single backend process.",
             },
             "stream": stream,
             "simulation_time": format_ts(self.simulation_now()),

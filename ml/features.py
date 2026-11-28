@@ -146,7 +146,9 @@ def build_features(
     observed_days = min(30.0, max(1.0, account_age_days))
     usual_daily = n30 / observed_days
     velocity_ratio = (n24 + 1) / (usual_daily + 1)
-    history_status = "none" if prior_total == 0 else ("limited" if prior_total < SUFFICIENT_HISTORY else "sufficient")
+    history_status = (
+        "none" if prior_total == 0 else ("limited" if prior_total < SUFFICIENT_HISTORY else "sufficient")
+    )
     zscore = (log_amount - mean30) / (std30 + 0.25) if n30 >= 3 else 0.0
     ratio_to_max = math.log(amount / max30) if max30 > 0 else 0.0
 
@@ -172,7 +174,9 @@ def build_features(
             recipient_days = (t - rec.keys[0] // KEY_SCALE) / DAY
 
     device_first = history.first_device_key(request.sender_id, request.device_id)
-    device_age_hours = (t - device_first // KEY_SCALE) / HOUR if device_first is not None and device_first < key else None
+    device_age_hours = (
+        (t - device_first // KEY_SCALE) / HOUR if device_first is not None and device_first < key else None
+    )
 
     auth = history.auth.get(request.sender_id)
     failures24 = 0
@@ -224,7 +228,10 @@ def build_features(
     limit_key = HistoryIndex.last_before(auth.limit_changes, key) if auth is not None else None
     limit_changed_hours = (t - limit_key // KEY_SCALE) / HOUR if limit_key is not None else None
     is_rtp = request.payment_scheme == "request_to_pay"
-    qr_mismatch = request.payment_scheme in QR_SCHEMES and request.qr_payload_merchant_id not in (None, request.recipient_id)
+    qr_mismatch = request.payment_scheme in QR_SCHEMES and request.qr_payload_merchant_id not in (
+        None,
+        request.recipient_id,
+    )
     scheme_first = history.first_scheme_key(request.sender_id, request.payment_scheme)
     scheme_novelty = prior_total > 0 and (scheme_first is None or scheme_first >= key)
     recipient_alias_days = (
@@ -259,7 +266,9 @@ def build_features(
         cap_ratio,
         daily_ratio,
         float(near_cap24),
-        min(alias_rebound_hours, MAX_ALIAS_AGE_HOURS) if alias_rebound_hours is not None else MAX_ALIAS_AGE_HOURS,
+        min(alias_rebound_hours, MAX_ALIAS_AGE_HOURS)
+        if alias_rebound_hours is not None
+        else MAX_ALIAS_AGE_HOURS,
         1.0 if is_rtp else 0.0,
         1.0 if qr_mismatch else 0.0,
         1.0 if scheme_novelty else 0.0,
@@ -301,9 +310,13 @@ def build_features(
         "velocity_ratio_24h": round(velocity_ratio, 3),
         "unique_recipients_24h": unique24,
         "new_recipient": new_recipient,
-        "recipient_relationship_hours": round(relationship_hours, 2) if relationship_hours is not None else None,
+        "recipient_relationship_hours": round(relationship_hours, 2)
+        if relationship_hours is not None
+        else None,
         "recipient_senders_24h": recipient_senders,
-        "recipient_history_days": round(recipient_days, 2) if rec is not None and recipient_days > 0 else None,
+        "recipient_history_days": round(recipient_days, 2)
+        if rec is not None and recipient_days > 0
+        else None,
         "device_age_hours": round(device_age_hours, 2) if device_age_hours is not None else None,
         "new_device": new_device,
         "device_change": device_change,
@@ -335,6 +348,8 @@ def build_features(
         "qr_payload_merchant_id": request.qr_payload_merchant_id,
         "qr_merchant_mismatch": qr_mismatch,
         "scheme_novelty": scheme_novelty,
-        "recipient_alias_age_days": round(recipient_alias_days, 1) if recipient_alias_days is not None else None,
+        "recipient_alias_age_days": round(recipient_alias_days, 1)
+        if recipient_alias_days is not None
+        else None,
     }
     return FeatureSnapshot(payment_vector, context_vector, history_status, context_status, facts)

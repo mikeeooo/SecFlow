@@ -57,8 +57,12 @@ def evidence_from_row(row: dict) -> SecurityEvidence:
 
 
 class EvidenceStore:
-    def __init__(self, evidence: Iterable[SecurityEvidence], trusted_sources: Iterable[str],
-                 blocking_types: Iterable[str]) -> None:
+    def __init__(
+        self,
+        evidence: Iterable[SecurityEvidence],
+        trusted_sources: Iterable[str],
+        blocking_types: Iterable[str],
+    ) -> None:
         self.trusted = frozenset(trusted_sources)
         self.blocking = frozenset(blocking_types)
         self.records = tuple(evidence)
@@ -78,10 +82,19 @@ class EvidenceStore:
 
     def active_for(self, request: PaymentRequest) -> list[SecurityEvidence]:
         """Active evidence on the request's session, device, sender or recipient, sorted by ID."""
-        entities = (("session", request.session_id), ("device", request.device_id), ("account", request.sender_id),
-                    ("counterparty", request.recipient_id), ("account", request.recipient_id))
-        found = {item.evidence_id: item for entity in entities for item in self.by_entity.get(entity, ())
-                 if self.is_active(item, request.ts)}
+        entities = (
+            ("session", request.session_id),
+            ("device", request.device_id),
+            ("account", request.sender_id),
+            ("counterparty", request.recipient_id),
+            ("account", request.recipient_id),
+        )
+        found = {
+            item.evidence_id: item
+            for entity in entities
+            for item in self.by_entity.get(entity, ())
+            if self.is_active(item, request.ts)
+        }
         return [found[k] for k in sorted(found)]
 
     def active_entities(self, entity_type: str, ts: int) -> list[SecurityEvidence]:

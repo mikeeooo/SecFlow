@@ -22,17 +22,39 @@ from ml.model import DbscanContext
 from ml.policy import OperatingPoint
 
 WINDOWS = {
-    "history": {"bucket_seconds": 86_400, "max_buckets": None, "label": "Demonstration history and session, per day"},
-    "live": {"bucket_seconds": 60, "max_buckets": 30, "label": "Simulations, last 30 simulated minutes, per minute"},
+    "history": {
+        "bucket_seconds": 86_400,
+        "max_buckets": None,
+        "label": "Demonstration history and session, per day",
+    },
+    "live": {
+        "bucket_seconds": 60,
+        "max_buckets": 30,
+        "label": "Simulations, last 30 simulated minutes, per minute",
+    },
 }
 PERCENTILES = (50, 90, 99)
 
 
 def _bucket_template(start: int) -> dict[str, Any]:
     return {
-        "t": start, "requests": 0, "permit": 0, "verify": 0, "block_risk": 0, "block_evidence": 0,
-        "safeguard": 0, "outside_context": 0, "scored": 0, "completed_amount": 0.0, "pending_amount": 0.0,
-        "blocked_amount": 0.0, "_if": [], "_lof": [], "_rules": [], "_risk": [], "_latency": [],
+        "t": start,
+        "requests": 0,
+        "permit": 0,
+        "verify": 0,
+        "block_risk": 0,
+        "block_evidence": 0,
+        "safeguard": 0,
+        "outside_context": 0,
+        "scored": 0,
+        "completed_amount": 0.0,
+        "pending_amount": 0.0,
+        "blocked_amount": 0.0,
+        "_if": [],
+        "_lof": [],
+        "_rules": [],
+        "_risk": [],
+        "_latency": [],
     }
 
 
@@ -62,7 +84,9 @@ def dashboard(
     rules: Counter[str] = Counter()
     sources: Counter[str] = Counter()
     for r in selected:
-        b = buckets.setdefault(r.request.ts - r.request.ts % size, _bucket_template(r.request.ts - r.request.ts % size))
+        b = buckets.setdefault(
+            r.request.ts - r.request.ts % size, _bucket_template(r.request.ts - r.request.ts % size)
+        )
         policy = r.result.policy
         b["requests"] += 1
         sources[policy.decision_source] += 1
@@ -133,7 +157,9 @@ def dashboard(
             "preventive_blocks": sum(s["block_risk"] for s in series),
             "evidence_blocks": sum(s["block_evidence"] for s in series),
             "latency_mean_ms": round(float(np.mean(latencies)), 3) if latencies else None,
-            "latency_p95_ms": round(latencies[max(0, math.ceil(len(latencies) * 0.95) - 1)], 3) if latencies else None,
+            "latency_p95_ms": round(latencies[max(0, math.ceil(len(latencies) * 0.95) - 1)], 3)
+            if latencies
+            else None,
         },
         "decision_sources": dict(sources),
         "rule_triggers": [{"code": code, "count": n, "share": n / total} for code, n in rules.most_common(8)],
@@ -145,7 +171,9 @@ def dashboard(
 class ClusterGraphBuilder:
     """Builds the static cluster backbone once, then attaches current anomalies on each call."""
 
-    def __init__(self, context: DbscanContext, members_cap: int = 12, link_factor: float = 2.0, seed: int = 7) -> None:
+    def __init__(
+        self, context: DbscanContext, members_cap: int = 12, link_factor: float = 2.0, seed: int = 7
+    ) -> None:
         self.context = context
         self.members_cap = members_cap
         self.link_factor = link_factor
@@ -174,7 +202,13 @@ class ClusterGraphBuilder:
             if d < pair_min.get(key, math.inf):
                 pair_min[key] = d
         edges = [
-            {"source": f"c{a}", "target": f"c{b}", "kind": "near", "distance": round(d, 4), "pairs": pair_count[(a, b)]}
+            {
+                "source": f"c{a}",
+                "target": f"c{b}",
+                "kind": "near",
+                "distance": round(d, 4),
+                "pairs": pair_count[(a, b)],
+            }
             for (a, b), d in pair_min.items()
             if d <= self.link_factor * eps
         ]
@@ -186,7 +220,15 @@ class ClusterGraphBuilder:
                 if f"c{c}" in linked:
                     continue
                 other = clusters[int(idx[i, 1])]
-                edges.append({"source": f"c{c}", "target": f"c{other}", "kind": "nearest", "distance": round(float(dist[i, 1]), 4), "pairs": 0})
+                edges.append(
+                    {
+                        "source": f"c{c}",
+                        "target": f"c{other}",
+                        "kind": "nearest",
+                        "distance": round(float(dist[i, 1]), 4),
+                        "pairs": 0,
+                    }
+                )
 
         rng = np.random.default_rng(self.seed)
         nodes: list[dict[str, Any]] = []
@@ -198,7 +240,15 @@ class ClusterGraphBuilder:
                 node_id = f"m{c}-{j}"
                 distance = float(np.linalg.norm(cores[core_index] - centroids[c]))
                 nodes.append({"id": node_id, "kind": "core", "cluster": c})
-                edges.append({"source": f"c{c}", "target": node_id, "kind": "member", "distance": round(distance, 4), "pairs": 0})
+                edges.append(
+                    {
+                        "source": f"c{c}",
+                        "target": node_id,
+                        "kind": "member",
+                        "distance": round(distance, 4),
+                        "pairs": 0,
+                    }
+                )
         return {
             "nodes": nodes,
             "edges": edges,
@@ -215,7 +265,9 @@ class ClusterGraphBuilder:
             },
         }
 
-    def build(self, records: Sequence[Any], party: Callable[[str], Any], max_anomalies: int) -> dict[str, Any]:
+    def build(
+        self, records: Sequence[Any], party: Callable[[str], Any], max_anomalies: int
+    ) -> dict[str, Any]:
         if self._static is None:  # the frozen clusters never change, so build them once
             self._static = self._build_static()
         static = self._static
@@ -226,16 +278,32 @@ class ClusterGraphBuilder:
         for r in outside[:max_anomalies]:
             ctx = r.result.components.context
             node_id = f"a:{r.request.request_id}"
-            anomaly_nodes.append({
-                "id": node_id, "kind": "anomaly", "cluster": ctx.nearest_cluster, "request_id": r.request.request_id,
-                "decision_label": r.result.policy.label, "risk_score": round(r.result.risk.total, 2),
-                "distance": round(ctx.distance, 4), "sender": party(r.request.sender_id).name,
-                "recipient": party(r.request.recipient_id).name, "amount": r.request.amount,
-                "event_time": format_ts(r.request.ts), "origin": r.origin,
-            })
+            anomaly_nodes.append(
+                {
+                    "id": node_id,
+                    "kind": "anomaly",
+                    "cluster": ctx.nearest_cluster,
+                    "request_id": r.request.request_id,
+                    "decision_label": r.result.policy.label,
+                    "risk_score": round(r.result.risk.total, 2),
+                    "distance": round(ctx.distance, 4),
+                    "sender": party(r.request.sender_id).name,
+                    "recipient": party(r.request.recipient_id).name,
+                    "amount": r.request.amount,
+                    "event_time": format_ts(r.request.ts),
+                    "origin": r.origin,
+                }
+            )
             per_cluster[ctx.nearest_cluster] += 1
-            anomaly_edges.append({"source": f"c{ctx.nearest_cluster}", "target": node_id, "kind": "anomaly",
-                                  "distance": round(ctx.distance, 4), "pairs": 0})
+            anomaly_edges.append(
+                {
+                    "source": f"c{ctx.nearest_cluster}",
+                    "target": node_id,
+                    "kind": "anomaly",
+                    "distance": round(ctx.distance, 4),
+                    "pairs": 0,
+                }
+            )
         clusters = [{**c, "anomalies": per_cluster.get(c["cluster"], 0)} for c in static["clusters"]]
         return {
             "nodes": static["nodes"] + anomaly_nodes,

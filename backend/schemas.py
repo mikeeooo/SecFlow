@@ -9,12 +9,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Decision = Literal["Permit", "Verify", "Block"]
 DecisionSource = Literal["confirmed_fraud_evidence", "risk_policy", "assessment_safeguard"]
-DecisionLabel = Literal["Confirmed fraud evidence", "Preventive risk block", "Needs verification", "Permitted"]
-Outcome = Literal["permitted", "pending_verification", "blocked_attempt", "approved_after_review", "rejected_after_review"]
+DecisionLabel = Literal[
+    "Confirmed fraud evidence", "Preventive risk block", "Needs verification", "Permitted"
+]
+Outcome = Literal[
+    "permitted", "pending_verification", "blocked_attempt", "approved_after_review", "rejected_after_review"
+]
 AuthMethod = Literal["biometric", "password", "otp", "password_otp"]
 # MIA Plati Instant schemes a SecFlow customer can initiate (incoming remittances are context only).
 PaymentScheme = Literal[
-    "p2p_alias", "p2p_iban", "p2b_qr_static", "p2b_qr_dynamic", "p2b_link", "request_to_pay", "b2b", "p2g", "b2p_salary"
+    "p2p_alias",
+    "p2p_iban",
+    "p2b_qr_static",
+    "p2b_qr_dynamic",
+    "p2b_link",
+    "request_to_pay",
+    "b2b",
+    "p2g",
+    "b2p_salary",
 ]
 OUTGOING_SCHEMES: tuple[str, ...] = PaymentScheme.__args__  # type: ignore[attr-defined]
 

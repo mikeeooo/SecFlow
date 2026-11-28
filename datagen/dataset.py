@@ -88,29 +88,65 @@ def load_partitions(paths: Iterable[Path]) -> Dataset:
             row = {k: v for k, v in full_row.items() if k not in LABEL_COLUMNS}
             tid = row["transaction_id"]
             if row.get("transfer_type") != INSTANT_TRANSFER or row.get("currency") != CURRENCY:
-                raise DatasetError(f"Transaction {tid}: every payment must be an instant transfer in {CURRENCY}")
+                raise DatasetError(
+                    f"Transaction {tid}: every payment must be an instant transfer in {CURRENCY}"
+                )
             partition_of[tid] = path.stem
             ts = parse_ts(row["timestamp"])
-            recipient = Counterparty(row["recipient_id"], row["recipient_name"], row["recipient_kind"],
-                                     row["recipient_category"])
+            recipient = Counterparty(
+                row["recipient_id"], row["recipient_name"], row["recipient_kind"], row["recipient_category"]
+            )
             target = receivers if row["recipient_type"] == "account" else counterparties
             target[recipient.counterparty_id] = recipient
             if not row["assessed"]:  # an incoming credit from outside: history only
                 credits += 1
-                counterparties.setdefault(row["sender_id"], Counterparty(
-                    row["sender_id"], row["sender_name"], "person" if row["sender_alias"] else "business",
-                    "external_payer"))
-                payments.append(PaymentEvent(f"PE-{tid}", ts, "incoming_credit", row["sender_id"],
-                                             row["recipient_id"], float(row["amount"]), row["currency"], None))
+                counterparties.setdefault(
+                    row["sender_id"],
+                    Counterparty(
+                        row["sender_id"],
+                        row["sender_name"],
+                        "person" if row["sender_alias"] else "business",
+                        "external_payer",
+                    ),
+                )
+                payments.append(
+                    PaymentEvent(
+                        f"PE-{tid}",
+                        ts,
+                        "incoming_credit",
+                        row["sender_id"],
+                        row["recipient_id"],
+                        float(row["amount"]),
+                        row["currency"],
+                        None,
+                    )
+                )
                 continue
-            accounts[row["sender_id"]] = Account(row["sender_id"], row["sender_name"], row["sender_type"],
-                                                 row["sender_home_country"], parse_ts(row["sender_created_at"]))
+            accounts[row["sender_id"]] = Account(
+                row["sender_id"],
+                row["sender_name"],
+                row["sender_type"],
+                row["sender_home_country"],
+                parse_ts(row["sender_created_at"]),
+            )
             request = request_from_row(row)
             requests.append(request)
-            payments.append(PaymentEvent(f"PE-{tid}", ts + SETTLEMENT_SECONDS, "transfer_settled", request.sender_id,
-                                         request.recipient_id, request.amount, request.currency, tid))
+            payments.append(
+                PaymentEvent(
+                    f"PE-{tid}",
+                    ts + SETTLEMENT_SECONDS,
+                    "transfer_settled",
+                    request.sender_id,
+                    request.recipient_id,
+                    request.amount,
+                    request.currency,
+                    tid,
+                )
+            )
             for event in row["session_events"]:
-                auth.setdefault(event["event_id"], auth_from_session_event(event, row["sender_id"], row["session_id"]))
+                auth.setdefault(
+                    event["event_id"], auth_from_session_event(event, row["sender_id"], row["session_id"])
+                )
             for item in row["security_evidence"]:
                 evidence.setdefault(item["evidence_id"], item)
     for party_id, party in receivers.items():
@@ -130,8 +166,12 @@ def load_partitions(paths: Iterable[Path]) -> Dataset:
 
 def load_labels(paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
     """Offline only: the label columns of every assessed payment."""
-    return {row["transaction_id"]: {column: row.get(column) for column in LABEL_COLUMNS}
-            for path in paths for row in read_rows(path) if row.get("assessed")}
+    return {
+        row["transaction_id"]: {column: row.get(column) for column in LABEL_COLUMNS}
+        for path in paths
+        for row in read_rows(path)
+        if row.get("assessed")
+    }
 
 
 def read_manifest(path: Path) -> dict[str, Any]:
@@ -146,14 +186,25 @@ def file_hashes(paths: Iterable[Path]) -> dict[str, str]:
 
 def validate_dataset(storage_dir: Path, manifest_path: Path) -> list[str]:
     """Every problem found in storage/ (an empty list means the dataset is valid)."""
-    present = {p.name for p in storage_dir.iterdir() if not p.name.startswith(".")} if storage_dir.exists() else set()
+    present = (
+        {p.name for p in storage_dir.iterdir() if not p.name.startswith(".")}
+        if storage_dir.exists()
+        else set()
+    )
     if present != set(PARTITION_FILES.values()):
-        return [(f"storage/ must hold exactly {', '.join(sorted(PARTITION_FILES.values()))}; found "
-                f"{', '.join(sorted(present)) or 'nothing'}")]
+        return [
+            (
+                f"storage/ must hold exactly {', '.join(sorted(PARTITION_FILES.values()))}; found "
+                f"{', '.join(sorted(present)) or 'nothing'}"
+            )
+        ]
     paths = {name: storage_dir / file for name, file in PARTITION_FILES.items()}
     manifest = read_manifest(manifest_path)
-    problems = [f"{path.name}: SHA-256 differs from the manifest" for name, path in paths.items()
-                if sha256_file(path) != manifest["partitions"][name]["sha256"]]
+    problems = [
+        f"{path.name}: SHA-256 differs from the manifest"
+        for name, path in paths.items()
+        if sha256_file(path) != manifest["partitions"][name]["sha256"]
+    ]
     limits = MIA_LIMITS.personal
     owner: dict[str, str] = {}  # row fingerprint -> partition, to find copies across files
     for name, path in paths.items():
@@ -165,7 +216,9 @@ def validate_dataset(storage_dir: Path, manifest_path: Path) -> list[str]:
         for row in rows:
             fingerprint = row_fingerprint(row)
             if owner.setdefault(fingerprint, name) != name:
-                problems.append(f"{name}: {row['transaction_id']} duplicates a row of {owner[fingerprint]}.json")
+                problems.append(
+                    f"{name}: {row['transaction_id']} duplicates a row of {owner[fingerprint]}.json"
+                )
             if row.get("transfer_type") != INSTANT_TRANSFER or row.get("currency") != CURRENCY:
                 bad_type += 1
             if not row.get("assessed"):
@@ -191,8 +244,11 @@ def validate_dataset(storage_dir: Path, manifest_path: Path) -> list[str]:
         if over := sum(v > limits.per_month + 1e-6 for v in spent_month.values()):
             problems.append(f"{name}: {over} personal sender-month(s) above the monthly limit")
         for fraud_type in ALL_FRAUD_TYPES:
-            wanted = (MIA_SPEC.fraud_per_type[name] if fraud_type in FRAUD_TYPES
-                      else MIA_SPEC.test_only_fraud.get(name, {}).get(fraud_type, 0))
+            wanted = (
+                MIA_SPEC.fraud_per_type[name]
+                if fraud_type in FRAUD_TYPES
+                else MIA_SPEC.test_only_fraud.get(name, {}).get(fraud_type, 0)
+            )
             if fraud[fraud_type] != wanted:
                 problems.append(f"{name}: {fraud[fraud_type]} {fraud_type} payments, expected {wanted}")
         if name != "test" and (leaked := [t for t in TEST_ONLY_FRAUD_TYPES if fraud[t]]):

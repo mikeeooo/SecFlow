@@ -22,8 +22,14 @@ def sender_and_recipient(client: TestClient) -> tuple[str, str]:
 def payment(client: TestClient, request_id: str = "SIM-000001", **changes: Any) -> dict[str, Any]:
     sender, recipient = sender_and_recipient(client)
     options = client.get("/api/simulator/options", params={"sender_id": sender}).json()["sender"]
-    return {"request_id": request_id, "sender_id": sender, "recipient_id": recipient,
-            "amount": options["median_amount"], "device_id": options["known_devices"][0], **changes}
+    return {
+        "request_id": request_id,
+        "sender_id": sender,
+        "recipient_id": recipient,
+        "amount": options["median_amount"],
+        "device_id": options["known_devices"][0],
+        **changes,
+    }
 
 
 def test_responses_keep_the_shape_the_frontend_was_built_against() -> None:
@@ -49,7 +55,9 @@ def test_the_app_decides_like_the_evaluation(client: TestClient) -> None:
 
 
 def test_transactions_filter_sort_and_paginate(client: TestClient) -> None:
-    page = client.get("/api/transactions", params={"decision": "Verify", "sort": "risk_desc", "page_size": 10}).json()
+    page = client.get(
+        "/api/transactions", params={"decision": "Verify", "sort": "risk_desc", "page_size": 10}
+    ).json()
     assert page["total"] > 10 and len(page["items"]) == 10
     assert {i["decision"] for i in page["items"]} == {"Verify"}
     scores = [i["risk_score"] for i in page["items"]]
@@ -62,14 +70,18 @@ def test_unknown_identifiers_return_404(client: TestClient) -> None:
         assert response.status_code == 404 and response.json()["error"]["code"] == "not_found"
 
 
-@pytest.mark.parametrize("change", [
-    {"currency": "EUR"},
-    {"transfer_type": "standard"},
-    {"is_fraud": True},
-    {"amount": 0},
-    {"recipient_alias": "+40712345678"},
-    {"new_recipient_name": "Both Recipients"},
-], ids=["currency", "transfer_type", "label_field", "amount", "alias", "two_recipients"])
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"currency": "EUR"},
+        {"transfer_type": "standard"},
+        {"is_fraud": True},
+        {"amount": 0},
+        {"recipient_alias": "+40712345678"},
+        {"new_recipient_name": "Both Recipients"},
+    ],
+    ids=["currency", "transfer_type", "label_field", "amount", "alias", "two_recipients"],
+)
 def test_invalid_simulations_are_rejected_with_422(client: TestClient, change: dict[str, Any]) -> None:
     response = client.post("/api/simulations", json={**payment(client), **change})
     assert response.status_code == 422
@@ -93,8 +105,16 @@ def test_an_ordinary_payment_is_permitted_and_a_retry_is_answered_once(client: T
 
 
 def test_a_takeover_like_payment_is_stopped(client: TestClient) -> None:
-    body = payment(client, recipient_id=None, new_recipient_name="Unknown Payee", amount=4_900.0, device_id=None,
-                   auth_method="password", failed_login_attempts=4, ip_country="NL")
+    body = payment(
+        client,
+        recipient_id=None,
+        new_recipient_name="Unknown Payee",
+        amount=4_900.0,
+        device_id=None,
+        auth_method="password",
+        failed_login_attempts=4,
+        ip_country="NL",
+    )
     detail = client.post("/api/simulations", json=body).json()
     assert detail["decision"] in {"Verify", "Block"}
     assert {"NEW_DEVICE_AFTER_FAILED_LOGINS", "FOREIGN_SESSION"} <= {r["code"] for r in detail["reasons"]}
@@ -111,8 +131,15 @@ def test_later_simulations_see_earlier_ones(client: TestClient) -> None:
     body = payment(client, recipient_id=None, new_recipient_name="Burst Payee")
     first = client.post("/api/simulations", json=body).json()
     for i in range(2, 6):
-        last = client.post("/api/simulations", json={**body, "request_id": f"SIM-00000{i}", "new_recipient_name": None,
-                                                      "recipient_id": first["recipient"]["id"]}).json()
+        last = client.post(
+            "/api/simulations",
+            json={
+                **body,
+                "request_id": f"SIM-00000{i}",
+                "new_recipient_name": None,
+                "recipient_id": first["recipient"]["id"],
+            },
+        ).json()
     assert last["facts"]["requests_1h"] >= 4
     assert "REPEAT_NEW_BENEFICIARY" in {r["code"] for r in last["reasons"]}
 
@@ -126,7 +153,9 @@ def test_a_verify_decision_is_reviewed_once_and_kept_in_the_history(client: Test
     assert review.status_code == 201
     investigation = review.json()
     assert investigation["assessment"]["decision"] == "Verify"  # the automated decision never changes
-    assert investigation["assessment"]["outcome"] == "rejected_after_review" and not investigation["can_review"]
+    assert (
+        investigation["assessment"]["outcome"] == "rejected_after_review" and not investigation["can_review"]
+    )
     assert client.post(path, json={"action": "approve", "reason": "Second opinion here"}).status_code == 409
     history = client.get("/api/reviews").json()
     assert (history["total"], history["rejected"], history["persisted"]) == (1, 1, False)
@@ -134,9 +163,13 @@ def test_a_verify_decision_is_reviewed_once_and_kept_in_the_history(client: Test
 
 
 def test_only_verify_decisions_can_be_reviewed(client: TestClient) -> None:
-    permitted = client.get("/api/transactions", params={"decision": "Permit", "page_size": 1}).json()["items"][0]
-    response = client.post(f"/api/investigations/{permitted['request_id']}/reviews",
-                           json={"action": "approve", "reason": "Looks fine to me"})
+    permitted = client.get("/api/transactions", params={"decision": "Permit", "page_size": 1}).json()[
+        "items"
+    ][0]
+    response = client.post(
+        f"/api/investigations/{permitted['request_id']}/reviews",
+        json={"action": "approve", "reason": "Looks fine to me"},
+    )
     assert response.status_code == 409
 
 

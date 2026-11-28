@@ -53,7 +53,9 @@ GENERATOR_VERSION = "secflow-mia-generator-2.0.0"
 SCHEMA_VERSION = "2.0"
 DAY_SECONDS = 86_400
 HOUR = 3_600
-SETTLEMENT_SECONDS = 5  # MIA credits the payee in under 15 s; the runtime ledger settles every payment 5 s later
+SETTLEMENT_SECONDS = (
+    5  # MIA credits the payee in under 15 s; the runtime ledger settles every payment 5 s later
+)
 MIN_PAYMENT = 10.0  # smallest generated payment in MDL
 
 FRAUD_TYPES = (
@@ -91,11 +93,33 @@ LABEL_COLUMNS = ("is_fraud", "is_anomaly", "fraud_type", "anomaly_type", "campai
 PARTITION_NAMES = ("train", "validation", "test")
 PARTITION_FILES = {name: f"{name}.json" for name in PARTITION_NAMES}
 ROW_COLUMNS = (
-    "transaction_id", "timestamp", "transfer_type", "payment_scheme", "assessed", "amount", "currency",
-    "sender_id", "sender_type", "sender_name", "sender_alias", "sender_home_country", "sender_created_at",
-    "recipient_id", "recipient_type", "recipient_name", "recipient_alias", "recipient_kind", "recipient_category",
+    "transaction_id",
+    "timestamp",
+    "transfer_type",
+    "payment_scheme",
+    "assessed",
+    "amount",
+    "currency",
+    "sender_id",
+    "sender_type",
+    "sender_name",
+    "sender_alias",
+    "sender_home_country",
+    "sender_created_at",
+    "recipient_id",
+    "recipient_type",
+    "recipient_name",
+    "recipient_alias",
+    "recipient_kind",
+    "recipient_category",
     "alias_registered_at",
-    "channel", "device_id", "session_id", "auth_method", "ip_country", "session_events", "request_to_pay_id",
+    "channel",
+    "device_id",
+    "session_id",
+    "auth_method",
+    "ip_country",
+    "session_events",
+    "request_to_pay_id",
     "qr_payload_merchant_id",
     "security_evidence",
 ) + LABEL_COLUMNS
@@ -109,12 +133,23 @@ DRIFT_BILLERS = 3
 DRIFT_ADOPTION_SHARE = 0.30
 DRIFT_PAYMENT_PROBABILITY = 0.15
 DRIFT_BILLER_KINDS = ("Broadband", "Water Services", "Streaming")
-BILLER_KINDS = (("Utilities", "utility"), ("Telecom", "utility"), ("Energy", "utility"), ("Insurance", "finance"),
-                ("Property Management", "housing"))
+BILLER_KINDS = (
+    ("Utilities", "utility"),
+    ("Telecom", "utility"),
+    ("Energy", "utility"),
+    ("Insurance", "finance"),
+    ("Property Management", "housing"),
+)
 FOREIGN_TRAVEL = ("RO", "IT", "DE", "FR", "GB", "ES", "PT", "IL", "TR", "UA", "IE", "CZ", "PL", "US")
 VPN_COUNTRIES = ("NL", "US", "DE", "GB", "SG", "SC")
 DIASPORA_COUNTRIES = ("IT", "RO", "DE", "FR", "GB", "IL", "PT", "ES", "IE", "US", "CA")
-AUTH_RANK = {"session_revoked": 0, "alias_rebound": 1, "limit_changed": 2, "login_failure": 3, "login_success": 4}
+AUTH_RANK = {
+    "session_revoked": 0,
+    "alias_rebound": 1,
+    "limit_changed": 2,
+    "login_failure": 3,
+    "login_success": 4,
+}
 
 
 @dataclass(frozen=True)
@@ -245,16 +280,32 @@ def _build_universe(spec: DatasetSpec) -> _Universe:
     offices = []
     for index, name in enumerate(PUBLIC_OFFICES):
         reserved.add(name)
-        offices.append(CounterpartyIdentity(f"CP-{POPULAR_BILLERS + index + 1:05d}", name, "public_institution",
-                                            "government"))
+        offices.append(
+            CounterpartyIdentity(
+                f"CP-{POPULAR_BILLERS + index + 1:05d}", name, "public_institution", "government"
+            )
+        )
     first_other = POPULAR_BILLERS + len(PUBLIC_OFFICES) + 1
-    others = build_counterparties(rng, BASE_COUNTERPARTIES - first_other + 1, "CP-", first_other, reserved, aliases)
+    others = build_counterparties(
+        rng, BASE_COUNTERPARTIES - first_other + 1, "CP-", first_other, reserved, aliases
+    )
     remitters = []
-    for cp in build_counterparties(rng, REMITTERS, "CP-R", 1, reserved | {c.display_name for c in others}, aliases,
-                                   business_share=0.0, width=4):
+    for cp in build_counterparties(
+        rng,
+        REMITTERS,
+        "CP-R",
+        1,
+        reserved | {c.display_name for c in others},
+        aliases,
+        business_share=0.0,
+        width=4,
+    ):
         country = DIASPORA_COUNTRIES[int(rng.integers(len(DIASPORA_COUNTRIES)))]
-        remitters.append(CounterpartyIdentity(cp.counterparty_id, cp.display_name, "person", "individual",
-                                              cp.alias, country))
+        remitters.append(
+            CounterpartyIdentity(
+                cp.counterparty_id, cp.display_name, "person", "individual", cp.alias, country
+            )
+        )
     reserved |= {c.display_name for c in others + remitters}
     drift = []
     for index in range(DRIFT_BILLERS):
@@ -262,11 +313,15 @@ def _build_universe(spec: DatasetSpec) -> _Universe:
         if name in reserved:
             name = f"{name} Group"
         reserved.add(name)
-        drift.append(CounterpartyIdentity(f"CP-{BASE_COUNTERPARTIES + index + 1:05d}", name, "business", "utility"))
+        drift.append(
+            CounterpartyIdentity(f"CP-{BASE_COUNTERPARTIES + index + 1:05d}", name, "business", "utility")
+        )
     counterparties = billers + offices + others + remitters
     start = day_start_ts(spec.start, 1)
     cp_alias_registered = {
-        c.counterparty_id: start - int(rng.integers(30, 1_500)) * DAY_SECONDS for c in counterparties if c.alias
+        c.counterparty_id: start - int(rng.integers(30, 1_500)) * DAY_SECONDS
+        for c in counterparties
+        if c.alias
     }
     params = _build_account_params(spec, accounts, counterparties)
     return _Universe(accounts, counterparties, drift, params, cp_alias_registered, aliases)
@@ -280,12 +335,25 @@ def _build_account_params(
     personal_ids = [a.account_id for a in accounts if a.account_type == "personal"]
     cold_ids = set(rng.choice(personal_ids, size=spec.cold_start_accounts, replace=False).tolist())
     eligible_internal = [a for a in personal_ids if a not in cold_ids]
-    biller_ids = [c.counterparty_id for c in counterparties if c.counterparty_id <= f"CP-{POPULAR_BILLERS:05d}"]
+    biller_ids = [
+        c.counterparty_id for c in counterparties if c.counterparty_id <= f"CP-{POPULAR_BILLERS:05d}"
+    ]
     offices = [c.counterparty_id for c in counterparties if c.kind == "public_institution"]
-    business_cps = [c.counterparty_id for c in counterparties if c.kind == "business" and c.counterparty_id not in biller_ids]
-    merchants = [c.counterparty_id for c in counterparties if c.kind == "business" and c.category in QR_CATEGORIES
-                 and c.counterparty_id not in biller_ids]
-    person_cps = [c.counterparty_id for c in counterparties if c.kind == "person" and not c.counterparty_id.startswith("CP-R")]
+    business_cps = [
+        c.counterparty_id
+        for c in counterparties
+        if c.kind == "business" and c.counterparty_id not in biller_ids
+    ]
+    merchants = [
+        c.counterparty_id
+        for c in counterparties
+        if c.kind == "business" and c.category in QR_CATEGORIES and c.counterparty_id not in biller_ids
+    ]
+    person_cps = [
+        c.counterparty_id
+        for c in counterparties
+        if c.kind == "person" and not c.counterparty_id.startswith("CP-R")
+    ]
     remitters = [c.counterparty_id for c in counterparties if c.counterparty_id.startswith("CP-R")]
     cold_partition = next(p for p in spec.partitions if p.name == spec.cold_start_partition)
     params: dict[str, AccountParams] = {}
@@ -293,7 +361,9 @@ def _build_account_params(
         is_business = account.account_type == "business"
         cold = account.account_id in cold_ids
         if cold:
-            last = max(cold_partition.first_day, min(cold_partition.first_day + 11, cold_partition.last_day - 2))
+            last = max(
+                cold_partition.first_day, min(cold_partition.first_day + 11, cold_partition.last_day - 2)
+            )
             activation_day = int(rng.integers(cold_partition.first_day, last + 1))
             created = day_start_ts(spec.start, activation_day) - int(rng.integers(3_600, 20 * 3_600))
         else:
@@ -310,7 +380,11 @@ def _build_account_params(
                     employees.append(candidate)
         else:
             payees += rng.choice(biller_ids, size=int(rng.integers(1, 4)), replace=False).tolist()
-            friends = [f for f in rng.choice(eligible_internal, size=3, replace=False).tolist() if f != account.account_id]
+            friends = [
+                f
+                for f in rng.choice(eligible_internal, size=3, replace=False).tolist()
+                if f != account.account_id
+            ]
             payees += friends[: int(rng.integers(1, 3))]
             payees += rng.choice(merchants, size=int(rng.integers(2, 6)), replace=False).tolist()
             payees += rng.choice(person_cps, size=int(rng.integers(0, 3)), replace=False).tolist()
@@ -333,8 +407,11 @@ def _build_account_params(
             cold_start=cold,
             # Personal activity is bounded so that ordinary customers stay inside the MIA monthly limit;
             # businesses (not bound by the P2P caps) carry a larger share of the daily volume.
-            activity_weight=float(np.exp(rng.normal(0, 0.85)) * 3.5 if is_business
-                                  else np.clip(np.exp(rng.normal(0, 0.5)), 0.35, 1.5)),
+            activity_weight=float(
+                np.exp(rng.normal(0, 0.85)) * 3.5
+                if is_business
+                else np.clip(np.exp(rng.normal(0, 0.5)), 0.35, 1.5)
+            ),
             median_amount=float(np.exp(rng.normal(math.log(6_000 if is_business else 140), 0.5))),
             amount_sigma=float(rng.uniform(0.35, 0.6)),
             payees=payees,
@@ -435,11 +512,20 @@ class _Generator:
         self.aliases = universe.aliases
         self.devices = {a: list(p.devices) for a, p in self.params.items()}
         self.employees: dict[str, list[str]] = {}
-        self.reserved_names = {a.display_name for a in self.accounts} | {c.display_name for c in self.cp.values()}
-        self.base_ids = [c.counterparty_id for c in universe.counterparties if not c.counterparty_id.startswith("CP-R")]
+        self.reserved_names = {a.display_name for a in self.accounts} | {
+            c.display_name for c in self.cp.values()
+        }
+        self.base_ids = [
+            c.counterparty_id for c in universe.counterparties if not c.counterparty_id.startswith("CP-R")
+        ]
         self.biller_ids = [c for c in self.base_ids if c <= f"CP-{POPULAR_BILLERS:05d}"]
-        self.merchant_ids = [c for c in self.base_ids if self.cp[c].kind == "business" and self.cp[c].category in QR_CATEGORIES
-                             and c not in self.biller_ids]
+        self.merchant_ids = [
+            c
+            for c in self.base_ids
+            if self.cp[c].kind == "business"
+            and self.cp[c].category in QR_CATEGORIES
+            and c not in self.biller_ids
+        ]
         self.drift_adoption = self._drift_adoption()
         self.sessions: dict[str, _Session] = {}
         self.credits: list[Credit] = []
@@ -469,8 +555,15 @@ class _Generator:
 
     def _new_counterparty(self, ts: int, business_share: float = 0.35, recent_alias: float = 0.1) -> str:
         """A payee nobody has paid before. `recent_alias` is the chance its alias was bound days ago."""
-        created = build_counterparties(self.rng, 1, "CP-X", self._cp_index, self.reserved_names, self.aliases,
-                                       business_share=business_share)[0]
+        created = build_counterparties(
+            self.rng,
+            1,
+            "CP-X",
+            self._cp_index,
+            self.reserved_names,
+            self.aliases,
+            business_share=business_share,
+        )[0]
         self._cp_index += 1
         self.reserved_names.add(created.display_name)
         self.cp[created.counterparty_id] = created
@@ -531,9 +624,11 @@ class _Generator:
 
     def _with_room(self, candidates: list[str], ts: int, needed: float) -> list[str]:
         """Accounts that can still send `needed` MDL today and this month (in one or several payments)."""
+
         def day_left(a: str) -> float:
             limits = self.limits.for_segment(self.params[a].account_type)
             return limits.per_day - self.day_spent[(a, ts // DAY_SECONDS)]
+
         return [a for a in candidates if day_left(a) >= needed and self._month_room(a, ts) >= needed]
 
     def _month_room(self, sender: str, ts: int) -> float:
@@ -590,20 +685,34 @@ class _Generator:
         success = first_payment_ts - int(self.rng.integers(15, 420))
         ts = success - failures * int(self.rng.integers(20, 50))
         for _ in range(failures):
-            session.events.append(self._auth_event(ts, "login_failure", auth_method, ip_country, device,
-                                                   "invalid_credentials"))
+            session.events.append(
+                self._auth_event(ts, "login_failure", auth_method, ip_country, device, "invalid_credentials")
+            )
             ts += int(self.rng.integers(15, 45))
         for seconds_before, event_type, reason in extra:
-            session.events.append(self._auth_event(success - seconds_before, event_type, auth_method, ip_country,
-                                                   device, reason))
-        session.events.append(self._auth_event(success, "login_success", auth_method, ip_country, device, None))
+            session.events.append(
+                self._auth_event(
+                    success - seconds_before, event_type, auth_method, ip_country, device, reason
+                )
+            )
+        session.events.append(
+            self._auth_event(success, "login_success", auth_method, ip_country, device, None)
+        )
         self.sessions[session_id] = session
         return session_id
 
     @staticmethod
-    def _auth_event(ts: int, event_type: str, method: str, ip: str, device: str, reason: str | None) -> dict[str, Any]:
-        return {"timestamp": ts, "event_type": event_type, "auth_method": method, "ip_country": ip,
-                "device_id": device, "reason": reason}
+    def _auth_event(
+        ts: int, event_type: str, method: str, ip: str, device: str, reason: str | None
+    ) -> dict[str, Any]:
+        return {
+            "timestamp": ts,
+            "event_type": event_type,
+            "auth_method": method,
+            "ip_country": ip,
+            "device_id": device,
+            "reason": reason,
+        }
 
     def _scheme(self, sender: str, recipient: str) -> tuple[str, str | None, str | None]:
         """(payment scheme, request-to-pay id, QR merchant id) for an ordinary payment."""
@@ -626,7 +735,11 @@ class _Generator:
             scheme = self._choice(["p2b_link", "p2p_iban"], [0.6, 0.4])
         else:
             scheme = self._choice(["p2p_alias", "p2p_iban", "request_to_pay"], [0.80, 0.17, 0.03])
-        return scheme, (self._rtp() if scheme == "request_to_pay" else None), (recipient if scheme in QR_SCHEMES else None)
+        return (
+            scheme,
+            (self._rtp() if scheme == "request_to_pay" else None),
+            (recipient if scheme in QR_SCHEMES else None),
+        )
 
     def _draft(
         self,
@@ -649,26 +762,54 @@ class _Generator:
         channel = "mobile_app" if device.endswith("-A") or self.rng.random() < 0.6 else "web"
         if scheme_id in QR_SCHEMES:
             channel = "mobile_app"  # QR codes are scanned with the banking app
-        return Draft(ts, sender, recipient, amount, device, session, auth_method, ip_country, channel, scheme_id,
-                     self.alias[sender], rtp, qr, fraud_type, anomaly_type, is_anomaly, campaign_id)
+        return Draft(
+            ts,
+            sender,
+            recipient,
+            amount,
+            device,
+            session,
+            auth_method,
+            ip_country,
+            channel,
+            scheme_id,
+            self.alias[sender],
+            rtp,
+            qr,
+            fraud_type,
+            anomaly_type,
+            is_anomaly,
+            campaign_id,
+        )
 
-    def _add_evidence(self, evidence_type: str, subject_type: str, subject_id: str, recorded_at: int,
-                      effective_at: int, expires_at: int | None, status: str = "confirmed",
-                      source: str = TRUSTED_SOURCES[0], fixture: bool = False) -> None:
+    def _add_evidence(
+        self,
+        evidence_type: str,
+        subject_type: str,
+        subject_id: str,
+        recorded_at: int,
+        effective_at: int,
+        expires_at: int | None,
+        status: str = "confirmed",
+        source: str = TRUSTED_SOURCES[0],
+        fixture: bool = False,
+    ) -> None:
         self._evidence_counter += 1
         prefix = "SEC-FX" if fixture else "SEC"
-        self.evidence.append({
-            "evidence_id": f"{prefix}-{self._evidence_counter:05d}",
-            "evidence_type": evidence_type,
-            "subject_type": subject_type,
-            "subject_id": subject_id,
-            "status": status,
-            "source": source,
-            "source_trust": "trusted" if source in TRUSTED_SOURCES else "untrusted",
-            "recorded_at": recorded_at,
-            "effective_at": effective_at,
-            "expires_at": expires_at,
-        })
+        self.evidence.append(
+            {
+                "evidence_id": f"{prefix}-{self._evidence_counter:05d}",
+                "evidence_type": evidence_type,
+                "subject_type": subject_type,
+                "subject_id": subject_id,
+                "status": status,
+                "source": source,
+                "source_trust": "trusted" if source in TRUSTED_SOURCES else "untrusted",
+                "recorded_at": recorded_at,
+                "effective_at": effective_at,
+                "expires_at": expires_at,
+            }
+        )
 
     def _campaign_start(self, day_start: int, duration: int, night_bias: float = 0.0) -> int:
         latest = max(7 * HOUR + 1, DAY_SECONDS - duration - 600)
@@ -678,19 +819,30 @@ class _Generator:
             offset = int(self.rng.integers(7 * HOUR, latest))
         return day_start + offset
 
-    def _victim(self, day_start: int, needed: float = 0.0, allow_cold: bool = True, business: bool | None = False,
-                exclude: set[str] | frozenset[str] = frozenset()) -> str:
+    def _victim(
+        self,
+        day_start: int,
+        needed: float = 0.0,
+        allow_cold: bool = True,
+        business: bool | None = False,
+        exclude: set[str] | frozenset[str] = frozenset(),
+    ) -> str:
         candidates = [
-            a for a in self._active_accounts(day_start)
-            if (allow_cold or not self.params[a].cold_start) and a not in exclude
+            a
+            for a in self._active_accounts(day_start)
+            if (allow_cold or not self.params[a].cold_start)
+            and a not in exclude
             and (business is None or self._is_business(a) == business)
         ]
         roomy = self._with_room(candidates, day_start, max(needed, 1_500.0))
         return self._choice(roomy or candidates)
 
     def _victims(self, day_start: int, count: int, needed: float, business: bool | None = False) -> list[str]:
-        candidates = [a for a in self._active_accounts(day_start)
-                      if business is None or self._is_business(a) == business]
+        candidates = [
+            a
+            for a in self._active_accounts(day_start)
+            if business is None or self._is_business(a) == business
+        ]
         roomy = self._with_room(candidates, day_start, max(needed, 1_500.0)) or candidates
         return [str(a) for a in self.rng.choice(roomy, size=min(count, len(roomy)), replace=False)]
 
@@ -707,18 +859,37 @@ class _Generator:
             if p.account_type == "personal":
                 if current.day in p.paydays:
                     share = 0.4 if current.day == p.paydays[0] else 0.6
-                    self.credits.append(Credit(day_start + int(self.rng.integers(6 * HOUR, 10 * HOUR)), p.employer,
-                                               account, round(p.salary * share * math.exp(self.rng.normal(0, 0.05)), 2),
-                                               "b2p_salary"))
+                    self.credits.append(
+                        Credit(
+                            day_start + int(self.rng.integers(6 * HOUR, 10 * HOUR)),
+                            p.employer,
+                            account,
+                            round(p.salary * share * math.exp(self.rng.normal(0, 0.05)), 2),
+                            "b2p_salary",
+                        )
+                    )
                 if p.remitter and current.day == p.remit_day:
-                    self.credits.append(Credit(day_start + int(self.rng.integers(8 * HOUR, 20 * HOUR)), p.remitter,
-                                               account, round(float(np.exp(self.rng.normal(math.log(3_000), 0.5))), 2),
-                                               "remittance_in"))
+                    self.credits.append(
+                        Credit(
+                            day_start + int(self.rng.integers(8 * HOUR, 20 * HOUR)),
+                            p.remitter,
+                            account,
+                            round(float(np.exp(self.rng.normal(math.log(3_000), 0.5))), 2),
+                            "remittance_in",
+                        )
+                    )
             elif self.rng.random() < 0.8:
                 payer = self._choice(self.base_ids)
                 scheme = "b2b" if self.cp[payer].kind != "person" else "p2p_iban"
-                self.credits.append(Credit(day_start + int(self.rng.integers(8 * HOUR, 18 * HOUR)), payer, account,
-                                           self._amount(account, 2.0), scheme))
+                self.credits.append(
+                    Credit(
+                        day_start + int(self.rng.integers(8 * HOUR, 18 * HOUR)),
+                        payer,
+                        account,
+                        self._amount(account, 2.0),
+                        scheme,
+                    )
+                )
 
     # -- routine ---------------------------------------------------------
     def routine(self, count: int, day_start: int) -> list[Draft]:
@@ -740,8 +911,11 @@ class _Generator:
                 recipient, factor = adoption[0], 1.0
             elif self.rng.random() < 0.06:
                 # Ordinary people also pay payees nobody in the dataset has paid before.
-                recipient = (self._new_counterparty(ts, 0.6, recent_alias=0.12) if self.rng.random() < 0.5
-                             else self._choice(self.base_ids))
+                recipient = (
+                    self._new_counterparty(ts, 0.6, recent_alias=0.12)
+                    if self.rng.random() < 0.5
+                    else self._choice(self.base_ids)
+                )
                 factor = float(np.exp(self.rng.normal(0, 0.4)))
             else:
                 slot = int(self.rng.choice(len(p.payees), p=p.payee_weights))
@@ -781,19 +955,42 @@ class _Generator:
         ip = HOME_COUNTRY if subtle or self.rng.random() < 0.4 else self._foreign_country(VPN_COUNTRIES)
         method = self._choice(["password", "otp", "password", "password_otp"])
         start = self._campaign_start(day_start, plan.size * 1_800, night_bias=0.35)
-        extra = ((int(self.rng.integers(60, 300)), "limit_changed", "daily_limit_raised"),) if self.rng.random() < 0.3 else ()
+        extra = (
+            ((int(self.rng.integers(60, 300)), "limit_changed", "daily_limit_raised"),)
+            if self.rng.random() < 0.3
+            else ()
+        )
         session = self._session(victim, device, start, method, failures, ip, extra)
         drafts, ts = [], start
         for _ in range(plan.size):
             payee = self._new_counterparty(ts, 0.1, recent_alias=0.6)
-            amount = self._amount(victim, float(self.rng.uniform(0.8, 1.6)), 0.15) if subtle else self._near_cap(victim, ts)
-            drafts.append(self._draft(ts, victim, payee, self._must_fit(victim, ts, amount), device, session, method, ip,
-                                      fraud_type=plan.kind, is_anomaly=not subtle, campaign_id=plan.campaign_id,
-                                      scheme=(self._choice(["p2p_alias", "p2p_iban"], [0.6, 0.4]), None, None)))
+            amount = (
+                self._amount(victim, float(self.rng.uniform(0.8, 1.6)), 0.15)
+                if subtle
+                else self._near_cap(victim, ts)
+            )
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    payee,
+                    self._must_fit(victim, ts, amount),
+                    device,
+                    session,
+                    method,
+                    ip,
+                    fraud_type=plan.kind,
+                    is_anomaly=not subtle,
+                    campaign_id=plan.campaign_id,
+                    scheme=(self._choice(["p2p_alias", "p2p_iban"], [0.6, 0.4]), None, None),
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(300, 1_800)), day_start)
         if self.rng.random() < 0.35:
             recorded = drafts[0].ts + int(self.rng.integers(90, 280))
-            self._add_evidence("compromised_session", "session", session, recorded, start - 400, recorded + 30 * DAY_SECONDS)
+            self._add_evidence(
+                "compromised_session", "session", session, recorded, start - 400, recorded + 30 * DAY_SECONDS
+            )
         return drafts
 
     def _fraud_sim_swap_takeover(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -803,9 +1000,18 @@ class _Generator:
         method = self._choice(["otp", "otp", "password_otp", "password"])
         start = self._campaign_start(day_start, plan.size * 1_500 + 4 * HOUR, night_bias=0.3)
         rebound = int(self.rng.integers(20 * 60, 4 * HOUR))
-        session = self._session(victim, device, start, method, int(self.rng.integers(0, 2)), HOME_COUNTRY,
-                                ((rebound, "alias_rebound", "sim_replaced"),))
-        payees = [self._new_counterparty(start, 0.05, recent_alias=0.5) for _ in range(int(self.rng.integers(1, 3)))]
+        session = self._session(
+            victim,
+            device,
+            start,
+            method,
+            int(self.rng.integers(0, 2)),
+            HOME_COUNTRY,
+            ((rebound, "alias_rebound", "sim_replaced"),),
+        )
+        payees = [
+            self._new_counterparty(start, 0.05, recent_alias=0.5) for _ in range(int(self.rng.integers(1, 3)))
+        ]
         drafts, ts = [], start
         for index in range(plan.size):
             if subtle:
@@ -814,14 +1020,31 @@ class _Generator:
                 # drain toward the daily limit: each payment takes most of what MIA still allows today
                 remaining = plan.size - index
                 daily_left = self.limits.personal.per_day - self.day_spent[(victim, ts // DAY_SECONDS)]
-                amount = min(self._room(victim, ts), daily_left / remaining * float(self.rng.uniform(0.9, 1.0)))
-            drafts.append(self._draft(ts, victim, payees[index % len(payees)], self._must_fit(victim, ts, amount),
-                                      device, session, method, HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=not subtle,
-                                      campaign_id=plan.campaign_id, scheme=("p2p_alias", None, None)))
+                amount = min(
+                    self._room(victim, ts), daily_left / remaining * float(self.rng.uniform(0.9, 1.0))
+                )
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    payees[index % len(payees)],
+                    self._must_fit(victim, ts, amount),
+                    device,
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not subtle,
+                    campaign_id=plan.campaign_id,
+                    scheme=("p2p_alias", None, None),
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(120, 1_500)), day_start)
         if len(drafts) > 1 and self.rng.random() < 0.25:
             recorded = drafts[1].ts - int(self.rng.integers(5, 40))
-            self._add_evidence("compromised_device", "device", device, recorded, start - 600, recorded + 14 * DAY_SECONDS)
+            self._add_evidence(
+                "compromised_device", "device", device, recorded, start - 600, recorded + 14 * DAY_SECONDS
+            )
         return drafts
 
     def _fraud_vishing_impersonation(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -839,14 +1062,34 @@ class _Generator:
             else:
                 amount = self._near_cap(victim, ts, low=0.85)
             scheme = (self._choice(["p2p_iban", "p2p_alias"], [0.6, 0.4]), None, None)
-            drafts.append(self._draft(ts, victim, payee, self._must_fit(victim, ts, amount), device, session, method,
-                                      HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=not ordinary,
-                                      campaign_id=plan.campaign_id, scheme=scheme))
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    payee,
+                    self._must_fit(victim, ts, amount),
+                    device,
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not ordinary,
+                    campaign_id=plan.campaign_id,
+                    scheme=scheme,
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(900, 3_600)), day_start)
         if self.rng.random() < 0.15:
             recorded = start - int(self.rng.integers(HOUR, 2 * DAY_SECONDS))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", payee, recorded, recorded, None,
-                               source=TRUSTED_SOURCES[1])
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                payee,
+                recorded,
+                recorded,
+                None,
+                source=TRUSTED_SOURCES[1],
+            )
         return drafts
 
     def _fraud_request_to_pay_scam(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -863,12 +1106,27 @@ class _Generator:
             method = self._choice(["biometric", "password_otp", "password"], [0.6, 0.25, 0.15])
             session = self._session(victim, self.devices[victim][0], ts, method, 0, HOME_COUNTRY)
             amount = self._must_fit(victim, ts, base * float(self.rng.uniform(0.7, 1.3)))
-            drafts.append(self._draft(ts, victim, requester, amount, self.devices[victim][0], session, method,
-                                      HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=not quiet,
-                                      campaign_id=plan.campaign_id, scheme=("request_to_pay", self._rtp(), None)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    requester,
+                    amount,
+                    self.devices[victim][0],
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not quiet,
+                    campaign_id=plan.campaign_id,
+                    scheme=("request_to_pay", self._rtp(), None),
+                )
+            )
         if self.rng.random() < 0.3 and len(drafts) > 2:
             recorded = sorted(d.ts for d in drafts)[1] + int(self.rng.integers(60, 900))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", requester, recorded, recorded, None)
+            self._add_evidence(
+                "fraud_controlled_beneficiary", "counterparty", requester, recorded, recorded, None
+            )
         return drafts
 
     def _fraud_marketplace_scam(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -885,58 +1143,142 @@ class _Generator:
             method = self._auth_method(victim)
             session = self._session(victim, self.devices[victim][0], ts, method, 0, HOME_COUNTRY)
             amount = self._must_fit(victim, ts, base * float(self.rng.uniform(0.6, 1.4)))
-            drafts.append(self._draft(ts, victim, seller, amount, self.devices[victim][0], session, method, HOME_COUNTRY,
-                                      fraud_type=plan.kind, is_anomaly=not quiet, campaign_id=plan.campaign_id,
-                                      scheme=("p2p_alias", None, None)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    seller,
+                    amount,
+                    self.devices[victim][0],
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not quiet,
+                    campaign_id=plan.campaign_id,
+                    scheme=("p2p_alias", None, None),
+                )
+            )
         if self.rng.random() < 0.25 and len(drafts) > 1:
             recorded = min(d.ts for d in drafts) + int(self.rng.integers(HOUR, 6 * HOUR))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", seller, recorded, recorded, None,
-                               source=TRUSTED_SOURCES[1])
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                seller,
+                recorded,
+                recorded,
+                None,
+                source=TRUSTED_SOURCES[1],
+            )
         return drafts
 
-    def _escalating(self, plan: _Plan, day_start: int, low: float, high: float, span: tuple[int, int],
-                    payee: str, scheme: str, anomaly: bool) -> list[Draft]:
+    def _escalating(
+        self,
+        plan: _Plan,
+        day_start: int,
+        low: float,
+        high: float,
+        span: tuple[int, int],
+        payee: str,
+        scheme: str,
+        anomaly: bool,
+    ) -> list[Draft]:
         days = max(self._span_days(plan, *span), min(plan.size - 1, plan.last_day - plan.day))
-        offsets = sorted(int(x) for x in self.rng.choice(days + 1, size=plan.size, replace=days + 1 < plan.size))
+        offsets = sorted(
+            int(x) for x in self.rng.choice(days + 1, size=plan.size, replace=days + 1 < plan.size)
+        )
         steps = np.minimum(np.linspace(low, high, plan.size) * self.rng.uniform(0.9, 1.1, plan.size), 4_999.0)
-        candidates = [a for a in self._active_accounts(day_start)
-                      if not self._is_business(a) and not self.params[a].cold_start]
-        roomy = [a for a in self._with_room(candidates, day_start, float(steps.max()) * 2)
-                 if self._month_room(a, day_start) >= float(steps.sum()) * 1.2]
-        victim = self._choice(roomy) if roomy else max(candidates, key=lambda a: (self._month_room(a, day_start), a))
+        candidates = [
+            a
+            for a in self._active_accounts(day_start)
+            if not self._is_business(a) and not self.params[a].cold_start
+        ]
+        roomy = [
+            a
+            for a in self._with_room(candidates, day_start, float(steps.max()) * 2)
+            if self._month_room(a, day_start) >= float(steps.sum()) * 1.2
+        ]
+        victim = (
+            self._choice(roomy)
+            if roomy
+            else max(candidates, key=lambda a: (self._month_room(a, day_start), a))
+        )
         drafts = []
         for offset, amount in zip(offsets, steps, strict=True):
             day = day_start + offset * DAY_SECONDS
             ts = self._clamp(day + self._hour_offset(victim) + int(self.rng.integers(0, 1_800)), day)
             method = self._choice(["biometric", "password_otp"])
             session = self._session(victim, self.devices[victim][0], ts, method, 0, HOME_COUNTRY)
-            drafts.append(self._draft(ts, victim, payee, self._must_fit(victim, ts, float(amount)), self.devices[victim][0],
-                                      session, method, HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=anomaly,
-                                      campaign_id=plan.campaign_id, scheme=(scheme, None, None)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    victim,
+                    payee,
+                    self._must_fit(victim, ts, float(amount)),
+                    self.devices[victim][0],
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=anomaly,
+                    campaign_id=plan.campaign_id,
+                    scheme=(scheme, None, None),
+                )
+            )
         return drafts
 
     def _fraud_investment_scam(self, plan: _Plan, day_start: int) -> list[Draft]:
         """Escalating repeated payments to the same new 'trading platform' payee over days or weeks."""
         platform = self._new_counterparty(day_start, 0.5, recent_alias=0.3)
         scheme = "p2p_iban" if self.cp[platform].kind == "business" else "p2p_alias"
-        drafts = self._escalating(plan, day_start, float(self.rng.uniform(300, 900)), float(self.rng.uniform(3_000, 4_990)),
-                                  (4, 12), platform, scheme, self.rng.random() < 0.5)
+        drafts = self._escalating(
+            plan,
+            day_start,
+            float(self.rng.uniform(300, 900)),
+            float(self.rng.uniform(3_000, 4_990)),
+            (4, 12),
+            platform,
+            scheme,
+            self.rng.random() < 0.5,
+        )
         if self.rng.random() < 0.15:
             recorded = drafts[-1].ts - int(self.rng.integers(HOUR, DAY_SECONDS))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", platform, recorded, recorded, None,
-                               source=TRUSTED_SOURCES[1])
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                platform,
+                recorded,
+                recorded,
+                None,
+                source=TRUSTED_SOURCES[1],
+            )
         return drafts
 
     def _fraud_romance_scam(self, plan: _Plan, day_start: int) -> list[Draft]:
         """Recurring moderate payments to one new person over weeks; looks like an ordinary relationship."""
         partner = self._new_counterparty(day_start, 0.0, recent_alias=0.3)
         base = float(self.rng.uniform(800, 2_500))
-        drafts = self._escalating(plan, day_start, base * 0.8, base * 1.3, (6, 14), partner,
-                                  self._choice(["p2p_alias", "p2p_iban"], [0.7, 0.3]), self.rng.random() < 0.2)
+        drafts = self._escalating(
+            plan,
+            day_start,
+            base * 0.8,
+            base * 1.3,
+            (6, 14),
+            partner,
+            self._choice(["p2p_alias", "p2p_iban"], [0.7, 0.3]),
+            self.rng.random() < 0.2,
+        )
         if self.rng.random() < 0.1:
             recorded = drafts[-1].ts - int(self.rng.integers(HOUR, DAY_SECONDS))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", partner, recorded, recorded, None,
-                               source=TRUSTED_SOURCES[1])
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                partner,
+                recorded,
+                recorded,
+                None,
+                source=TRUSTED_SOURCES[1],
+            )
         return drafts
 
     def _fraud_money_mule(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -948,9 +1290,13 @@ class _Generator:
         ts = start
         for share in self.rng.dirichlet(np.ones(int(self.rng.integers(2, 5)))):
             payer = self._new_counterparty(ts, 0.05, recent_alias=0.3)
-            self.credits.append(Credit(ts, payer, mule, round(total_in * float(share), 2), "p2p_alias", plan.campaign_id))
+            self.credits.append(
+                Credit(ts, payer, mule, round(total_in * float(share), 2), "p2p_alias", plan.campaign_id)
+            )
             ts += int(self.rng.integers(300, 3_600))
-        beneficiaries = [self._new_counterparty(ts, 0.1, recent_alias=0.7) for _ in range(int(self.rng.integers(1, 3)))]
+        beneficiaries = [
+            self._new_counterparty(ts, 0.1, recent_alias=0.7) for _ in range(int(self.rng.integers(1, 3)))
+        ]
         device = self.devices[mule][0] if self.rng.random() < 0.6 else self._new_device()
         method = self._auth_method(mule)
         ts += int(self.rng.integers(600, 4_000))
@@ -959,15 +1305,34 @@ class _Generator:
         drafts = []
         for index in range(plan.size):
             amount = self._must_fit(mule, ts, per_payment * float(self.rng.uniform(0.85, 1.15)))
-            drafts.append(self._draft(self._clamp(ts, day_start), mule, beneficiaries[index % len(beneficiaries)], amount,
-                                      device, session, method, HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=not subtle,
-                                      campaign_id=plan.campaign_id,
-                                      scheme=(self._choice(["p2p_alias", "p2p_iban"], [0.7, 0.3]), None, None)))
+            drafts.append(
+                self._draft(
+                    self._clamp(ts, day_start),
+                    mule,
+                    beneficiaries[index % len(beneficiaries)],
+                    amount,
+                    device,
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not subtle,
+                    campaign_id=plan.campaign_id,
+                    scheme=(self._choice(["p2p_alias", "p2p_iban"], [0.7, 0.3]), None, None),
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(120, 1_500)), day_start)
         if self.rng.random() < 0.3:
             recorded = drafts[0].ts + int(self.rng.integers(60, 400))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", beneficiaries[0], recorded, recorded, None,
-                               source=TRUSTED_SOURCES[1])
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                beneficiaries[0],
+                recorded,
+                recorded,
+                None,
+                source=TRUSTED_SOURCES[1],
+            )
         return drafts
 
     def _fraud_limit_structuring(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -977,26 +1342,58 @@ class _Generator:
         slots = [d for d in range(days + 1) for _ in range(2)][: plan.size]
         if len(slots) < plan.size:  # partition edge: squeeze the remainder into the last day
             slots += [days] * (plan.size - len(slots))
-        candidates = [a for a in self._active_accounts(day_start)
-                      if not self._is_business(a) and not self.params[a].cold_start]
+        candidates = [
+            a
+            for a in self._active_accounts(day_start)
+            if not self._is_business(a) and not self.params[a].cold_start
+        ]
         needed = plan.size * self._cap(candidates[0])
-        roomy = [a for a in candidates if self._month_room(a, day_start) >= needed
-                 and all(self._with_room([a], day_start + d * DAY_SECONDS, 9_990) for d in set(slots))]
-        sender = self._choice(roomy) if roomy else max(candidates, key=lambda a: (self._month_room(a, day_start), a))
-        payees = [self._new_counterparty(day_start, 0.0, recent_alias=0.4) for _ in range(int(self.rng.integers(2, 4)))]
+        roomy = [
+            a
+            for a in candidates
+            if self._month_room(a, day_start) >= needed
+            and all(self._with_room([a], day_start + d * DAY_SECONDS, 9_990) for d in set(slots))
+        ]
+        sender = (
+            self._choice(roomy)
+            if roomy
+            else max(candidates, key=lambda a: (self._month_room(a, day_start), a))
+        )
+        payees = [
+            self._new_counterparty(day_start, 0.0, recent_alias=0.4)
+            for _ in range(int(self.rng.integers(2, 4)))
+        ]
         device = self.devices[sender][0]
         drafts = []
         for index, offset in enumerate(slots):
             day = day_start + offset * DAY_SECONDS
             first_of_day = index == 0 or slots[index - 1] != offset
-            ts = self._clamp(day + self._hour_offset(sender) + (0 if first_of_day else int(self.rng.integers(600, 3 * HOUR))), day)
+            ts = self._clamp(
+                day
+                + self._hour_offset(sender)
+                + (0 if first_of_day else int(self.rng.integers(600, 3 * HOUR))),
+                day,
+            )
             method = self._choice(["biometric", "password_otp", "password"])
             session = self._session(sender, device, ts, method, 0, HOME_COUNTRY)
             cap = min(self._cap(sender), self._room(sender, ts))
             amount = self._must_fit(sender, ts, cap * float(self.rng.uniform(0.92, 0.999)))
-            drafts.append(self._draft(ts, sender, payees[index % len(payees)], amount, device, session, method,
-                                      HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=True, campaign_id=plan.campaign_id,
-                                      scheme=(self._choice(["p2p_alias", "p2p_iban"]), None, None)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    sender,
+                    payees[index % len(payees)],
+                    amount,
+                    device,
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=True,
+                    campaign_id=plan.campaign_id,
+                    scheme=(self._choice(["p2p_alias", "p2p_iban"]), None, None),
+                )
+            )
         return drafts
 
     def _fraud_coordinated_beneficiary(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -1015,14 +1412,35 @@ class _Generator:
             failures = int(self.rng.integers(0, 3)) if new_device else 0
             method = self._auth_method(sender)
             session = self._session(sender, device, ts, method, failures, HOME_COUNTRY)
-            amount = self._must_fit(sender, ts, base * float(self.rng.uniform(0.5, 1.6) if subtle else self.rng.uniform(0.9, 1.1)))
-            drafts.append(self._draft(ts, sender, beneficiary, amount, device, session, method, HOME_COUNTRY,
-                                      fraud_type=plan.kind, is_anomaly=not subtle, campaign_id=plan.campaign_id,
-                                      scheme=("p2p_alias", None, None)))
+            amount = self._must_fit(
+                sender, ts, base * float(self.rng.uniform(0.5, 1.6) if subtle else self.rng.uniform(0.9, 1.1))
+            )
+            drafts.append(
+                self._draft(
+                    ts,
+                    sender,
+                    beneficiary,
+                    amount,
+                    device,
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=not subtle,
+                    campaign_id=plan.campaign_id,
+                    scheme=("p2p_alias", None, None),
+                )
+            )
         if self.rng.random() < 0.4:
             first = min(d.ts for d in drafts)
-            recorded = first - int(self.rng.integers(1_800, 2 * DAY_SECONDS)) if self.rng.random() < 0.6 else first + 900
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", beneficiary, recorded, recorded, None)
+            recorded = (
+                first - int(self.rng.integers(1_800, 2 * DAY_SECONDS))
+                if self.rng.random() < 0.6
+                else first + 900
+            )
+            self._add_evidence(
+                "fraud_controlled_beneficiary", "counterparty", beneficiary, recorded, recorded, None
+            )
         return drafts
 
     def _fraud_qr_code_tampering(self, plan: _Plan, day_start: int) -> list[Draft]:
@@ -1038,17 +1456,36 @@ class _Generator:
             method = self._choice(["biometric", "biometric", "password_otp"])
             session = self._session(customer, self.devices[customer][0], ts, method, 0, HOME_COUNTRY)
             amount = self._must_fit(customer, ts, float(np.exp(self.rng.normal(math.log(220), 0.5))))
-            drafts.append(self._draft(ts, customer, fraudster, amount, self.devices[customer][0], session, method,
-                                      HOME_COUNTRY, fraud_type=plan.kind, is_anomaly=False, campaign_id=plan.campaign_id,
-                                      scheme=("p2b_qr_static", None, merchant)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    customer,
+                    fraudster,
+                    amount,
+                    self.devices[customer][0],
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=False,
+                    campaign_id=plan.campaign_id,
+                    scheme=("p2b_qr_static", None, merchant),
+                )
+            )
         if self.rng.random() < 0.2 and len(drafts) > 1:
             recorded = min(d.ts for d in drafts) + int(self.rng.integers(HOUR, 3 * HOUR))
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", fraudster, recorded, recorded, None)
+            self._add_evidence(
+                "fraud_controlled_beneficiary", "counterparty", fraudster, recorded, recorded, None
+            )
         return drafts
 
     def _fraud_invoice_redirect(self, plan: _Plan, day_start: int) -> list[Draft]:
         """Test only. Businesses pay a brand-new fake supplier an ordinary invoice amount (b2b)."""
-        candidates = [a for a in self._active_accounts(day_start) if self._is_business(a) and not self.params[a].cold_start]
+        candidates = [
+            a
+            for a in self._active_accounts(day_start)
+            if self._is_business(a) and not self.params[a].cold_start
+        ]
         senders = [str(s) for s in self.rng.choice(candidates, size=plan.size, replace=False)]
         supplier = self._new_counterparty(day_start, 0.9, recent_alias=0.0)
         window = 6 * HOUR
@@ -1056,15 +1493,34 @@ class _Generator:
         drafts = []
         for sender in senders:
             p = self.params[sender]
-            slot = next((i for i, payee in enumerate(p.payees)
-                         if payee in self.cp and self.cp[payee].kind == "business" and payee not in self.biller_ids), 0)
+            slot = next(
+                (
+                    i
+                    for i, payee in enumerate(p.payees)
+                    if payee in self.cp and self.cp[payee].kind == "business" and payee not in self.biller_ids
+                ),
+                0,
+            )
             ts = start + int(self.rng.integers(0, window))
             method = self._choice(["password_otp", "biometric"])
             session = self._session(sender, self.devices[sender][0], ts, method, 0, HOME_COUNTRY)
             amount = self._must_fit(sender, ts, self._amount(sender, p.payee_factors[slot], 0.1))
-            drafts.append(self._draft(ts, sender, supplier, amount, self.devices[sender][0], session, method, HOME_COUNTRY,
-                                      fraud_type=plan.kind, is_anomaly=False, campaign_id=plan.campaign_id,
-                                      scheme=("b2b", None, None)))
+            drafts.append(
+                self._draft(
+                    ts,
+                    sender,
+                    supplier,
+                    amount,
+                    self.devices[sender][0],
+                    session,
+                    method,
+                    HOME_COUNTRY,
+                    fraud_type=plan.kind,
+                    is_anomaly=False,
+                    campaign_id=plan.campaign_id,
+                    scheme=("b2b", None, None),
+                )
+            )
         return drafts
 
     # -- unusual but legitimate -----------------------------------------
@@ -1078,13 +1534,28 @@ class _Generator:
         device = kw.get("device") or self.devices[sender][0]
         method = kw.get("method") or self._auth_method(sender)
         ip = kw.get("ip") or HOME_COUNTRY
-        session = kw.get("session") or self._session(sender, device, ts, method, kw.get("failures", 0), ip,
-                                                     kw.get("extra", ()))
+        session = kw.get("session") or self._session(
+            sender, device, ts, method, kw.get("failures", 0), ip, kw.get("extra", ())
+        )
         limits = self.limits.for_segment(self.params[sender].account_type)
         left = min(limits.per_day - self.day_spent[(sender, ts // DAY_SECONDS)], self._month_room(sender, ts))
-        amount = min(amount, left * 0.75)  # an ordinary customer keeps a margin below the daily and monthly limits
-        return self._draft(ts, sender, recipient, self._must_fit(sender, ts, amount), device, session, method, ip,
-                           anomaly_type=plan.kind, is_anomaly=True, campaign_id=plan.campaign_id, scheme=kw.get("scheme"))
+        amount = min(
+            amount, left * 0.75
+        )  # an ordinary customer keeps a margin below the daily and monthly limits
+        return self._draft(
+            ts,
+            sender,
+            recipient,
+            self._must_fit(sender, ts, amount),
+            device,
+            session,
+            method,
+            ip,
+            anomaly_type=plan.kind,
+            is_anomaly=True,
+            campaign_id=plan.campaign_id,
+            scheme=kw.get("scheme"),
+        )
 
     def _known_payee(self, sender: str) -> str:
         p = self.params[sender]
@@ -1093,8 +1564,17 @@ class _Generator:
             return self.biller_ids[0]
         return payee
 
-    def _series(self, plan: _Plan, day_start: int, sender: str, recipients: list[str], amounts: list[float],
-                spacing: tuple[int, int], night: float = 0.0, **kw: Any) -> list[Draft]:
+    def _series(
+        self,
+        plan: _Plan,
+        day_start: int,
+        sender: str,
+        recipients: list[str],
+        amounts: list[float],
+        spacing: tuple[int, int],
+        night: float = 0.0,
+        **kw: Any,
+    ) -> list[Draft]:
         ts = self._campaign_start(day_start, len(amounts) * spacing[1], night_bias=night)
         limits = self.limits.for_segment(self.params[sender].account_type)
         room = min(limits.per_day - self.day_spent[(sender, ts // DAY_SECONDS)], self._month_room(sender, ts))
@@ -1111,7 +1591,11 @@ class _Generator:
         ts = self._clamp(day_start + self._hour_offset(sender), day_start)
         recipient = self._known_payee(sender) if self.rng.random() < 0.4 else self._new_counterparty(ts, 0.9)
         amount = min(self._cap(sender), self._room(sender, ts)) * float(self.rng.uniform(0.88, 0.9995))
-        return [self._legit(ts, sender, recipient, amount, plan, method=self._choice(["password_otp", "biometric"]))]
+        return [
+            self._legit(
+                ts, sender, recipient, amount, plan, method=self._choice(["password_otp", "biometric"])
+            )
+        ]
 
     def _unusual_limit_increase_then_large_payment(self, plan: _Plan, day_start: int) -> list[Draft]:
         sender = self._victim(day_start, needed=4_999)
@@ -1121,7 +1605,9 @@ class _Generator:
         session = self._session(sender, self.devices[sender][0], ts, method, 0, HOME_COUNTRY, extra)
         drafts = []
         for index in range(plan.size):
-            recipient = self._known_payee(sender) if self.rng.random() < 0.5 else self._new_counterparty(ts, 0.8)
+            recipient = (
+                self._known_payee(sender) if self.rng.random() < 0.5 else self._new_counterparty(ts, 0.8)
+            )
             amount = min(self._cap(sender), self._room(sender, ts)) * float(self.rng.uniform(0.8, 0.9995))
             drafts.append(self._legit(ts, sender, recipient, amount, plan, method=method, session=session))
             ts = self._clamp(ts + int(self.rng.integers(600, 3_600)), day_start)
@@ -1137,8 +1623,18 @@ class _Generator:
         session = self._session(sender, device, ts, method, failures, HOME_COUNTRY)
         drafts = []
         for _ in range(plan.size):
-            drafts.append(self._legit(ts, sender, self._known_payee(sender), self._amount(sender), plan,
-                                      device=device, method=method, session=session))
+            drafts.append(
+                self._legit(
+                    ts,
+                    sender,
+                    self._known_payee(sender),
+                    self._amount(sender),
+                    plan,
+                    device=device,
+                    method=method,
+                    session=session,
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(120, 2_400)), day_start)
         return drafts
 
@@ -1146,10 +1642,14 @@ class _Generator:
         sender = self._victim(day_start)
         ip = self._foreign_country()
         device = self.devices[sender][0] if self.rng.random() < 0.7 else self._new_device()
-        recipients = [self._new_counterparty(day_start, 0.95) if self.rng.random() < 0.5 else self._known_payee(sender)
-                      for _ in range(plan.size)]
+        recipients = [
+            self._new_counterparty(day_start, 0.95) if self.rng.random() < 0.5 else self._known_payee(sender)
+            for _ in range(plan.size)
+        ]
         amounts = [self._amount(sender, float(self.rng.uniform(0.6, 3.0))) for _ in range(plan.size)]
-        return self._series(plan, day_start, sender, recipients, amounts, (1_200, 5_400), night=0.3, device=device, ip=ip)
+        return self._series(
+            plan, day_start, sender, recipients, amounts, (1_200, 5_400), night=0.3, device=device, ip=ip
+        )
 
     def _unusual_payroll_burst(self, plan: _Plan, day_start: int) -> list[Draft]:
         businesses = [a for a in self._active_accounts(day_start) if self._is_business(a)]
@@ -1165,15 +1665,28 @@ class _Generator:
             recipient = employees[index]
             if recipient.startswith("ACC-") and self.params[recipient].created_at > ts:
                 recipient = employees[index] = self._new_counterparty(ts, 0.0)
-            drafts.append(self._legit(self._clamp(ts, day_start), sender, recipient,
-                                      round(float(self.rng.uniform(6_000, 20_000)), 2), plan, method=method,
-                                      session=session, scheme=("b2p_salary", None, None)))
+            drafts.append(
+                self._legit(
+                    self._clamp(ts, day_start),
+                    sender,
+                    recipient,
+                    round(float(self.rng.uniform(6_000, 20_000)), 2),
+                    plan,
+                    method=method,
+                    session=session,
+                    scheme=("b2p_salary", None, None),
+                )
+            )
             ts += int(self.rng.integers(20, 240))
         return drafts
 
     def _unusual_salary_day_spike(self, plan: _Plan, day_start: int) -> list[Draft]:
         dom = datetime.fromtimestamp(day_start, UTC).day
-        paid = [a for a in self._active_accounts(day_start) if not self._is_business(a) and dom in self.params[a].paydays]
+        paid = [
+            a
+            for a in self._active_accounts(day_start)
+            if not self._is_business(a) and dom in self.params[a].paydays
+        ]
         paid = self._with_room(paid, day_start, 3_000.0)
         sender = self._choice(paid) if paid else self._victim(day_start)
         recipients = [self._known_payee(sender) for _ in range(plan.size)]
@@ -1186,10 +1699,20 @@ class _Generator:
         remitter = p.remitter or self._choice([c for c in self.cp if c.startswith("CP-R")])
         start = self._campaign_start(day_start, 6 * HOUR)
         received = round(float(np.exp(self.rng.normal(math.log(6_000), 0.4))), 2)
-        self.credits.append(Credit(start - int(self.rng.integers(HOUR, 4 * HOUR)), remitter, sender, received,
-                                   "remittance_in", plan.campaign_id))
-        recipients = [self._known_payee(sender) if self.rng.random() < 0.5 else self._new_counterparty(start, 0.7)
-                      for _ in range(plan.size)]
+        self.credits.append(
+            Credit(
+                start - int(self.rng.integers(HOUR, 4 * HOUR)),
+                remitter,
+                sender,
+                received,
+                "remittance_in",
+                plan.campaign_id,
+            )
+        )
+        recipients = [
+            self._known_payee(sender) if self.rng.random() < 0.5 else self._new_counterparty(start, 0.7)
+            for _ in range(plan.size)
+        ]
         amounts = [received * float(self.rng.uniform(0.15, 0.4)) for _ in range(plan.size)]
         return self._series(plan, day_start, sender, recipients, amounts, (900, 5_400))
 
@@ -1199,15 +1722,22 @@ class _Generator:
         start = self._campaign_start(day_start, 5 * HOUR)
         amount = float(self.rng.uniform(100, 500))
         return [
-            self._legit(self._clamp(start + int(self.rng.integers(0, 5 * HOUR)), day_start), sender, recipient,
-                        round(amount * float(self.rng.uniform(0.95, 1.05)), 2), plan)
+            self._legit(
+                self._clamp(start + int(self.rng.integers(0, 5 * HOUR)), day_start),
+                sender,
+                recipient,
+                round(amount * float(self.rng.uniform(0.95, 1.05)), 2),
+                plan,
+            )
             for sender in senders
         ]
 
     def _unusual_holiday_spike(self, plan: _Plan, day_start: int) -> list[Draft]:
         sender = self._victim(day_start, needed=2_000)
-        recipients = [self._new_counterparty(day_start, 0.6) if self.rng.random() < 0.5 else self._known_payee(sender)
-                      for _ in range(plan.size)]
+        recipients = [
+            self._new_counterparty(day_start, 0.6) if self.rng.random() < 0.5 else self._known_payee(sender)
+            for _ in range(plan.size)
+        ]
         amounts = [self._amount(sender, float(self.rng.uniform(2.0, 6.0))) for _ in range(plan.size)]
         return self._series(plan, day_start, sender, recipients, amounts, (900, 4_800))
 
@@ -1223,8 +1753,16 @@ class _Generator:
         while self.cp[merchant].category not in QR_CATEGORIES:
             merchant = self._new_counterparty(ts, 1.0)
         scheme = self._choice(["p2b_qr_static", "p2b_qr_dynamic"], [0.6, 0.4])
-        return [self._legit(ts, sender, merchant, self._amount(sender, float(self.rng.uniform(0.5, 2.5))), plan,
-                            scheme=(scheme, None, merchant))]
+        return [
+            self._legit(
+                ts,
+                sender,
+                merchant,
+                self._amount(sender, float(self.rng.uniform(0.5, 2.5))),
+                plan,
+                scheme=(scheme, None, merchant),
+            )
+        ]
 
     def _unusual_legit_alias_change(self, plan: _Plan, day_start: int) -> list[Draft]:
         """A customer moves MIA to a new phone number; half also start on a new phone."""
@@ -1239,11 +1777,23 @@ class _Generator:
             device = self._new_device()
             self.devices[sender] = [device] + self.devices[sender][:1]
         method = self._choice(["otp", "password_otp", "biometric"])
-        session = self._session(sender, device, ts, method, 0, HOME_COUNTRY, ((rebound, "alias_rebound", "number_changed"),))
+        session = self._session(
+            sender, device, ts, method, 0, HOME_COUNTRY, ((rebound, "alias_rebound", "number_changed"),)
+        )
         drafts = []
         for _ in range(plan.size):
-            drafts.append(self._legit(ts, sender, self._known_payee(sender), self._amount(sender), plan, device=device,
-                                      method=method, session=session))
+            drafts.append(
+                self._legit(
+                    ts,
+                    sender,
+                    self._known_payee(sender),
+                    self._amount(sender),
+                    plan,
+                    device=device,
+                    method=method,
+                    session=session,
+                )
+            )
             ts = self._clamp(ts + int(self.rng.integers(300, 3_600)), day_start)
         return drafts
 
@@ -1258,7 +1808,9 @@ class _Generator:
         sender = self._choice(businesses)
         recipient = self._known_payee(sender)
         amounts = [self._amount(sender, float(self.rng.uniform(3, 10)), 0.2) for _ in range(plan.size)]
-        return self._series(plan, day_start, sender, [recipient] * plan.size, amounts, (300, 3_600), method="password_otp")
+        return self._series(
+            plan, day_start, sender, [recipient] * plan.size, amounts, (300, 3_600), method="password_otp"
+        )
 
     # -- never-block fixtures and administrative events -----------------
     def evidence_fixtures(self, first_ts: int, last_ts: int) -> dict[str, int]:
@@ -1266,21 +1818,59 @@ class _Generator:
         counts: dict[str, int] = defaultdict(int)
         billers = self.biller_ids
         for index in range(2):
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", billers[index], first_ts - 40 * DAY_SECONDS,
-                               first_ts - 40 * DAY_SECONDS, first_ts - 5 * DAY_SECONDS, fixture=True)
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                billers[index],
+                first_ts - 40 * DAY_SECONDS,
+                first_ts - 40 * DAY_SECONDS,
+                first_ts - 5 * DAY_SECONDS,
+                fixture=True,
+            )
             counts["expired"] += 1
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", billers[index + 2],
-                               first_ts - 20 * DAY_SECONDS, first_ts - 20 * DAY_SECONDS, None, status="retracted",
-                               source=TRUSTED_SOURCES[1], fixture=True)
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                billers[index + 2],
+                first_ts - 20 * DAY_SECONDS,
+                first_ts - 20 * DAY_SECONDS,
+                None,
+                status="retracted",
+                source=TRUSTED_SOURCES[1],
+                fixture=True,
+            )
             counts["retracted"] += 1
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", billers[index + 4], last_ts + 3 * DAY_SECONDS,
-                               first_ts, None, fixture=True)
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                billers[index + 4],
+                last_ts + 3 * DAY_SECONDS,
+                first_ts,
+                None,
+                fixture=True,
+            )
             counts["future_recorded"] += 1
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", billers[index + 6], first_ts - DAY_SECONDS,
-                               first_ts - DAY_SECONDS, None, status="pending_review", fixture=True)
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                billers[index + 6],
+                first_ts - DAY_SECONDS,
+                first_ts - DAY_SECONDS,
+                None,
+                status="pending_review",
+                fixture=True,
+            )
             counts["pending_review"] += 1
-            self._add_evidence("fraud_controlled_beneficiary", "counterparty", billers[index + 8], first_ts - DAY_SECONDS,
-                               first_ts - DAY_SECONDS, None, source=UNTRUSTED_SOURCE, fixture=True)
+            self._add_evidence(
+                "fraud_controlled_beneficiary",
+                "counterparty",
+                billers[index + 8],
+                first_ts - DAY_SECONDS,
+                first_ts - DAY_SECONDS,
+                None,
+                source=UNTRUSTED_SOURCE,
+                fixture=True,
+            )
             counts["untrusted_source"] += 1
         return dict(counts)
 
@@ -1292,9 +1882,16 @@ class _Generator:
             draft = legit[index]
             session = self.sessions[draft.session]
             success = next(e["timestamp"] for e in session.events if e["event_type"] == "login_success")
-            session.events.append(self._auth_event(success - int(self.rng.integers(30, 600)), "session_revoked",
-                                                   draft.auth_method, draft.ip_country, draft.device,
-                                                   "administrative_logout"))
+            session.events.append(
+                self._auth_event(
+                    success - int(self.rng.integers(30, 600)),
+                    "session_revoked",
+                    draft.auth_method,
+                    draft.ip_country,
+                    draft.device,
+                    "administrative_logout",
+                )
+            )
         return len(picks)
 
 
@@ -1369,9 +1966,15 @@ def _plan(spec: DatasetSpec, rng: np.random.Generator) -> list[_Plan]:
             for size in _split_total(rng, total, *FRAUD_SIZES[kind]):
                 counter += 1
                 # structuring sends at most two near-cap payments per day, so it needs ceil(size / 2) days
-                need = {"limit_structuring": (size + 1) // 2, "investment_scam": size, "romance_scam": size}.get(kind, 1)
+                need = {
+                    "limit_structuring": (size + 1) // 2,
+                    "investment_scam": size,
+                    "romance_scam": size,
+                }.get(kind, 1)
                 usable = days[: max(1, len(days) - need + 1)]
-                plans.append(_Plan(kind, True, int(rng.choice(usable)), partition.last_day, size, f"CMP-{counter:04d}"))
+                plans.append(
+                    _Plan(kind, True, int(rng.choice(usable)), partition.last_day, size, f"CMP-{counter:04d}")
+                )
         remaining = spec.anomalies[partition.name]
         while remaining > 0:
             kind = ANOMALY_TYPES[int(rng.choice(len(ANOMALY_TYPES), p=ANOMALY_WEIGHTS))]
@@ -1402,8 +2005,10 @@ def sha256_file(path: Path) -> str:
 
 
 def row_fingerprint(row: dict[str, Any]) -> str:
-    material = (f"{row['timestamp']}|{row['sender_id']}|{row['recipient_id']}|{float(row['amount']):.2f}|"
-                f"{row.get('device_id')}|{row['payment_scheme']}")
+    material = (
+        f"{row['timestamp']}|{row['sender_id']}|{row['recipient_id']}|{float(row['amount']):.2f}|"
+        f"{row.get('device_id')}|{row['payment_scheme']}"
+    )
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -1417,8 +2022,9 @@ def write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         handle.write("]\n")
 
 
-def generate_dataset(storage_dir: Path, manifest_path: Path, spec: DatasetSpec = MIA_SPEC,
-                     limits: MiaLimits = MIA_LIMITS) -> dict[str, Any]:
+def generate_dataset(
+    storage_dir: Path, manifest_path: Path, spec: DatasetSpec = MIA_SPEC, limits: MiaLimits = MIA_LIMITS
+) -> dict[str, Any]:
     """Generate train/validation/test JSON files into `storage_dir` and the manifest; return the manifest."""
     storage_dir.mkdir(parents=True, exist_ok=True)
     gen = _Generator(spec, limits)
@@ -1433,7 +2039,7 @@ def generate_dataset(storage_dir: Path, manifest_path: Path, spec: DatasetSpec =
         start = day_start_ts(spec.start, day)
         gen.incoming_credits(day, start)
         for plan in by_day.get(day, []):
-            for draft in (gen.fraud(plan, start) if plan.is_fraud else gen.unusual(plan, start)):
+            for draft in gen.fraud(plan, start) if plan.is_fraud else gen.unusual(plan, start):
                 pending[gen._day_number(draft.ts)].append(draft)
         scheduled = pending.pop(day, [])
         routine_count = spec.payments_per_day - len(scheduled)
@@ -1462,15 +2068,23 @@ def generate_dataset(storage_dir: Path, manifest_path: Path, spec: DatasetSpec =
 def _party(gen: _Generator, party_id: str, ts: int) -> dict[str, Any]:
     if party_id in gen.account_by_id:
         account = gen.account_by_id[party_id]
-        return {"type": "account", "name": account.display_name, "kind": "business" if gen._is_business(party_id) else "person",
-                "category": "business_account" if gen._is_business(party_id) else "individual"}
+        return {
+            "type": "account",
+            "name": account.display_name,
+            "kind": "business" if gen._is_business(party_id) else "person",
+            "category": "business_account" if gen._is_business(party_id) else "individual",
+        }
     cp = gen.cp[party_id]
     return {"type": "counterparty", "name": cp.display_name, "kind": cp.kind, "category": cp.category}
 
 
 def _rows(spec: DatasetSpec, gen: _Generator, drafts: list[Draft]) -> dict[str, list[dict[str, Any]]]:
     # Stable global numbering of authentication events.
-    all_events = [(e["timestamp"], sid, AUTH_RANK[e["event_type"]], e) for sid, s in gen.sessions.items() for e in s.events]
+    all_events = [
+        (e["timestamp"], sid, AUTH_RANK[e["event_type"]], e)
+        for sid, s in gen.sessions.items()
+        for e in s.events
+    ]
     all_events.sort(key=lambda item: (item[0], item[1], item[2]))
     for number, (_, _, _, event) in enumerate(all_events, start=1):
         event["event_id"] = f"AE-{number:07d}"
@@ -1479,8 +2093,13 @@ def _rows(spec: DatasetSpec, gen: _Generator, drafts: list[Draft]) -> dict[str, 
         evidence_by_subject[(item["subject_type"], item["subject_id"])].append(item)
 
     def evidence_rows(draft: Draft) -> list[dict[str, Any]]:
-        subjects = (("session", draft.session), ("device", draft.device), ("account", draft.sender),
-                    ("counterparty", draft.recipient), ("account", draft.recipient))
+        subjects = (
+            ("session", draft.session),
+            ("device", draft.device),
+            ("account", draft.sender),
+            ("counterparty", draft.recipient),
+            ("account", draft.recipient),
+        )
         found = {e["evidence_id"]: e for s in subjects for e in evidence_by_subject.get(s, ())}
         return [_evidence_row(found[k]) for k in sorted(found)]
 
@@ -1496,26 +2115,55 @@ def _rows(spec: DatasetSpec, gen: _Generator, drafts: list[Draft]) -> dict[str, 
         recipient = _party(gen, d.recipient, d.ts)
         account = gen.account_by_id[d.sender]
         alias, registered = alias_info(d.recipient)
-        events = sorted((e for e in gen.sessions[d.session].events if e["timestamp"] < d.ts),
-                        key=lambda e: (e["timestamp"], AUTH_RANK[e["event_type"]]))
+        events = sorted(
+            (e for e in gen.sessions[d.session].events if e["timestamp"] < d.ts),
+            key=lambda e: (e["timestamp"], AUTH_RANK[e["event_type"]]),
+        )
         row = {
-            "timestamp": iso(d.ts), "transfer_type": INSTANT_TRANSFER, "payment_scheme": d.scheme, "assessed": True,
-            "amount": d.amount, "currency": CURRENCY,
-            "sender_id": d.sender, "sender_type": account.account_type, "sender_name": account.display_name,
-            "sender_alias": d.sender_alias, "sender_home_country": account.home_country,
+            "timestamp": iso(d.ts),
+            "transfer_type": INSTANT_TRANSFER,
+            "payment_scheme": d.scheme,
+            "assessed": True,
+            "amount": d.amount,
+            "currency": CURRENCY,
+            "sender_id": d.sender,
+            "sender_type": account.account_type,
+            "sender_name": account.display_name,
+            "sender_alias": d.sender_alias,
+            "sender_home_country": account.home_country,
             "sender_created_at": iso(gen.params[d.sender].created_at),
-            "recipient_id": d.recipient, "recipient_type": recipient["type"], "recipient_name": recipient["name"],
-            "recipient_alias": alias, "recipient_kind": recipient["kind"], "recipient_category": recipient["category"],
+            "recipient_id": d.recipient,
+            "recipient_type": recipient["type"],
+            "recipient_name": recipient["name"],
+            "recipient_alias": alias,
+            "recipient_kind": recipient["kind"],
+            "recipient_category": recipient["category"],
             "alias_registered_at": registered,
-            "channel": d.channel, "device_id": d.device, "session_id": d.session, "auth_method": d.auth_method,
+            "channel": d.channel,
+            "device_id": d.device,
+            "session_id": d.session,
+            "auth_method": d.auth_method,
             "ip_country": d.ip_country,
-            "session_events": [{"event_id": e["event_id"], "timestamp": iso(e["timestamp"]), "event_type": e["event_type"],
-                                "auth_method": e["auth_method"], "ip_country": e["ip_country"],
-                                "device_id": e["device_id"], "reason": e["reason"]} for e in events],
-            "request_to_pay_id": d.rtp_id, "qr_payload_merchant_id": d.qr_merchant,
+            "session_events": [
+                {
+                    "event_id": e["event_id"],
+                    "timestamp": iso(e["timestamp"]),
+                    "event_type": e["event_type"],
+                    "auth_method": e["auth_method"],
+                    "ip_country": e["ip_country"],
+                    "device_id": e["device_id"],
+                    "reason": e["reason"],
+                }
+                for e in events
+            ],
+            "request_to_pay_id": d.rtp_id,
+            "qr_payload_merchant_id": d.qr_merchant,
             "security_evidence": evidence_rows(d),
-            "is_fraud": d.fraud_type is not None, "is_anomaly": d.is_anomaly, "fraud_type": d.fraud_type,
-            "anomaly_type": d.anomaly_type, "campaign_id": d.campaign_id,
+            "is_fraud": d.fraud_type is not None,
+            "is_anomaly": d.is_anomaly,
+            "fraud_type": d.fraud_type,
+            "anomaly_type": d.anomaly_type,
+            "campaign_id": d.campaign_id,
         }
         entries.append(((d.ts, 1, d.sender, d.recipient, d.amount, d.session), row))
     for c in gen.credits:
@@ -1523,17 +2171,38 @@ def _rows(spec: DatasetSpec, gen: _Generator, drafts: list[Draft]) -> dict[str, 
         account = gen.account_by_id[c.recipient]
         alias, registered = alias_info(c.recipient)
         row = {
-            "timestamp": iso(c.ts), "transfer_type": INSTANT_TRANSFER, "payment_scheme": c.scheme, "assessed": False,
-            "amount": c.amount, "currency": CURRENCY,
-            "sender_id": c.sender, "sender_type": "external", "sender_name": payer.display_name,
-            "sender_alias": payer.alias, "sender_home_country": payer.home_country, "sender_created_at": None,
-            "recipient_id": c.recipient, "recipient_type": "account", "recipient_name": account.display_name,
-            "recipient_alias": alias, "recipient_kind": "business" if gen._is_business(c.recipient) else "person",
+            "timestamp": iso(c.ts),
+            "transfer_type": INSTANT_TRANSFER,
+            "payment_scheme": c.scheme,
+            "assessed": False,
+            "amount": c.amount,
+            "currency": CURRENCY,
+            "sender_id": c.sender,
+            "sender_type": "external",
+            "sender_name": payer.display_name,
+            "sender_alias": payer.alias,
+            "sender_home_country": payer.home_country,
+            "sender_created_at": None,
+            "recipient_id": c.recipient,
+            "recipient_type": "account",
+            "recipient_name": account.display_name,
+            "recipient_alias": alias,
+            "recipient_kind": "business" if gen._is_business(c.recipient) else "person",
             "recipient_category": "business_account" if gen._is_business(c.recipient) else "individual",
             "alias_registered_at": registered,
-            "channel": None, "device_id": None, "session_id": None, "auth_method": None, "ip_country": None,
-            "session_events": [], "request_to_pay_id": None, "qr_payload_merchant_id": None, "security_evidence": [],
-            "is_fraud": False, "is_anomaly": False, "fraud_type": None, "anomaly_type": None,
+            "channel": None,
+            "device_id": None,
+            "session_id": None,
+            "auth_method": None,
+            "ip_country": None,
+            "session_events": [],
+            "request_to_pay_id": None,
+            "qr_payload_merchant_id": None,
+            "security_evidence": [],
+            "is_fraud": False,
+            "is_anomaly": False,
+            "fraud_type": None,
+            "anomaly_type": None,
             "campaign_id": c.campaign_id,
         }
         entries.append(((c.ts, 0, c.sender, c.recipient, c.amount, ""), row))
@@ -1549,16 +2218,28 @@ def _rows(spec: DatasetSpec, gen: _Generator, drafts: list[Draft]) -> dict[str, 
 
 def _evidence_row(item: dict[str, Any]) -> dict[str, Any]:
     return {
-        "evidence_id": item["evidence_id"], "evidence_type": item["evidence_type"], "subject_type": item["subject_type"],
-        "subject_id": item["subject_id"], "status": item["status"], "source": item["source"],
-        "source_trust": item["source_trust"], "recorded_at": iso(item["recorded_at"]),
+        "evidence_id": item["evidence_id"],
+        "evidence_type": item["evidence_type"],
+        "subject_type": item["subject_type"],
+        "subject_id": item["subject_id"],
+        "status": item["status"],
+        "source": item["source"],
+        "source_trust": item["source_trust"],
+        "recorded_at": iso(item["recorded_at"]),
         "effective_at": iso(item["effective_at"]),
         "expires_at": iso(item["expires_at"]) if item["expires_at"] is not None else None,
     }
 
 
-def _manifest(spec: DatasetSpec, limits: MiaLimits, gen: _Generator, rows: dict[str, list[dict[str, Any]]],
-              paths: dict[str, Path], fixtures: dict[str, int], revocations: int) -> dict[str, Any]:
+def _manifest(
+    spec: DatasetSpec,
+    limits: MiaLimits,
+    gen: _Generator,
+    rows: dict[str, list[dict[str, Any]]],
+    paths: dict[str, Path],
+    fixtures: dict[str, int],
+    revocations: int,
+) -> dict[str, Any]:
     partitions = {}
     for partition in spec.partitions:
         part_rows = rows[partition.name]

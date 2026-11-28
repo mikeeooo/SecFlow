@@ -32,19 +32,32 @@ def risk(total: float) -> RiskBreakdown:
     return RiskBreakdown(total, {"isolation_forest": total, "lof": 0.0, "dbscan": 0.0, "rules": 0.0})
 
 
-def decide(total: float, rules: RuleResult = NO_RULES, evidence=(), status: str = "assessed", *, policy) -> str:
+def decide(
+    total: float, rules: RuleResult = NO_RULES, evidence=(), status: str = "assessed", *, policy
+) -> str:
     return decide_action(risk(total), rules, evidence, status, POINT, policy).decision
 
 
 def evidence(**changes) -> SecurityEvidence:
-    base = {"evidence_id": "EV-1", "evidence_type": "compromised_session", "entity_type": "session",
-                "entity_id": "S-R1", "source": "bank_security_operations", "recorded_at": T0 - 60, "effective_from": T0 - 60,
-                "effective_until": None, "status_history": ((T0 - 60, "confirmed"),), "note": ""}
+    base = {
+        "evidence_id": "EV-1",
+        "evidence_type": "compromised_session",
+        "entity_type": "session",
+        "entity_id": "S-R1",
+        "source": "bank_security_operations",
+        "recorded_at": T0 - 60,
+        "effective_from": T0 - 60,
+        "effective_until": None,
+        "status_history": ((T0 - 60, "confirmed"),),
+        "note": "",
+    }
     return SecurityEvidence(**{**base, **changes})
 
 
 def test_risk_is_the_weighted_sum_of_the_components(policy) -> None:
-    breakdown = combine_scores({"isolation_forest": 0.8, "lof": 0.4, "dbscan": 1.0, "rules": 0.5}, policy.weights)
+    breakdown = combine_scores(
+        {"isolation_forest": 0.8, "lof": 0.4, "dbscan": 1.0, "rules": 0.5}, policy.weights
+    )
     assert breakdown.total == pytest.approx(100 * (0.65 * 0.8 + 0.05 * 0.4 + 0.0 * 1.0 + 0.30 * 0.5))
     assert sum(breakdown.contributions.values()) == pytest.approx(breakdown.total)
 
@@ -67,13 +80,17 @@ def test_trusted_evidence_blocks_even_a_low_score(policy) -> None:
     assert (result.decision, result.decision_source) == ("Block", "confirmed_fraud_evidence")
 
 
-@pytest.mark.parametrize("item", [
-    evidence(source="external_tip_feed"),
-    evidence(recorded_at=T0 + 60),
-    evidence(effective_until=T0 - 1),
-    evidence(status_history=((T0 - 60, "confirmed"), (T0 - 30, "retracted"))),
-    evidence(status_history=((T0 - 60, "pending_review"),)),
-], ids=["untrusted", "recorded_later", "expired", "retracted", "pending"])
+@pytest.mark.parametrize(
+    "item",
+    [
+        evidence(source="external_tip_feed"),
+        evidence(recorded_at=T0 + 60),
+        evidence(effective_until=T0 - 1),
+        evidence(status_history=((T0 - 60, "confirmed"), (T0 - 30, "retracted"))),
+        evidence(status_history=((T0 - 60, "pending_review"),)),
+    ],
+    ids=["untrusted", "recorded_later", "expired", "retracted", "pending"],
+)
 def test_inactive_or_untrusted_evidence_never_blocks(policy, item: SecurityEvidence) -> None:
     store = EvidenceStore([item], policy.trusted_sources, policy.blocking_types)
     assert store.active_for(request("R1", T0)) == []
@@ -87,18 +104,36 @@ def test_a_sender_without_history_is_verified_unless_small_and_strongly_authenti
 
 
 def test_rules_of_one_family_corroborate_once(policy) -> None:
-    facts = {"amount": 100.0, "auth_failures_24h": 4, "device_change": True, "device_age_hours": 1.0,
-             "foreign_ip": False, "requests_1h": 0, "requests_24h": 0, "unique_recipients_24h": 0,
-             "new_recipient": False, "recipient_senders_24h": 0}
+    facts = {
+        "amount": 100.0,
+        "auth_failures_24h": 4,
+        "device_change": True,
+        "device_age_hours": 1.0,
+        "foreign_ip": False,
+        "requests_1h": 0,
+        "requests_24h": 0,
+        "unique_recipients_24h": 0,
+        "new_recipient": False,
+        "recipient_senders_24h": 0,
+    }
     result = evaluate_rules(facts, "sufficient", policy)
     assert {"NEW_DEVICE_AFTER_FAILED_LOGINS", "REPEATED_FAILED_LOGINS"} <= {t.code for t in result.triggered}
     assert result.corroborating_families == ("compromised_access",)
 
 
 def test_history_based_rules_stay_silent_without_history(policy) -> None:
-    facts = {"amount": 4_000.0, "amount_zscore_30d": None, "auth_failures_24h": 0, "device_change": True,
-             "foreign_ip": False, "requests_1h": 0, "requests_24h": 0, "unique_recipients_24h": 0,
-             "new_recipient": True, "recipient_senders_24h": 0}
+    facts = {
+        "amount": 4_000.0,
+        "amount_zscore_30d": None,
+        "auth_failures_24h": 0,
+        "device_change": True,
+        "foreign_ip": False,
+        "requests_1h": 0,
+        "requests_24h": 0,
+        "unique_recipients_24h": 0,
+        "new_recipient": True,
+        "recipient_senders_24h": 0,
+    }
     codes = {t.code for t in evaluate_rules(facts, "none", policy).triggered}
     assert not codes & {"NEW_DEVICE", "NEW_BENEFICIARY", "AMOUNT_SPIKE", "NEW_BENEFICIARY_HIGH_AMOUNT"}
 
@@ -111,7 +146,9 @@ def test_array_decisions_match_the_decision_table(policy) -> None:
     for total, n, bad, code in zip(totals, families, unsafe, codes, strict=True):
         rules = RuleResult(0.0, (), tuple(f"f{i}" for i in range(n)))
         status = "insufficient_history" if bad else "assessed"
-        assert {"Permit": 0, "Verify": 1, "Block": 2}[decide(total, rules, status=status, policy=policy)] == code
+        assert {"Permit": 0, "Verify": 1, "Block": 2}[
+            decide(total, rules, status=status, policy=policy)
+        ] == code
 
 
 def test_policy_weights_must_sum_to_one(tmp_path: Path) -> None:
