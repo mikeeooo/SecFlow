@@ -33,7 +33,7 @@ describe("Live Transfers", () => {
       return { body: { policy: { operating_point: { verify: 61, block: 97, source: "validated", weights: { isolation_forest: 0.8, lof: 0.05, dbscan: 0, rules: 0.15 }, segments: { personal: { verify: 61, block: 97 }, business: { verify: 70, block: 98 } } } } } };
     });
     renderAt(<LiveTransfersPage />);
-    await waitFor(() => expect(screen.getAllByText(/Amara Okafor/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/Ion Rusu/).length).toBeGreaterThan(0));
     expect(screen.getAllByRole("button", { pressed: true })).toHaveLength(1);
     expect(await screen.findByText("Stream running")).toBeInTheDocument();
   });
@@ -73,6 +73,6 @@ describe("Live Transfers", () => {
     expect(await screen.findByText(/Live updates are unavailable/)).toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(2_100); });
     await waitFor(() => expect(screen.queryByText(/Live updates are unavailable/)).not.toBeInTheDocument());
-    expect(screen.getAllByText(/Harbor Lane Utilities/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Valea Verde Utilities/).length).toBeGreaterThan(0);
   });
 });

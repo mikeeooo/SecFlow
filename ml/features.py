@@ -6,6 +6,11 @@ aggregates. The DBSCAN account-context profile is *prospective*: it summarises t
 trailing 24 hours of history plus the request under assessment, as a separate block.
 
 Identifiers, names, labels, scenarios and generator parameters are never numeric inputs.
+
+features-2.0.0 adds MIA Plati Instant features: the amount and today's cumulative outflow relative
+to the MIA limits of the sender's segment, near-cap payments in 24 hours, the age of the latest
+alias rebind (SIM swap or number change), Request-to-Pay and QR-merchant-mismatch flags, and
+whether the sender has used this payment scheme before.
 """
 
 from __future__ import annotations
@@ -15,10 +20,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from storage.history import HistoryIndex
-from storage.records import KEY_SCALE, Account, PaymentRequest
+from config.limits import MIA_LIMITS
+from datagen.records import KEY_SCALE, QR_SCHEMES, Account, PaymentRequest
+from ml.history import HistoryIndex
 
-FEATURE_VERSION = "features-1.1.0"
+FEATURE_VERSION = "features-2.0.0"
 HOUR = 3_600
 DAY = 86_400
 WINDOW_30D = 30 * DAY
@@ -26,6 +32,8 @@ WINDOW_7D = 7 * DAY
 MAX_GAP_HOURS = 720.0
 SUFFICIENT_HISTORY = 5
 CONTEXT_MIN_HISTORY = 3
+NEAR_CAP_RATIO = 0.9  # a payment at or above 90% of the per-transaction limit counts as near the cap
+MAX_ALIAS_AGE_HOURS = 720.0
 
 PAYMENT_FEATURES: tuple[str, ...] = (
     "log_amount",
@@ -52,6 +60,13 @@ PAYMENT_FEATURES: tuple[str, ...] = (
     "log_recipient_inbound_24h",
     "pair_requests_24h",
     "recipient_new_global",
+    "amount_to_tx_cap_ratio",
+    "daily_cumulative_to_cap_ratio",
+    "near_cap_count_24h",
+    "alias_rebound_age_hours",
+    "is_request_to_pay",
+    "qr_merchant_mismatch",
+    "scheme_novelty",
 )
 
 CONTEXT_FEATURES: tuple[str, ...] = (
@@ -191,6 +206,31 @@ def build_features(
     # Earlier payments by this sender to this recipient in 24 h, counted only while the relationship is new.
     pair_requests24 = recipients24.count(request.recipient_id) if new_recipient else 0
 
+    # -- MIA features ----------------------------------------------------------------------
+    segment = "business" if account is not None and account.account_type == "business" else "personal"
+    limits = MIA_LIMITS.for_segment(segment)
+    cap_ratio = amount / limits.per_transaction
+    day_start = t - t % DAY
+    today_before = 0.0
+    near_cap24 = 0
+    if sender is not None:
+        lo_day, hi_day = HistoryIndex.window(sender.keys, _key_at(day_start), key)
+        today_before = sender.cum_amount[hi_day] - sender.cum_amount[lo_day]
+        lo24, hi24 = HistoryIndex.window(sender.keys, _key_at(t - DAY), key)
+        near_cap24 = sum(1 for a in sender.amounts[lo24:hi24] if a >= NEAR_CAP_RATIO * limits.per_transaction)
+    daily_ratio = (today_before + amount) / limits.per_day
+    rebound_key = HistoryIndex.last_before(auth.alias_rebounds, key) if auth is not None else None
+    alias_rebound_hours = (t - rebound_key // KEY_SCALE) / HOUR if rebound_key is not None else None
+    limit_key = HistoryIndex.last_before(auth.limit_changes, key) if auth is not None else None
+    limit_changed_hours = (t - limit_key // KEY_SCALE) / HOUR if limit_key is not None else None
+    is_rtp = request.payment_scheme == "request_to_pay"
+    qr_mismatch = request.payment_scheme in QR_SCHEMES and request.qr_payload_merchant_id not in (None, request.recipient_id)
+    scheme_first = history.first_scheme_key(request.sender_id, request.payment_scheme)
+    scheme_novelty = prior_total > 0 and (scheme_first is None or scheme_first >= key)
+    recipient_alias_days = (
+        max(0.0, (t - request.alias_registered_at) / DAY) if request.alias_registered_at is not None else None
+    )
+
     payment_vector = (
         log_amount,
         max(-6.0, min(zscore, 12.0)),
@@ -216,6 +256,13 @@ def build_features(
         math.log1p(recipient_inbound24),
         float(pair_requests24),
         1.0 if recipient_new_global else 0.0,
+        cap_ratio,
+        daily_ratio,
+        float(near_cap24),
+        min(alias_rebound_hours, MAX_ALIAS_AGE_HOURS) if alias_rebound_hours is not None else MAX_ALIAS_AGE_HOURS,
+        1.0 if is_rtp else 0.0,
+        1.0 if qr_mismatch else 0.0,
+        1.0 if scheme_novelty else 0.0,
     )
 
     new_in_window = sum(
@@ -272,5 +319,22 @@ def build_features(
         "recipient_inbound_24h": round(recipient_inbound24, 2),
         "pair_requests_24h": pair_requests24,
         "recipient_new_global": recipient_new_global,
+        "currency": request.currency,
+        "payment_scheme": request.payment_scheme,
+        "segment": segment,
+        "tx_cap": limits.per_transaction,
+        "daily_cap": limits.per_day,
+        "amount_to_tx_cap_ratio": round(cap_ratio, 4),
+        "sent_today_before": round(today_before, 2),
+        "daily_cumulative_to_cap_ratio": round(daily_ratio, 4),
+        "near_cap_count_24h": near_cap24,
+        "alias_rebound_age_hours": round(alias_rebound_hours, 2) if alias_rebound_hours is not None else None,
+        "limit_changed_age_hours": round(limit_changed_hours, 2) if limit_changed_hours is not None else None,
+        "is_request_to_pay": is_rtp,
+        "request_to_pay_id": request.request_to_pay_id,
+        "qr_payload_merchant_id": request.qr_payload_merchant_id,
+        "qr_merchant_mismatch": qr_mismatch,
+        "scheme_novelty": scheme_novelty,
+        "recipient_alias_age_days": round(recipient_alias_days, 1) if recipient_alias_days is not None else None,
     }
     return FeatureSnapshot(payment_vector, context_vector, history_status, context_status, facts)

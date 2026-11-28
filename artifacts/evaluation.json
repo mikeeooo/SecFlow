@@ -1,256 +1,251 @@
 {
-  "generated_at": "2026-11-26T07:11:48Z",
-  "scope": "Synthetic final-test period (days 81-100) of the 100,000-request training corpus. Results describe this generated data only; they are not evidence of real-world detection or fraud reduction.",
-  "model_version": "secflow-sk-1.1-326d6a99a3",
-  "policy_version": "secflow-evidence-first-1.1.0+bf92c73f",
+  "generated_at": "2026-11-28T05:56:06Z",
+  "scope": "Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in MDL). Results describe this generated data only; they are not evidence of real-world detection.",
+  "model_version": "secflow-sk-3.0-4b97752f19",
+  "policy_version": "secflow-evidence-first-3.0.0+c4573fe9",
   "operating_point": {
-    "verify": 83.0,
-    "block": 99.0,
+    "verify": 68.0,
+    "block": 86.0,
     "source": "validated",
-    "version": "op-8d3e6850"
+    "version": "op-2a3627bb"
   },
   "positive_definitions": {
-    "verify_or_block": "A request counts as flagged when the final action is Verify or Block.",
-    "block_only": "A request counts as flagged only when the final action is Block."
+    "verify_or_block": "A payment counts as flagged when the final action is Verify or Block.",
+    "block_only": "A payment counts as flagged only when the final action is Block."
   },
   "splits": {
     "train": {
-      "requests": 60000,
-      "fraud": 600,
-      "fraud_share": 0.01
-    },
-    "calibration": {
-      "requests": 10000,
-      "fraud": 100,
-      "fraud_share": 0.01
+      "requests": 70000,
+      "fraud": 1500,
+      "fraud_share": 0.0214
     },
     "validation": {
-      "requests": 10000,
-      "fraud": 100,
-      "fraud_share": 0.01
+      "requests": 15000,
+      "fraud": 300,
+      "fraud_share": 0.02
     },
     "test": {
-      "requests": 20000,
-      "fraud": 240,
-      "fraud_share": 0.012
+      "requests": 15000,
+      "fraud": 360,
+      "fraud_share": 0.024
     }
   },
-  "test_requests": 20000,
-  "test_fraud": 240,
+  "test_requests": 15000,
+  "test_fraud": 360,
   "components": {
     "isolation_forest": {
-      "flag_threshold": 0.9671927846674183,
+      "flag_threshold": 0.9500033333333332,
       "threshold_source": "validation top-5% budget",
       "confusion_matrix": {
-        "true_positive": 179,
-        "false_positive": 915,
-        "false_negative": 61,
-        "true_negative": 18845
+        "true_positive": 227,
+        "false_positive": 766,
+        "false_negative": 133,
+        "true_negative": 13874
       },
-      "precision": 0.1636197440585009,
+      "precision": 0.22860020140986909,
       "precision_95ci": [
-        0.1429,
-        0.1867
+        0.2036,
+        0.2557
       ],
-      "recall": 0.7458333333333333,
-      "f1": 0.2683658170914543,
-      "false_positive_rate": 0.04630566801619433,
-      "flag_rate": 0.0547,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.6305555555555555,
+      "f1": 0.335550628233555,
+      "false_positive_rate": 0.052322404371584696,
+      "flag_rate": 0.0662,
+      "positives": 360,
+      "negatives": 14640,
       "note": null,
-      "average_precision": 0.40634404458058526,
-      "roc_auc": 0.9672973599865047
+      "average_precision": 0.49537025490772424,
+      "roc_auc": 0.9369474802671525
     },
     "lof": {
-      "flag_threshold": 0.9615558060879369,
+      "flag_threshold": 0.9500033333333332,
       "threshold_source": "validation top-5% budget",
       "confusion_matrix": {
-        "true_positive": 75,
-        "false_positive": 1685,
-        "false_negative": 165,
-        "true_negative": 18075
+        "true_positive": 37,
+        "false_positive": 804,
+        "false_negative": 323,
+        "true_negative": 13836
       },
-      "precision": 0.04261363636363636,
+      "precision": 0.04399524375743163,
       "precision_95ci": [
-        0.0341,
-        0.0531
+        0.0321,
+        0.0601
       ],
-      "recall": 0.3125,
-      "f1": 0.075,
-      "false_positive_rate": 0.08527327935222673,
-      "flag_rate": 0.088,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.10277777777777777,
+      "f1": 0.061615320566194835,
+      "false_positive_rate": 0.05491803278688524,
+      "flag_rate": 0.05606666666666667,
+      "positives": 360,
+      "negatives": 14640,
       "note": null,
-      "average_precision": 0.0328545141682834,
-      "roc_auc": 0.7822543437921727
+      "average_precision": 0.05127143304808431,
+      "roc_auc": 0.5737717251062537
     },
     "dbscan": {
       "flag_threshold": 0.0,
       "threshold_source": "outside_context",
       "confusion_matrix": {
-        "true_positive": 56,
-        "false_positive": 910,
-        "false_negative": 184,
-        "true_negative": 18850
+        "true_positive": 51,
+        "false_positive": 613,
+        "false_negative": 309,
+        "true_negative": 14027
       },
-      "precision": 0.057971014492753624,
+      "precision": 0.07680722891566265,
       "precision_95ci": [
-        0.0449,
-        0.0745
+        0.0589,
+        0.0996
       ],
-      "recall": 0.23333333333333334,
-      "f1": 0.09286898839137646,
-      "false_positive_rate": 0.046052631578947366,
-      "flag_rate": 0.0483,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.14166666666666666,
+      "f1": 0.09960937499999999,
+      "false_positive_rate": 0.041871584699453554,
+      "flag_rate": 0.04426666666666667,
+      "positives": 360,
+      "negatives": 14640,
       "note": null,
-      "average_precision": 0.027533198633658315,
-      "roc_auc": 0.5945204959514171
+      "average_precision": 0.03509589018195541,
+      "roc_auc": 0.5505467326958106
     },
     "rules": {
       "flag_threshold": 0.15,
       "threshold_source": "validation top-5% budget",
       "confusion_matrix": {
-        "true_positive": 205,
-        "false_positive": 1168,
-        "false_negative": 35,
-        "true_negative": 18592
+        "true_positive": 310,
+        "false_positive": 602,
+        "false_negative": 50,
+        "true_negative": 14038
       },
-      "precision": 0.14930808448652585,
+      "precision": 0.3399122807017544,
       "precision_95ci": [
-        0.1314,
-        0.1691
+        0.3099,
+        0.3713
       ],
-      "recall": 0.8541666666666666,
-      "f1": 0.25418474891506504,
-      "false_positive_rate": 0.05910931174089069,
-      "flag_rate": 0.06865,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.8611111111111112,
+      "f1": 0.48742138364779874,
+      "false_positive_rate": 0.04112021857923497,
+      "flag_rate": 0.0608,
+      "positives": 360,
+      "negatives": 14640,
       "note": null,
-      "average_precision": 0.5061645049320304,
-      "roc_auc": 0.973940620782726
+      "average_precision": 0.6745370138920661,
+      "roc_auc": 0.9601899286581665
     },
     "combined_risk_score": {
-      "average_precision": 0.5716353835600402,
-      "roc_auc": 0.9749135458839406
+      "average_precision": 0.6681275999547964,
+      "roc_auc": 0.9633049673649059
     }
   },
   "combined_policy": {
     "verify_or_block": {
       "confusion_matrix": {
-        "true_positive": 183,
-        "false_positive": 1068,
-        "false_negative": 57,
-        "true_negative": 18692
+        "true_positive": 283,
+        "false_positive": 519,
+        "false_negative": 77,
+        "true_negative": 14121
       },
-      "precision": 0.14628297362110312,
+      "precision": 0.35286783042394015,
       "precision_95ci": [
-        0.1278,
-        0.1669
+        0.3206,
+        0.3866
       ],
-      "recall": 0.7625,
-      "f1": 0.24547283702213282,
-      "false_positive_rate": 0.054048582995951416,
-      "flag_rate": 0.06255,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.7861111111111111,
+      "f1": 0.4870912220309811,
+      "false_positive_rate": 0.03545081967213115,
+      "flag_rate": 0.05346666666666667,
+      "positives": 360,
+      "negatives": 14640,
       "note": null
     },
     "block_only": {
       "confusion_matrix": {
-        "true_positive": 71,
-        "false_positive": 2,
-        "false_negative": 169,
-        "true_negative": 19758
+        "true_positive": 125,
+        "false_positive": 4,
+        "false_negative": 235,
+        "true_negative": 14636
       },
-      "precision": 0.9726027397260274,
+      "precision": 0.9689922480620154,
       "precision_95ci": [
-        0.9055,
-        0.9925
+        0.923,
+        0.9879
       ],
-      "recall": 0.29583333333333334,
-      "f1": 0.4536741214057508,
-      "false_positive_rate": 0.00010121457489878542,
-      "flag_rate": 0.00365,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.3472222222222222,
+      "f1": 0.5112474437627811,
+      "false_positive_rate": 0.000273224043715847,
+      "flag_rate": 0.0086,
+      "positives": 360,
+      "negatives": 14640,
       "note": null
     },
-    "verify_rate": 0.0589,
-    "block_rate": 0.00365,
-    "permit_rate": 0.93745,
-    "legitimate_false_block_rate": 0.00010121457489878542,
-    "legitimate_review_rate": 0.05394736842105263,
-    "predicted_blocks": 73,
+    "verify_rate": 0.044866666666666666,
+    "block_rate": 0.0086,
+    "permit_rate": 0.9465333333333333,
+    "legitimate_false_block_rate": 0.000273224043715847,
+    "legitimate_review_rate": 0.0351775956284153,
+    "predicted_blocks": 129,
     "block_precision_95ci": [
-      0.9055,
-      0.9925
+      0.923,
+      0.9879
     ]
   },
   "combined_policy_without_evidence": {
     "verify_or_block": {
       "confusion_matrix": {
-        "true_positive": 180,
-        "false_positive": 1068,
-        "false_negative": 60,
-        "true_negative": 18692
+        "true_positive": 281,
+        "false_positive": 519,
+        "false_negative": 79,
+        "true_negative": 14121
       },
-      "precision": 0.14423076923076922,
+      "precision": 0.35125,
       "precision_95ci": [
-        0.1258,
-        0.1648
+        0.319,
+        0.385
       ],
-      "recall": 0.75,
-      "f1": 0.24193548387096775,
-      "false_positive_rate": 0.054048582995951416,
-      "flag_rate": 0.0624,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.7805555555555556,
+      "f1": 0.48448275862068974,
+      "false_positive_rate": 0.03545081967213115,
+      "flag_rate": 0.05333333333333334,
+      "positives": 360,
+      "negatives": 14640,
       "note": null
     },
     "block_only": {
       "confusion_matrix": {
-        "true_positive": 54,
-        "false_positive": 2,
-        "false_negative": 186,
-        "true_negative": 19758
+        "true_positive": 114,
+        "false_positive": 4,
+        "false_negative": 246,
+        "true_negative": 14636
       },
-      "precision": 0.9642857142857143,
+      "precision": 0.9661016949152542,
       "precision_95ci": [
-        0.8788,
-        0.9902
+        0.9161,
+        0.9867
       ],
-      "recall": 0.225,
-      "f1": 0.36486486486486486,
-      "false_positive_rate": 0.00010121457489878542,
-      "flag_rate": 0.0028,
-      "positives": 240,
-      "negatives": 19760,
+      "recall": 0.31666666666666665,
+      "f1": 0.47698744769874485,
+      "false_positive_rate": 0.000273224043715847,
+      "flag_rate": 0.007866666666666666,
+      "positives": 360,
+      "negatives": 14640,
       "note": null
     },
-    "verify_rate": 0.0596,
-    "block_rate": 0.0028,
-    "permit_rate": 0.9376,
-    "legitimate_false_block_rate": 0.00010121457489878542,
-    "legitimate_review_rate": 0.05394736842105263,
-    "predicted_blocks": 56,
+    "verify_rate": 0.04546666666666667,
+    "block_rate": 0.007866666666666666,
+    "permit_rate": 0.9466666666666667,
+    "legitimate_false_block_rate": 0.000273224043715847,
+    "legitimate_review_rate": 0.0351775956284153,
+    "predicted_blocks": 118,
     "block_precision_95ci": [
-      0.8788,
-      0.9902
+      0.9161,
+      0.9867
     ]
   },
   "evidence_channel": {
-    "evidence_blocks": 34,
-    "evidence_blocks_on_fraud": 34,
+    "evidence_blocks": 24,
+    "evidence_blocks_on_fraud": 24,
     "evidence_blocks_on_legitimate": 0,
-    "fraud_with_active_evidence": 34,
-    "fraud_without_evidence": 206,
-    "model_only_recall_on_fraud_without_evidence": 0.7233009708737864,
-    "note": "All security evidence is simulated. The evidence channel is reported separately so it cannot hide weak model-only detection."
+    "fraud_with_active_evidence": 24,
+    "fraud_without_evidence": 336,
+    "model_only_recall_on_fraud_without_evidence": 0.7708333333333334,
+    "note": "All security evidence is simulated. It is reported separately so it cannot hide weak model-only detection."
   },
   "score_bands": {
     "edges": [
@@ -260,36 +255,36 @@
       30.0,
       40.0,
       50.0,
+      68.0,
       70.0,
       80.0,
-      83.0,
+      86.0,
       90.0,
-      99.0,
       100.0
     ],
-    "requests": 20000,
-    "fraud": 240,
-    "base_fraud_rate": 0.012,
+    "requests": 15000,
+    "fraud": 360,
+    "base_fraud_rate": 0.024,
     "bands": [
       {
         "low": 0.0,
         "high": 10.0,
-        "requests": 1918,
+        "requests": 1626,
         "fraud": 0,
-        "legitimate": 1918,
+        "legitimate": 1626,
         "fraud_rate": 0.0,
         "fraud_rate_95ci": [
           0.0,
-          0.002
+          0.0024
         ],
         "lift": 0.0,
-        "share_of_requests": 0.0959,
+        "share_of_requests": 0.1084,
         "share_of_fraud": 0.0,
         "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.012,
+        "precision_at_or_above": 0.024,
         "flag_rate_at_or_above": 1.0,
         "decisions": {
-          "Permit": 1918,
+          "Permit": 1626,
           "Verify": 0,
           "Block": 0
         }
@@ -297,22 +292,22 @@
       {
         "low": 10.0,
         "high": 20.0,
-        "requests": 2196,
+        "requests": 2177,
         "fraud": 0,
-        "legitimate": 2196,
+        "legitimate": 2177,
         "fraud_rate": 0.0,
         "fraud_rate_95ci": [
           0.0,
-          0.0017
+          0.0018
         ],
         "lift": 0.0,
-        "share_of_requests": 0.1098,
+        "share_of_requests": 0.14513333333333334,
         "share_of_fraud": 0.0,
         "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.01327286804557018,
-        "flag_rate_at_or_above": 0.9041,
+        "precision_at_or_above": 0.026917900403768506,
+        "flag_rate_at_or_above": 0.8916,
         "decisions": {
-          "Permit": 2196,
+          "Permit": 2177,
           "Verify": 0,
           "Block": 0
         }
@@ -320,22 +315,22 @@
       {
         "low": 20.0,
         "high": 30.0,
-        "requests": 2306,
+        "requests": 2209,
         "fraud": 0,
-        "legitimate": 2306,
+        "legitimate": 2209,
         "fraud_rate": 0.0,
         "fraud_rate_95ci": [
           0.0,
           0.0017
         ],
         "lift": 0.0,
-        "share_of_requests": 0.1153,
+        "share_of_requests": 0.14726666666666666,
         "share_of_fraud": 0.0,
         "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.015107641948885812,
-        "flag_rate_at_or_above": 0.7943,
+        "precision_at_or_above": 0.032151469143520586,
+        "flag_rate_at_or_above": 0.7464666666666666,
         "decisions": {
-          "Permit": 2306,
+          "Permit": 2209,
           "Verify": 0,
           "Block": 0
         }
@@ -343,22 +338,22 @@
       {
         "low": 30.0,
         "high": 40.0,
-        "requests": 2207,
-        "fraud": 0,
-        "legitimate": 2207,
-        "fraud_rate": 0.0,
+        "requests": 2271,
+        "fraud": 1,
+        "legitimate": 2270,
+        "fraud_rate": 0.00044033465433729633,
         "fraud_rate_95ci": [
-          0.0,
-          0.0017
+          0.0001,
+          0.0025
         ],
-        "lift": 0.0,
-        "share_of_requests": 0.11035,
-        "share_of_fraud": 0.0,
+        "lift": 0.018347277264054013,
+        "share_of_requests": 0.1514,
+        "share_of_fraud": 0.002777777777777778,
         "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.017673048600883652,
-        "flag_rate_at_or_above": 0.679,
+        "precision_at_or_above": 0.04005340453938585,
+        "flag_rate_at_or_above": 0.5992,
         "decisions": {
-          "Permit": 2207,
+          "Permit": 2271,
           "Verify": 0,
           "Block": 0
         }
@@ -366,840 +361,688 @@
       {
         "low": 40.0,
         "high": 50.0,
-        "requests": 2328,
-        "fraud": 0,
-        "legitimate": 2328,
-        "fraud_rate": 0.0,
+        "requests": 2163,
+        "fraud": 5,
+        "legitimate": 2158,
+        "fraud_rate": 0.002311604253351826,
         "fraud_rate_95ci": [
-          0.0,
-          0.0016
+          0.001,
+          0.0054
         ],
-        "lift": 0.0,
-        "share_of_requests": 0.1164,
-        "share_of_fraud": 0.0,
-        "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.021102611448166712,
-        "flag_rate_at_or_above": 0.56865,
+        "lift": 0.09631684388965941,
+        "share_of_requests": 0.1442,
+        "share_of_fraud": 0.013888888888888888,
+        "recall_at_or_above": 0.9972222222222222,
+        "precision_at_or_above": 0.05344647908292392,
+        "flag_rate_at_or_above": 0.4478,
         "decisions": {
-          "Permit": 2328,
+          "Permit": 2163,
           "Verify": 0,
           "Block": 0
         }
       },
       {
         "low": 50.0,
-        "high": 70.0,
-        "requests": 4645,
-        "fraud": 2,
-        "legitimate": 4643,
-        "fraud_rate": 0.0004305705059203445,
+        "high": 68.0,
+        "requests": 3769,
+        "fraud": 73,
+        "legitimate": 3696,
+        "fraud_rate": 0.019368532767312284,
         "fraud_rate_95ci": [
-          0.0001,
-          0.0016
+          0.0154,
+          0.0243
         ],
-        "lift": 0.03588087549336204,
-        "share_of_requests": 0.23225,
-        "share_of_fraud": 0.008333333333333333,
-        "recall_at_or_above": 1.0,
-        "precision_at_or_above": 0.026533996683250415,
-        "flag_rate_at_or_above": 0.45225,
+        "lift": 0.8070221986380118,
+        "share_of_requests": 0.2512666666666667,
+        "share_of_fraud": 0.20277777777777778,
+        "recall_at_or_above": 0.9833333333333333,
+        "precision_at_or_above": 0.077733860342556,
+        "flag_rate_at_or_above": 0.3036,
         "decisions": {
-          "Permit": 4645,
-          "Verify": 0,
-          "Block": 0
+          "Permit": 3752,
+          "Verify": 15,
+          "Block": 2
+        }
+      },
+      {
+        "low": 68.0,
+        "high": 70.0,
+        "requests": 196,
+        "fraud": 21,
+        "legitimate": 175,
+        "fraud_rate": 0.10714285714285714,
+        "fraud_rate_95ci": [
+          0.0712,
+          0.1582
+        ],
+        "lift": 4.4642857142857135,
+        "share_of_requests": 0.013066666666666667,
+        "share_of_fraud": 0.058333333333333334,
+        "recall_at_or_above": 0.7805555555555556,
+        "precision_at_or_above": 0.3579617834394904,
+        "flag_rate_at_or_above": 0.052333333333333336,
+        "decisions": {
+          "Permit": 0,
+          "Verify": 195,
+          "Block": 1
         }
       },
       {
         "low": 70.0,
         "high": 80.0,
-        "requests": 2448,
-        "fraud": 22,
-        "legitimate": 2426,
-        "fraud_rate": 0.008986928104575163,
+        "requests": 366,
+        "fraud": 87,
+        "legitimate": 279,
+        "fraud_rate": 0.23770491803278687,
         "fraud_rate_95ci": [
-          0.0059,
-          0.0136
+          0.197,
+          0.2839
         ],
-        "lift": 0.7489106753812635,
-        "share_of_requests": 0.1224,
-        "share_of_fraud": 0.09166666666666666,
-        "recall_at_or_above": 0.9916666666666667,
-        "precision_at_or_above": 0.05409090909090909,
-        "flag_rate_at_or_above": 0.22,
+        "lift": 9.904371584699453,
+        "share_of_requests": 0.0244,
+        "share_of_fraud": 0.24166666666666667,
+        "recall_at_or_above": 0.7222222222222222,
+        "precision_at_or_above": 0.44142614601018676,
+        "flag_rate_at_or_above": 0.039266666666666665,
         "decisions": {
-          "Permit": 2445,
-          "Verify": 0,
+          "Permit": 0,
+          "Verify": 363,
           "Block": 3
         }
       },
       {
         "low": 80.0,
-        "high": 83.0,
-        "requests": 809,
-        "fraud": 15,
-        "legitimate": 794,
-        "fraud_rate": 0.018541409147095178,
+        "high": 86.0,
+        "requests": 94,
+        "fraud": 53,
+        "legitimate": 41,
+        "fraud_rate": 0.5638297872340425,
         "fraud_rate_95ci": [
-          0.0113,
-          0.0304
+          0.463,
+          0.6596
         ],
-        "lift": 1.5451174289245981,
-        "share_of_requests": 0.04045,
-        "share_of_fraud": 0.0625,
-        "recall_at_or_above": 0.9,
-        "precision_at_or_above": 0.11065573770491803,
-        "flag_rate_at_or_above": 0.0976,
+        "lift": 23.49290780141844,
+        "share_of_requests": 0.006266666666666667,
+        "share_of_fraud": 0.14722222222222223,
+        "recall_at_or_above": 0.48055555555555557,
+        "precision_at_or_above": 0.7757847533632287,
+        "flag_rate_at_or_above": 0.014866666666666667,
         "decisions": {
-          "Permit": 313,
-          "Verify": 495,
-          "Block": 1
+          "Permit": 0,
+          "Verify": 90,
+          "Block": 4
         }
       },
       {
-        "low": 83.0,
+        "low": 86.0,
         "high": 90.0,
-        "requests": 946,
-        "fraud": 74,
-        "legitimate": 872,
-        "fraud_rate": 0.07822410147991543,
+        "requests": 37,
+        "fraud": 29,
+        "legitimate": 8,
+        "fraud_rate": 0.7837837837837838,
         "fraud_rate_95ci": [
-          0.0628,
-          0.0971
+          0.628,
+          0.8861
         ],
-        "lift": 6.518675123326286,
-        "share_of_requests": 0.0473,
-        "share_of_fraud": 0.30833333333333335,
-        "recall_at_or_above": 0.8375,
-        "precision_at_or_above": 0.17585301837270342,
-        "flag_rate_at_or_above": 0.05715,
+        "lift": 32.65765765765766,
+        "share_of_requests": 0.0024666666666666665,
+        "share_of_fraud": 0.08055555555555556,
+        "recall_at_or_above": 0.3333333333333333,
+        "precision_at_or_above": 0.9302325581395349,
+        "flag_rate_at_or_above": 0.0086,
         "decisions": {
-          "Permit": 391,
-          "Verify": 548,
-          "Block": 7
+          "Permit": 0,
+          "Verify": 10,
+          "Block": 27
         }
       },
       {
         "low": 90.0,
-        "high": 99.0,
-        "requests": 173,
-        "fraud": 104,
-        "legitimate": 69,
-        "fraud_rate": 0.6011560693641619,
-        "fraud_rate_95ci": [
-          0.5268,
-          0.6712
-        ],
-        "lift": 50.09633911368016,
-        "share_of_requests": 0.00865,
-        "share_of_fraud": 0.43333333333333335,
-        "recall_at_or_above": 0.5291666666666667,
-        "precision_at_or_above": 0.6446700507614214,
-        "flag_rate_at_or_above": 0.00985,
-        "decisions": {
-          "Permit": 0,
-          "Verify": 135,
-          "Block": 38
-        }
-      },
-      {
-        "low": 99.0,
         "high": 100.0,
-        "requests": 24,
-        "fraud": 23,
+        "requests": 92,
+        "fraud": 91,
         "legitimate": 1,
-        "fraud_rate": 0.9583333333333334,
+        "fraud_rate": 0.9891304347826086,
         "fraud_rate_95ci": [
-          0.7976,
-          0.9926
+          0.941,
+          0.9981
         ],
-        "lift": 79.86111111111111,
-        "share_of_requests": 0.0012,
-        "share_of_fraud": 0.09583333333333334,
-        "recall_at_or_above": 0.09583333333333334,
-        "precision_at_or_above": 0.9583333333333334,
-        "flag_rate_at_or_above": 0.0012,
+        "lift": 41.213768115942024,
+        "share_of_requests": 0.0061333333333333335,
+        "share_of_fraud": 0.25277777777777777,
+        "recall_at_or_above": 0.25277777777777777,
+        "precision_at_or_above": 0.9891304347826086,
+        "flag_rate_at_or_above": 0.0061333333333333335,
         "decisions": {
           "Permit": 0,
           "Verify": 0,
-          "Block": 24
+          "Block": 92
         }
       }
     ],
-    "note": "Observed on the labelled synthetic final-test period. The fraud rate of a band is how often a request with that score really was fraud; it is an empirical rate, not a calibrated probability for any single request."
+    "note": "Observed on the labelled synthetic final-test period. A band's fraud rate is how often a request with that score really was fraud; it is an empirical rate, not a calibrated probability."
   },
-  "per_scenario": {
-    "account_recovery": {
-      "kind": "legitimate",
-      "requests": 31,
-      "verify_or_block_rate": 0.22580645161290322,
-      "block_rate": 0.0,
+  "per_fraud_type": {
+    "account_takeover_phishing": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 20,
+      "recall_verify_or_block": 0.9333333333333333,
+      "recall_block_only": 0.7,
       "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.22580645161290322,
-      "model_only_block_rate": 0.0
+      "model_only_recall_verify_or_block": 0.9333333333333333,
+      "model_only_recall_block_only": 0.7
     },
-    "account_takeover": {
-      "kind": "fraud",
-      "requests": 40,
-      "verify_or_block_rate": 0.9,
-      "block_rate": 0.375,
-      "evidence_block_rate": 0.2,
-      "model_only_verify_or_block_rate": 0.9,
-      "model_only_block_rate": 0.35
+    "sim_swap_takeover": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 12,
+      "recall_verify_or_block": 1.0,
+      "recall_block_only": 0.8666666666666667,
+      "evidence_block_rate": 0.1,
+      "model_only_recall_verify_or_block": 1.0,
+      "model_only_recall_block_only": 0.8666666666666667
     },
-    "business_settlement": {
-      "kind": "legitimate",
-      "requests": 47,
-      "verify_or_block_rate": 0.0,
-      "block_rate": 0.0,
+    "vishing_impersonation": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 15,
+      "recall_verify_or_block": 0.7666666666666667,
+      "recall_block_only": 0.2,
+      "evidence_block_rate": 0.03333333333333333,
+      "model_only_recall_verify_or_block": 0.7666666666666667,
+      "model_only_recall_block_only": 0.16666666666666666
+    },
+    "request_to_pay_scam": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 7,
+      "recall_verify_or_block": 1.0,
+      "recall_block_only": 0.5666666666666667,
+      "evidence_block_rate": 0.26666666666666666,
+      "model_only_recall_verify_or_block": 1.0,
+      "model_only_recall_block_only": 0.5666666666666667
+    },
+    "marketplace_scam": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 8,
+      "recall_verify_or_block": 0.7333333333333333,
+      "recall_block_only": 0.2,
+      "evidence_block_rate": 0.13333333333333333,
+      "model_only_recall_verify_or_block": 0.6666666666666666,
+      "model_only_recall_block_only": 0.06666666666666667
+    },
+    "investment_scam": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 7,
+      "recall_verify_or_block": 0.5,
+      "recall_block_only": 0.0,
       "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.0,
-      "model_only_block_rate": 0.0
+      "model_only_recall_verify_or_block": 0.5,
+      "model_only_recall_block_only": 0.0
     },
-    "coordinated": {
-      "kind": "fraud",
-      "requests": 40,
-      "verify_or_block_rate": 0.95,
-      "block_rate": 0.65,
-      "evidence_block_rate": 0.35,
-      "model_only_verify_or_block_rate": 0.95,
-      "model_only_block_rate": 0.525
+    "romance_scam": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 8,
+      "recall_verify_or_block": 0.4,
+      "recall_block_only": 0.03333333333333333,
+      "evidence_block_rate": 0.03333333333333333,
+      "model_only_recall_verify_or_block": 0.4,
+      "model_only_recall_block_only": 0.0
     },
-    "household_repeat": {
-      "kind": "legitimate",
-      "requests": 192,
-      "verify_or_block_rate": 0.06770833333333333,
-      "block_rate": 0.0,
+    "money_mule": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 9,
+      "recall_verify_or_block": 0.9666666666666667,
+      "recall_block_only": 0.26666666666666666,
+      "evidence_block_rate": 0.1,
+      "model_only_recall_verify_or_block": 0.9666666666666667,
+      "model_only_recall_block_only": 0.16666666666666666
+    },
+    "limit_structuring": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 9,
+      "recall_verify_or_block": 1.0,
+      "recall_block_only": 0.4666666666666667,
       "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.06770833333333333,
-      "model_only_block_rate": 0.0
+      "model_only_recall_verify_or_block": 1.0,
+      "model_only_recall_block_only": 0.4666666666666667
+    },
+    "coordinated_beneficiary": {
+      "test_only": false,
+      "requests": 30,
+      "campaigns": 7,
+      "recall_verify_or_block": 1.0,
+      "recall_block_only": 0.7333333333333333,
+      "evidence_block_rate": 0.1,
+      "model_only_recall_verify_or_block": 1.0,
+      "model_only_recall_block_only": 0.7
+    },
+    "qr_code_tampering": {
+      "test_only": true,
+      "requests": 30,
+      "campaigns": 8,
+      "recall_verify_or_block": 0.8,
+      "recall_block_only": 0.13333333333333333,
+      "evidence_block_rate": 0.03333333333333333,
+      "model_only_recall_verify_or_block": 0.8,
+      "model_only_recall_block_only": 0.1
     },
     "invoice_redirect": {
-      "kind": "fraud",
-      "requests": 40,
-      "verify_or_block_rate": 0.125,
-      "block_rate": 0.0,
+      "test_only": true,
+      "requests": 30,
+      "campaigns": 14,
+      "recall_verify_or_block": 0.3333333333333333,
+      "recall_block_only": 0.0,
       "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.125,
-      "model_only_block_rate": 0.0
+      "model_only_recall_verify_or_block": 0.3333333333333333,
+      "model_only_recall_block_only": 0.0
+    }
+  },
+  "per_anomaly_type": {
+    "business_settlement": {
+      "requests": 29,
+      "verify_or_block_rate": 0.3448275862068966,
+      "block_rate": 0.0
     },
-    "large_planned_purchase": {
-      "kind": "legitimate",
-      "requests": 52,
-      "verify_or_block_rate": 0.4807692307692308,
-      "block_rate": 0.0,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.4807692307692308,
-      "model_only_block_rate": 0.0
+    "diaspora_remittance_spend": {
+      "requests": 44,
+      "verify_or_block_rate": 0.5227272727272727,
+      "block_rate": 0.0
     },
-    "mule_flow": {
-      "kind": "fraud",
-      "requests": 40,
+    "group_payment_new_payee": {
+      "requests": 113,
+      "verify_or_block_rate": 0.4690265486725664,
+      "block_rate": 0.0
+    },
+    "holiday_spike": {
+      "requests": 53,
+      "verify_or_block_rate": 0.24528301886792453,
+      "block_rate": 0.0
+    },
+    "household_repeat_payments": {
+      "requests": 106,
+      "verify_or_block_rate": 0.04716981132075472,
+      "block_rate": 0.0
+    },
+    "legit_alias_change": {
+      "requests": 20,
+      "verify_or_block_rate": 0.1,
+      "block_rate": 0.0
+    },
+    "limit_increase_then_large_payment": {
+      "requests": 18,
+      "verify_or_block_rate": 0.9444444444444444,
+      "block_rate": 0.05555555555555555
+    },
+    "near_limit_planned_purchase": {
+      "requests": 30,
       "verify_or_block_rate": 1.0,
-      "block_rate": 0.425,
-      "evidence_block_rate": 0.025,
-      "model_only_verify_or_block_rate": 1.0,
-      "model_only_block_rate": 0.425
+      "block_rate": 0.03333333333333333
     },
-    "new_device_legitimate": {
-      "kind": "legitimate",
-      "requests": 74,
-      "verify_or_block_rate": 0.3918918918918919,
-      "block_rate": 0.0,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.3918918918918919,
-      "model_only_block_rate": 0.0
+    "new_device_legit": {
+      "requests": 37,
+      "verify_or_block_rate": 0.35135135135135137,
+      "block_rate": 0.0
     },
-    "new_recipient_legitimate": {
-      "kind": "legitimate",
-      "requests": 56,
-      "verify_or_block_rate": 0.44642857142857145,
-      "block_rate": 0.0,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.44642857142857145,
-      "model_only_block_rate": 0.0
+    "new_merchant_qr": {
+      "requests": 18,
+      "verify_or_block_rate": 0.0,
+      "block_rate": 0.0
+    },
+    "night_payment": {
+      "requests": 23,
+      "verify_or_block_rate": 0.043478260869565216,
+      "block_rate": 0.0
     },
     "payroll_burst": {
-      "kind": "legitimate",
-      "requests": 277,
-      "verify_or_block_rate": 0.036101083032490974,
-      "block_rate": 0.0,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.036101083032490974,
-      "model_only_block_rate": 0.0
+      "requests": 106,
+      "verify_or_block_rate": 0.09433962264150944,
+      "block_rate": 0.0
     },
-    "routine_payment": {
-      "kind": "legitimate",
-      "requests": 18760,
-      "verify_or_block_rate": 0.040831556503198294,
-      "block_rate": 5.3304904051172706e-05,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.040831556503198294,
-      "model_only_block_rate": 5.3304904051172706e-05
+    "salary_day_spike": {
+      "requests": 99,
+      "verify_or_block_rate": 0.010101010101010102,
+      "block_rate": 0.0
     },
-    "shared_group_payment": {
-      "kind": "legitimate",
-      "requests": 140,
-      "verify_or_block_rate": 0.7285714285714285,
-      "block_rate": 0.007142857142857143,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.7285714285714285,
-      "model_only_block_rate": 0.007142857142857143
-    },
-    "social_engineering": {
-      "kind": "fraud",
-      "requests": 40,
-      "verify_or_block_rate": 0.725,
-      "block_rate": 0.275,
-      "evidence_block_rate": 0.275,
-      "model_only_verify_or_block_rate": 0.65,
-      "model_only_block_rate": 0.0
-    },
-    "travel": {
-      "kind": "legitimate",
-      "requests": 131,
-      "verify_or_block_rate": 0.6946564885496184,
-      "block_rate": 0.0,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.6946564885496184,
-      "model_only_block_rate": 0.0
-    },
-    "velocity": {
-      "kind": "fraud",
-      "requests": 40,
-      "verify_or_block_rate": 0.875,
-      "block_rate": 0.05,
-      "evidence_block_rate": 0.0,
-      "model_only_verify_or_block_rate": 0.875,
-      "model_only_block_rate": 0.05
+    "travel_abroad": {
+      "requests": 54,
+      "verify_or_block_rate": 0.46296296296296297,
+      "block_rate": 0.0
     }
   },
   "unusual_legitimate": {
-    "requests": 1000,
+    "requests": 750,
     "fraud": 0,
     "verify_or_block": {
       "confusion_matrix": {
         "true_positive": 0,
-        "false_positive": 302,
+        "false_positive": 203,
         "false_negative": 0,
-        "true_negative": 698
+        "true_negative": 547
       },
       "precision": 0.0,
       "precision_95ci": [
         0.0,
-        0.0126
+        0.0186
       ],
       "recall": null,
       "f1": null,
-      "false_positive_rate": 0.302,
-      "flag_rate": 0.302,
+      "false_positive_rate": 0.27066666666666667,
+      "flag_rate": 0.27066666666666667,
       "positives": 0,
-      "negatives": 1000,
+      "negatives": 750,
       "note": null
     },
     "block_only": {
       "confusion_matrix": {
         "true_positive": 0,
-        "false_positive": 1,
+        "false_positive": 2,
         "false_negative": 0,
-        "true_negative": 999
+        "true_negative": 748
       },
       "precision": 0.0,
       "precision_95ci": [
         0.0,
-        0.7935
+        0.6576
       ],
       "recall": null,
       "f1": null,
-      "false_positive_rate": 0.001,
-      "flag_rate": 0.001,
+      "false_positive_rate": 0.0026666666666666666,
+      "flag_rate": 0.0026666666666666666,
       "positives": 0,
-      "negatives": 1000,
+      "negatives": 750,
       "note": null
     },
-    "verify_rate": 0.301,
-    "block_rate": 0.001,
-    "permit_rate": 0.698,
-    "legitimate_false_block_rate": 0.001,
-    "legitimate_review_rate": 0.301,
-    "predicted_blocks": 1,
+    "verify_rate": 0.268,
+    "block_rate": 0.0026666666666666666,
+    "permit_rate": 0.7293333333333333,
+    "legitimate_false_block_rate": 0.0026666666666666666,
+    "legitimate_review_rate": 0.268,
+    "predicted_blocks": 2,
     "block_precision_95ci": [
       0.0,
-      0.7935
+      0.6576
     ]
   },
   "routine_legitimate": {
-    "requests": 18760,
+    "requests": 13890,
     "fraud": 0,
     "verify_or_block": {
       "confusion_matrix": {
         "true_positive": 0,
-        "false_positive": 766,
+        "false_positive": 316,
         "false_negative": 0,
-        "true_negative": 17994
+        "true_negative": 13574
       },
       "precision": 0.0,
       "precision_95ci": [
         0.0,
-        0.005
+        0.012
       ],
       "recall": null,
       "f1": null,
-      "false_positive_rate": 0.040831556503198294,
-      "flag_rate": 0.040831556503198294,
+      "false_positive_rate": 0.02275017998560115,
+      "flag_rate": 0.02275017998560115,
       "positives": 0,
-      "negatives": 18760,
+      "negatives": 13890,
       "note": null
     },
     "block_only": {
       "confusion_matrix": {
         "true_positive": 0,
-        "false_positive": 1,
+        "false_positive": 2,
         "false_negative": 0,
-        "true_negative": 18759
+        "true_negative": 13888
       },
       "precision": 0.0,
       "precision_95ci": [
         0.0,
-        0.7935
+        0.6576
       ],
       "recall": null,
       "f1": null,
-      "false_positive_rate": 5.3304904051172706e-05,
-      "flag_rate": 5.3304904051172706e-05,
+      "false_positive_rate": 0.00014398848092152627,
+      "flag_rate": 0.00014398848092152627,
       "positives": 0,
-      "negatives": 18760,
+      "negatives": 13890,
       "note": null
     },
-    "verify_rate": 0.04077825159914712,
-    "block_rate": 5.3304904051172706e-05,
-    "permit_rate": 0.9591684434968017,
-    "legitimate_false_block_rate": 5.3304904051172706e-05,
-    "legitimate_review_rate": 0.04077825159914712,
-    "predicted_blocks": 1,
+    "verify_rate": 0.022606191504679626,
+    "block_rate": 0.00014398848092152627,
+    "permit_rate": 0.9772498200143989,
+    "legitimate_false_block_rate": 0.00014398848092152627,
+    "legitimate_review_rate": 0.022606191504679626,
+    "predicted_blocks": 2,
     "block_precision_95ci": [
       0.0,
-      0.7935
+      0.6576
     ]
   },
   "cold_start_accounts": {
     "accounts": 40,
-    "requests": 1415,
-    "fraud": 9,
+    "requests": 678,
+    "fraud": 30,
     "verify_or_block": {
       "confusion_matrix": {
-        "true_positive": 9,
-        "false_positive": 393,
+        "true_positive": 30,
+        "false_positive": 152,
         "false_negative": 0,
-        "true_negative": 1013
+        "true_negative": 496
       },
-      "precision": 0.022388059701492536,
+      "precision": 0.16483516483516483,
       "precision_95ci": [
-        0.0118,
-        0.042
+        0.118,
+        0.2256
       ],
       "recall": 1.0,
-      "f1": 0.043795620437956206,
-      "false_positive_rate": 0.2795163584637269,
-      "flag_rate": 0.2840989399293286,
-      "positives": 9,
-      "negatives": 1406,
+      "f1": 0.2830188679245283,
+      "false_positive_rate": 0.2345679012345679,
+      "flag_rate": 0.26843657817109146,
+      "positives": 30,
+      "negatives": 648,
+      "note": null
+    },
+    "block_only": {
+      "confusion_matrix": {
+        "true_positive": 14,
+        "false_positive": 2,
+        "false_negative": 16,
+        "true_negative": 646
+      },
+      "precision": 0.875,
+      "precision_95ci": [
+        0.6398,
+        0.965
+      ],
+      "recall": 0.4666666666666667,
+      "f1": 0.608695652173913,
+      "false_positive_rate": 0.0030864197530864196,
+      "flag_rate": 0.02359882005899705,
+      "positives": 30,
+      "negatives": 648,
+      "note": null
+    },
+    "verify_rate": 0.2448377581120944,
+    "block_rate": 0.02359882005899705,
+    "permit_rate": 0.7315634218289085,
+    "legitimate_false_block_rate": 0.0030864197530864196,
+    "legitimate_review_rate": 0.23148148148148148,
+    "predicted_blocks": 16,
+    "block_precision_95ci": [
+      0.6398,
+      0.965
+    ]
+  },
+  "existing_accounts": {
+    "requests": 14322,
+    "fraud": 330,
+    "verify_or_block": {
+      "confusion_matrix": {
+        "true_positive": 253,
+        "false_positive": 367,
+        "false_negative": 77,
+        "true_negative": 13625
+      },
+      "precision": 0.4080645161290323,
+      "precision_95ci": [
+        0.3701,
+        0.4472
+      ],
+      "recall": 0.7666666666666667,
+      "f1": 0.5326315789473685,
+      "false_positive_rate": 0.026229273870783304,
+      "flag_rate": 0.04329004329004329,
+      "positives": 330,
+      "negatives": 13992,
+      "note": null
+    },
+    "block_only": {
+      "confusion_matrix": {
+        "true_positive": 111,
+        "false_positive": 2,
+        "false_negative": 219,
+        "true_negative": 13990
+      },
+      "precision": 0.9823008849557522,
+      "precision_95ci": [
+        0.9378,
+        0.9951
+      ],
+      "recall": 0.33636363636363636,
+      "f1": 0.5011286681715575,
+      "false_positive_rate": 0.0001429388221841052,
+      "flag_rate": 0.007889959502862729,
+      "positives": 330,
+      "negatives": 13992,
+      "note": null
+    },
+    "verify_rate": 0.03540008378718056,
+    "block_rate": 0.007889959502862729,
+    "permit_rate": 0.9567099567099567,
+    "legitimate_false_block_rate": 0.0001429388221841052,
+    "legitimate_review_rate": 0.0260863350485992,
+    "predicted_blocks": 113,
+    "block_precision_95ci": [
+      0.9378,
+      0.9951
+    ]
+  },
+  "unseen_scenario": {
+    "fraud_types": [
+      "qr_code_tampering",
+      "invoice_redirect"
+    ],
+    "requests": 60,
+    "fraud": 60,
+    "verify_or_block": {
+      "confusion_matrix": {
+        "true_positive": 34,
+        "false_positive": 0,
+        "false_negative": 26,
+        "true_negative": 0
+      },
+      "precision": 1.0,
+      "precision_95ci": [
+        0.8985,
+        1.0
+      ],
+      "recall": 0.5666666666666667,
+      "f1": 0.7234042553191489,
+      "false_positive_rate": null,
+      "flag_rate": 0.5666666666666667,
+      "positives": 60,
+      "negatives": 0,
       "note": null
     },
     "block_only": {
       "confusion_matrix": {
         "true_positive": 4,
         "false_positive": 0,
-        "false_negative": 5,
-        "true_negative": 1406
+        "false_negative": 56,
+        "true_negative": 0
       },
       "precision": 1.0,
       "precision_95ci": [
         0.5101,
         1.0
       ],
-      "recall": 0.4444444444444444,
-      "f1": 0.6153846153846153,
-      "false_positive_rate": 0.0,
-      "flag_rate": 0.0028268551236749115,
-      "positives": 9,
-      "negatives": 1406,
+      "recall": 0.06666666666666667,
+      "f1": 0.125,
+      "false_positive_rate": null,
+      "flag_rate": 0.06666666666666667,
+      "positives": 60,
+      "negatives": 0,
       "note": null
     },
-    "verify_rate": 0.2812720848056537,
-    "block_rate": 0.0028268551236749115,
-    "permit_rate": 0.7159010600706713,
-    "legitimate_false_block_rate": 0.0,
-    "legitimate_review_rate": 0.2795163584637269,
+    "verify_rate": 0.5,
+    "block_rate": 0.06666666666666667,
+    "permit_rate": 0.43333333333333335,
+    "legitimate_false_block_rate": null,
+    "legitimate_review_rate": null,
     "predicted_blocks": 4,
     "block_precision_95ci": [
       0.5101,
       1.0
-    ]
-  },
-  "holdout_accounts": {
-    "accounts": 40,
-    "requests": 2178,
-    "fraud": 27,
-    "verify_or_block": {
-      "confusion_matrix": {
-        "true_positive": 19,
-        "false_positive": 58,
-        "false_negative": 8,
-        "true_negative": 2093
-      },
-      "precision": 0.24675324675324675,
-      "precision_95ci": [
-        0.164,
-        0.3535
-      ],
-      "recall": 0.7037037037037037,
-      "f1": 0.3653846153846154,
-      "false_positive_rate": 0.02696420269642027,
-      "flag_rate": 0.03535353535353535,
-      "positives": 27,
-      "negatives": 2151,
-      "note": null
-    },
-    "block_only": {
-      "confusion_matrix": {
-        "true_positive": 10,
-        "false_positive": 0,
-        "false_negative": 17,
-        "true_negative": 2151
-      },
-      "precision": 1.0,
-      "precision_95ci": [
-        0.7225,
-        1.0
-      ],
-      "recall": 0.37037037037037035,
-      "f1": 0.5405405405405406,
-      "false_positive_rate": 0.0,
-      "flag_rate": 0.004591368227731864,
-      "positives": 27,
-      "negatives": 2151,
-      "note": null
-    },
-    "verify_rate": 0.03076216712580349,
-    "block_rate": 0.004591368227731864,
-    "permit_rate": 0.9646464646464646,
-    "legitimate_false_block_rate": 0.0,
-    "legitimate_review_rate": 0.02696420269642027,
-    "predicted_blocks": 10,
-    "block_precision_95ci": [
-      0.7225,
-      1.0
     ],
-    "note": "Accounts excluded from every fitting and selection row during training."
-  },
-  "unseen_scenario": {
-    "scenario": "invoice_redirect",
-    "requests": 40,
-    "fraud": 40,
-    "verify_or_block": {
-      "confusion_matrix": {
-        "true_positive": 5,
-        "false_positive": 0,
-        "false_negative": 35,
-        "true_negative": 0
-      },
-      "precision": 1.0,
-      "precision_95ci": [
-        0.5655,
-        1.0
-      ],
-      "recall": 0.125,
-      "f1": 0.2222222222222222,
-      "false_positive_rate": null,
-      "flag_rate": 0.125,
-      "positives": 40,
-      "negatives": 0,
-      "note": null
-    },
-    "block_only": {
-      "confusion_matrix": {
-        "true_positive": 0,
-        "false_positive": 0,
-        "false_negative": 40,
-        "true_negative": 0
-      },
-      "precision": null,
-      "precision_95ci": null,
-      "recall": 0.0,
-      "f1": null,
-      "false_positive_rate": null,
-      "flag_rate": 0.0,
-      "positives": 40,
-      "negatives": 0,
-      "note": "No positive predictions; precision and F1 are undefined."
-    },
-    "verify_rate": 0.125,
-    "block_rate": 0.0,
-    "permit_rate": 0.875,
-    "legitimate_false_block_rate": null,
-    "legitimate_review_rate": null,
-    "predicted_blocks": 0,
-    "block_precision_95ci": null,
-    "campaigns": 18,
-    "single_victim": {
-      "requests": 5,
-      "fraud": 5,
-      "verify_or_block": {
-        "confusion_matrix": {
-          "true_positive": 0,
-          "false_positive": 0,
-          "false_negative": 5,
-          "true_negative": 0
-        },
-        "precision": null,
-        "precision_95ci": null,
-        "recall": 0.0,
-        "f1": null,
-        "false_positive_rate": null,
-        "flag_rate": 0.0,
-        "positives": 5,
-        "negatives": 0,
-        "note": "No positive predictions; precision and F1 are undefined."
-      },
-      "block_only": {
-        "confusion_matrix": {
-          "true_positive": 0,
-          "false_positive": 0,
-          "false_negative": 5,
-          "true_negative": 0
-        },
-        "precision": null,
-        "precision_95ci": null,
-        "recall": 0.0,
-        "f1": null,
-        "false_positive_rate": null,
-        "flag_rate": 0.0,
-        "positives": 5,
-        "negatives": 0,
-        "note": "No positive predictions; precision and F1 are undefined."
-      },
-      "verify_rate": 0.0,
-      "block_rate": 0.0,
-      "permit_rate": 1.0,
-      "legitimate_false_block_rate": null,
-      "legitimate_review_rate": null,
-      "predicted_blocks": 0,
-      "block_precision_95ci": null
-    },
-    "multi_victim": {
-      "requests": 35,
-      "fraud": 35,
-      "verify_or_block": {
-        "confusion_matrix": {
-          "true_positive": 5,
-          "false_positive": 0,
-          "false_negative": 30,
-          "true_negative": 0
-        },
-        "precision": 1.0,
-        "precision_95ci": [
-          0.5655,
-          1.0
-        ],
-        "recall": 0.14285714285714285,
-        "f1": 0.25,
-        "false_positive_rate": null,
-        "flag_rate": 0.14285714285714285,
-        "positives": 35,
-        "negatives": 0,
-        "note": null
-      },
-      "block_only": {
-        "confusion_matrix": {
-          "true_positive": 0,
-          "false_positive": 0,
-          "false_negative": 35,
-          "true_negative": 0
-        },
-        "precision": null,
-        "precision_95ci": null,
-        "recall": 0.0,
-        "f1": null,
-        "false_positive_rate": null,
-        "flag_rate": 0.0,
-        "positives": 35,
-        "negatives": 0,
-        "note": "No positive predictions; precision and F1 are undefined."
-      },
-      "verify_rate": 0.14285714285714285,
-      "block_rate": 0.0,
-      "permit_rate": 0.8571428571428571,
-      "legitimate_false_block_rate": null,
-      "legitimate_review_rate": null,
-      "predicted_blocks": 0,
-      "block_precision_95ci": null
-    },
-    "note": "Never present in train, calibration or validation."
-  },
-  "drift_billers": {
-    "biller_ids": [
-      "CP-00651",
-      "CP-00652",
-      "CP-00653"
-    ],
-    "requests": 471,
-    "fraud": 0,
-    "verify_or_block": {
-      "confusion_matrix": {
-        "true_positive": 0,
-        "false_positive": 68,
-        "false_negative": 0,
-        "true_negative": 403
-      },
-      "precision": 0.0,
-      "precision_95ci": [
-        0.0,
-        0.0535
-      ],
-      "recall": null,
-      "f1": null,
-      "false_positive_rate": 0.14437367303609341,
-      "flag_rate": 0.14437367303609341,
-      "positives": 0,
-      "negatives": 471,
-      "note": null
-    },
-    "block_only": {
-      "confusion_matrix": {
-        "true_positive": 0,
-        "false_positive": 1,
-        "false_negative": 0,
-        "true_negative": 470
-      },
-      "precision": 0.0,
-      "precision_95ci": [
-        0.0,
-        0.7935
-      ],
-      "recall": null,
-      "f1": null,
-      "false_positive_rate": 0.0021231422505307855,
-      "flag_rate": 0.0021231422505307855,
-      "positives": 0,
-      "negatives": 471,
-      "note": null
-    },
-    "verify_rate": 0.14225053078556263,
-    "block_rate": 0.0021231422505307855,
-    "permit_rate": 0.8556263269639066,
-    "legitimate_false_block_rate": 0.0021231422505307855,
-    "legitimate_review_rate": 0.14225053078556263,
-    "predicted_blocks": 1,
-    "block_precision_95ci": [
-      0.0,
-      0.7935
-    ]
+    "note": "Never present in train.json or validation.json."
   },
   "confidence_intervals": {
     "precision_verify_or_block": [
-      0.10998667932081449,
-      0.18420056781790184
+      0.3206,
+      0.3866
     ],
     "recall_verify_or_block": [
-      0.6824703992734367,
-      0.8317375
+      0.7408,
+      0.8253
     ],
     "verify_rate": [
-      0.05521226171452289,
-      0.0626553466944418
+      0.0417,
+      0.0483
     ],
-    "method": "cluster bootstrap, 1000 resamples, seed 42; a fraud campaign or one legitimate request is the resampling unit; 2.5th-97.5th percentiles"
+    "method": "Wilson score interval; it treats payments as independent, so it is too narrow for fraud that arrives in campaigns"
   },
   "weights": {
-    "isolation_forest": 0.8,
+    "isolation_forest": 0.65,
     "lof": 0.05,
     "dbscan": 0.0,
-    "rules": 0.15
+    "rules": 0.3
   },
   "segment_thresholds": {
     "personal": {
-      "verify": 80.0,
-      "block": 93.0
+      "verify": 68.0,
+      "block": 86.0
     },
     "business": {
-      "verify": 90.0,
-      "block": 99.0
+      "verify": 68.0,
+      "block": 86.0
     }
   },
-  "existing_accounts": {
-    "requests": 18585,
-    "fraud": 231,
-    "verify_or_block": {
-      "confusion_matrix": {
-        "true_positive": 174,
-        "false_positive": 675,
-        "false_negative": 57,
-        "true_negative": 17679
-      },
-      "precision": 0.2049469964664311,
-      "precision_95ci": [
-        0.1792,
-        0.2334
-      ],
-      "recall": 0.7532467532467533,
-      "f1": 0.32222222222222224,
-      "false_positive_rate": 0.03677672441974501,
-      "flag_rate": 0.045682001614205006,
-      "positives": 231,
-      "negatives": 18354,
-      "note": null
-    },
-    "block_only": {
-      "confusion_matrix": {
-        "true_positive": 67,
-        "false_positive": 2,
-        "false_negative": 164,
-        "true_negative": 18352
-      },
-      "precision": 0.9710144927536232,
-      "precision_95ci": [
-        0.9003,
-        0.992
-      ],
-      "recall": 0.29004329004329005,
-      "f1": 0.44666666666666666,
-      "false_positive_rate": 0.00010896807235480004,
-      "flag_rate": 0.0037126715092816787,
-      "positives": 231,
-      "negatives": 18354,
-      "note": null
-    },
-    "verify_rate": 0.041969330104923326,
-    "block_rate": 0.0037126715092816787,
-    "permit_rate": 0.954317998385795,
-    "legitimate_false_block_rate": 0.00010896807235480004,
-    "legitimate_review_rate": 0.03666775634739022,
-    "predicted_blocks": 69,
-    "block_precision_95ci": [
-      0.9003,
-      0.992
-    ]
-  },
   "decision_sources": {
-    "Block/confirmed_fraud_evidence": 34,
-    "Block/risk_policy": 39,
-    "Permit/risk_policy": 18749,
-    "Verify/assessment_safeguard": 14,
-    "Verify/risk_policy": 1164
+    "Block/confirmed_fraud_evidence": 24,
+    "Block/risk_policy": 105,
+    "Permit/risk_policy": 14198,
+    "Verify/assessment_safeguard": 18,
+    "Verify/risk_policy": 655
   },
   "assessment_statuses": {
-    "assessed": 19801,
-    "insufficient_history": 14,
-    "limited_history": 185
+    "assessed": 14804,
+    "insufficient_history": 18,
+    "limited_history": 178
   },
   "latency_ms": {
     "requests_timed": 300,
     "scope": "single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process",
-    "mean": 5.469,
-    "p50": 5.455,
-    "p95": 6.169,
-    "p99": 6.66,
-    "max": 9.821
+    "mean": 4.548,
+    "p50": 4.561,
+    "p95": 4.685,
+    "p99": 4.786,
+    "max": 5.147
   },
   "validation_goals": {
     "max_legitimate_false_block_rate": 0.001,
@@ -1209,36 +1052,37 @@
   "goal_assessment": [
     {
       "goal": "Legitimate false-block rate <= 0.1%",
-      "measured": 0.00010121457489878542,
+      "measured": 0.000273224043715847,
       "met": true
     },
     {
       "goal": "Verify rate <= 5%",
-      "measured": 0.0589,
-      "met": false
+      "measured": 0.044866666666666666,
+      "met": true
     },
     {
       "goal": "Block precision >= 99%",
-      "measured": 0.9726027397260274,
+      "measured": 0.9689922480620154,
       "interval_95": [
-        0.9055,
-        0.9925
+        0.923,
+        0.9879
       ],
-      "predicted_blocks": 73,
-      "met": null,
-      "note": "Fewer than 100 predicted blocks: the sample cannot establish 99% precision either way."
+      "predicted_blocks": 129,
+      "met": false,
+      "note": null
     }
   ],
   "headline": {
-    "test_requests": 20000,
-    "test_fraud": 240,
-    "recall_verify_or_block": 0.7625,
-    "precision_verify_or_block": 0.14628297362110312,
-    "recall_block_only": 0.29583333333333334,
-    "block_precision": 0.9726027397260274,
-    "verify_rate": 0.0589,
-    "legitimate_false_block_rate": 0.00010121457489878542,
-    "model_only_recall_verify_or_block": 0.75,
-    "latency_p95_ms": 6.169
+    "test_requests": 15000,
+    "test_fraud": 360,
+    "recall_verify_or_block": 0.7861111111111111,
+    "precision_verify_or_block": 0.35286783042394015,
+    "recall_block_only": 0.3472222222222222,
+    "block_precision": 0.9689922480620154,
+    "verify_rate": 0.044866666666666666,
+    "legitimate_false_block_rate": 0.000273224043715847,
+    "model_only_recall_verify_or_block": 0.7805555555555556,
+    "test_only_fraud_recall_verify_or_block": 0.5666666666666667,
+    "latency_p95_ms": 4.685
   }
 }

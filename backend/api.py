@@ -30,12 +30,12 @@ from backend.schemas import (
     StreamModeRequest,
     StreamStatus,
     TransactionPage,
+    TransactionQuery,
 )
-from backend.service import SecFlowService, TransactionFilters
+from backend.service import ConflictError, MiaLimitError, NotFoundError, SecFlowService
 from backend.stream import StreamController
 from config.settings import ROOT, Settings, load_settings
-from storage.memory import ConflictError, NotFoundError
-from storage.records import format_ts
+from datagen.records import format_ts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("secflow.api")
@@ -57,7 +57,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         finally:
             await stream.shutdown()
-            service.review_log.close()
 
     app = FastAPI(
         title="SecFlow API",
@@ -74,6 +73,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def error(status: int, code: str, message: str, details: Any = None) -> JSONResponse:
         return JSONResponse(status_code=status, content={"error": {"code": code, "message": message, "details": details}})
+
+    @app.exception_handler(MiaLimitError)
+    async def mia_limit(_: Request, exc: MiaLimitError) -> JSONResponse:
+        return error(422, "validation_error", str(exc), {"limit": "mia_per_transaction"})
 
     @app.exception_handler(NotFoundError)
     async def not_found(_: Request, exc: NotFoundError) -> JSONResponse:
@@ -111,25 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return data
 
     @app.get("/api/transactions", response_model=TransactionPage)
-    def transactions(
-        request: Request,
-        q: str | None = None,
-        decision: Annotated[str | None, Query(pattern="^(Permit|Verify|Block)$")] = None,
-        decision_source: Annotated[
-            str | None, Query(pattern="^(confirmed_fraud_evidence|risk_policy|assessment_safeguard)$")
-        ] = None,
-        origin: Annotated[str | None, Query(pattern="^(baseline|simulation)$")] = None,
-        review_status: Annotated[str | None, Query(pattern="^(pending|approved|rejected|not_applicable)$")] = None,
-        date_from: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = None,
-        date_to: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = None,
-        min_score: Annotated[float | None, Query(ge=0, le=100)] = None,
-        max_score: Annotated[float | None, Query(ge=0, le=100)] = None,
-        sort: Annotated[str, Query(pattern="^(time_desc|time_asc|risk_desc)$")] = "time_desc",
-        page: Annotated[int, Query(ge=1)] = 1,
-        page_size: Annotated[int, Query(ge=1, le=100)] = 25,
-    ) -> TransactionPage:
-        filters = TransactionFilters(q, decision, decision_source, origin, review_status, date_from, date_to,
-                                     min_score, max_score, sort, page, page_size)
+    def transactions(request: Request, filters: Annotated[TransactionQuery, Query()]) -> TransactionPage:
         return svc(request).transactions(filters)
 
     @app.get("/api/accounts", response_model=AccountPage)
@@ -225,7 +210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/evaluation")
     def evaluation(request: Request) -> dict[str, Any]:
-        data = svc(request).evaluation()
+        data = svc(request).evaluation
         if data is None:
             raise HTTPException(404, "No evaluation report yet. Run `python -m backend.cli evaluate`.")
         return data

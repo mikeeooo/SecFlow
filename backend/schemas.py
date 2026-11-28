@@ -12,6 +12,11 @@ DecisionSource = Literal["confirmed_fraud_evidence", "risk_policy", "assessment_
 DecisionLabel = Literal["Confirmed fraud evidence", "Preventive risk block", "Needs verification", "Permitted"]
 Outcome = Literal["permitted", "pending_verification", "blocked_attempt", "approved_after_review", "rejected_after_review"]
 AuthMethod = Literal["biometric", "password", "otp", "password_otp"]
+# MIA Plati Instant schemes a SecFlow customer can initiate (incoming remittances are context only).
+PaymentScheme = Literal[
+    "p2p_alias", "p2p_iban", "p2b_qr_static", "p2b_qr_dynamic", "p2b_link", "request_to_pay", "b2b", "p2g", "b2p_salary"
+]
+OUTGOING_SCHEMES: tuple[str, ...] = PaymentScheme.__args__  # type: ignore[attr-defined]
 
 
 class StrictModel(BaseModel):
@@ -30,13 +35,19 @@ class SimulationRequest(StrictModel):
     sender_id: str = Field(min_length=3, max_length=40)
     recipient_id: str | None = Field(default=None, min_length=3, max_length=40)
     new_recipient_name: str | None = Field(default=None, min_length=2, max_length=80)
-    amount: float = Field(gt=0, le=1_000_000)
-    currency: Literal["EUR"] = "EUR"
+    # MIA per-transaction limits: 100,000 MDL for business senders (schema), 5,000 MDL for personal
+    # senders (checked against the sender's account type by the service, also answered with 422).
+    amount: float = Field(gt=0, le=100_000)
+    currency: Literal["MDL"] = "MDL"  # MIA settles in Moldovan lei only
+    payment_scheme: PaymentScheme = "p2p_alias"
+    recipient_alias: str | None = Field(default=None, pattern=r"^\+373\d{8}$")
+    qr_payload_merchant_id: str | None = Field(default=None, min_length=3, max_length=40)
     device_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{3,40}$")
     auth_method: AuthMethod = "biometric"
     failed_login_attempts: int = Field(default=0, ge=0, le=10)
-    ip_country: str = Field(default="DE", pattern=r"^[A-Z]{2}$")
+    ip_country: str = Field(default="MD", pattern=r"^[A-Z]{2}$")
     channel: Literal["mobile_app", "web"] = "mobile_app"
+    transfer_type: Literal["instant"] = "instant"  # SecFlow assesses instant transfers only
 
     @field_validator("amount")
     @classmethod
@@ -54,6 +65,8 @@ class SimulationRequest(StrictModel):
     def exactly_one_recipient(self) -> SimulationRequest:
         if bool(self.recipient_id) == bool(self.new_recipient_name):
             raise ValueError("Provide either recipient_id or new_recipient_name, not both")
+        if self.qr_payload_merchant_id and self.payment_scheme not in ("p2b_qr_static", "p2b_qr_dynamic"):
+            raise ValueError("qr_payload_merchant_id is only meaningful for QR payment schemes")
         return self
 
 
@@ -69,6 +82,23 @@ class ReviewRequest(StrictModel):
         if len(cleaned) < 2:
             raise ValueError("must not be blank")
         return cleaned
+
+
+class TransactionQuery(BaseModel):
+    """Query parameters of GET /api/transactions."""
+
+    q: str | None = None
+    decision: Decision | None = None
+    decision_source: DecisionSource | None = None
+    origin: Literal["baseline", "simulation"] | None = None
+    review_status: Literal["pending", "approved", "rejected", "not_applicable"] | None = None
+    date_from: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    date_to: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    min_score: float | None = Field(default=None, ge=0, le=100)
+    max_score: float | None = Field(default=None, ge=0, le=100)
+    sort: Literal["time_desc", "time_asc", "risk_desc"] = "time_desc"
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=25, ge=1, le=100)
 
 
 class StreamModeRequest(StrictModel):
@@ -135,6 +165,7 @@ class AssessmentSummary(BaseModel):
     recipient: PartyRef
     amount: float
     currency: str
+    payment_scheme: str
     risk_score: float | None
     decision: Decision
     decision_source: DecisionSource
@@ -190,6 +221,9 @@ class AssessmentDetail(AssessmentSummary):
     auth_method: str
     ip_country: str
     channel: str
+    request_to_pay_id: str | None = None
+    qr_payload_merchant_id: str | None = None
+    recipient_alias: str | None = None
     facts: dict[str, Any]
     idempotent_replay: bool = False
     score_band: ScoreBand | None = None
@@ -298,9 +332,3 @@ class LiveFeed(BaseModel):
     next_cursor: int
     stream: StreamStatus
     simulation_time: str
-
-
-class ErrorBody(BaseModel):
-    code: str
-    message: str
-    details: Any | None = None

@@ -1,105 +1,125 @@
 # Architecture and data flow
 
 ```text
-                 offline (CLI)                                   online (one uvicorn process)
-┌────────────────────────────────────────────┐      ┌──────────────────────────────────────────────────────┐
-│ generate ─► storage/data/{training,demo}   │      │ startup: load demo runtime files + model bundle      │
-│              (JSONL + manifest, hashes)    │      │          + policy + operating point + evidence       │
-│ train    ─► replay ─► features ─► fit IF,  │      │          replay 10,000 baseline requests (batch)     │
-│              LOF, DBSCAN on days 1-60      │─────►│                                                      │
-│              CDF maps + weights, 61-70     │ ml/  │ request ─► append session events to history overlay  │
-│              select params/thresholds 71-80│models│          ─► build_features (history < key)           │
-│ evaluate ─► frozen pipeline on days 81-100 │      │          ─► IF, LOF, DBSCAN context (once each)      │
-│              ─► artifacts/evaluation.*     │      │          ─► rules ─► combine ─► evidence ─► action   │
-└────────────────────────────────────────────┘      │          ─► commit attempt (+ settlement if Permit)  │
-                                                     │ stream producer (asyncio task) ─► same path         │
-                                                     └───────────────▲──────────────────────────────────────┘
-                                                                     │ /api (JSON)
-                                                     ┌───────────────┴──────────────────────────────────────┐
-                                                     │ React app: Overview, Live Transfers, Transactions,   │
-                                                     │ Accounts, Investigation, Simulator, Algorithm Results│
-                                                     └──────────────────────────────────────────────────────┘
+           offline (backend/cli.py)                            online (one uvicorn process)
+┌──────────────────────────────────────────┐      ┌───────────────────────────────────────────────────┐
+│ generate ─► storage/{train,validation,   │      │ startup: load validation.json (history) and       │
+│              test}.json + manifest       │      │          test.json without labels, the model      │
+│                                          │      │          bundle, the policy and the thresholds;   │
+│ validate ─► dataset checks               │      │          assess all 15,000 test payments          │
+│ train    ─► fit IF, LOF, DBSCAN on train;│ ml/  │ request ─► MIA limit check ─► sign-in events      │
+│              CDF references + threshold  │models│          ─► Assessor (features, detectors, rules, │
+│              grid on validation          │─────►│             risk, evidence, decision table)       │
+│ evaluate ─► frozen run on test.json      │      │          ─► record the attempt (+ settle if Permit)│
+│              ─► artifacts/evaluation.*   │      │ stream task ─► same path                          │
+└──────────────────────────────────────────┘      └─────────────────────▲─────────────────────────────┘
+                                                                        │ /api (JSON)
+                                                  ┌─────────────────────┴─────────────────────────────┐
+                                                  │ React app: Overview, Live Transfers, Transactions, │
+                                                  │ Accounts, Investigation, Simulator, Algorithms     │
+                                                  └───────────────────────────────────────────────────┘
 ```
+
+## Code layout
+
+| Path | Role |
+|---|---|
+| `storage/` | Data only: `train.json`, `validation.json`, `test.json` (see [DATASET.md](DATASET.md)) |
+| `datagen/` | Generator, identities, runtime records, loader and validator, `manifest.json` |
+| `config/` | `settings.py` (paths and stream timing), `policy.json` (weights, rules, goals, MIA limits), `limits.py` |
+| `ml/history.py` | Time-ordered history index: every query looks only at events before a key |
+| `ml/features.py` | The feature function used by training, evaluation and the app |
+| `ml/model.py` | Preprocessor, CDF mapping, DBSCAN context and the saved `ModelBundle` |
+| `ml/policy.py` | Policy loading, rules, the risk score and the decision table |
+| `ml/evidence.py` | Trusted security evidence and when it is active |
+| `ml/assess.py` | `Assessor`: the one path from a payment to a decision |
+| `ml/training.py`, `ml/evaluation.py` | Training with threshold search, and the frozen test evaluation |
+| `ml/models/` | Model bundle, metadata, operating point, training report |
+| `backend/` | FastAPI app, service, views, analytics, stream producer, CLI, tests |
+| `scripts/api_contract.py` | The API shape pin the frontend depends on |
 
 ## One assessment path
 
-`ml/assess.py` is the only path from a request to a decision. Live simulations, the startup replay
-of the demo history, and the offline evaluation all call it.
+`Assessor.assess_batch` in `ml/assess.py` is the only way from a payment to a decision. The app's
+startup, each simulation, the stream and the evaluation all call it.
 
-1. `build_features(request, key, history, account)` reads only events whose ordering key is lower
-   than the request's key.
-2. `ModelBundle.score_batch` runs the preprocessor, IsolationForest, LOF and the DBSCAN context
-   adapter exactly once per row.
-3. `evaluate_rules` turns observed facts into reason codes, weights, and corroboration families.
-4. `combine_scores` is a pure function of the four component values and the learned weights.
-5. `EvidenceStore.active_for` returns trusted evidence active at the request time.
-6. `decide_action` applies the evidence-first action table with the sender segment's thresholds.
+1. `build_features` reads only events whose ordering key is lower than the payment's key.
+2. `ModelBundle.score_batch` runs the preprocessor, IsolationForest, LOF and the DBSCAN context once
+   per payment.
+3. `evaluate_rules` turns the facts into reason codes and corroborating families.
+4. `combine_scores` adds the four weighted parts.
+5. `EvidenceStore.active_for` returns the trusted evidence active at the payment time.
+6. `decide_action` applies the decision table.
 
-## Ordering and leakage control
+[ALGORITHMS.md](ALGORITHMS.md) explains each step and the measured results.
 
-Every event gets an ordering key `epoch_seconds × 10^6 + sequence`. Events that share a second are
-ordered authentication → payment → request, then by identifier, so equal timestamps resolve
-deterministically. Queries take the target key and use `bisect_left`, so appending future events
-cannot change earlier features. Tests cover this (`backend/tests/test_features.py`).
+## Ordering and leakage
 
-History aggregates exclude the request under assessment. The DBSCAN account-context profile is
-*prospective*: the sender's trailing 24 hours of history plus the request being assessed, kept as
-a separate vector.
+Every event gets the key `epoch_seconds × 10^6 + sequence`. Events in the same second sort sign-in
+first, then payment, then request, then by identifier. Queries use `bisect_left` on the key, so
+adding later events never changes the features of an earlier payment. History counts exclude the
+payment being assessed.
 
-Attempted activity (every request, whatever its decision) feeds velocity and beneficiary
-features. Completed flows (settlement and incoming-credit events) feed the incoming-funds
-features. A blocked or pending simulation therefore counts as an attempt but never as money
-received by anyone.
+Every request counts as an attempt, whatever its decision, so it feeds the velocity and
+beneficiary features. Only completed flows (a settled payment or an incoming credit) feed the
+incoming-funds features. A blocked or pending simulation is therefore an attempt, but no one
+receives its money.
 
-## State, idempotency and concurrency
+## State in the app
 
-`storage/memory.py` keeps assessments, reviews, idempotency fingerprints, and the history overlay
-behind one re-entrant lock.
+`SecFlowService` in `backend/service.py` keeps everything in memory: the history index, every
+assessment record, simulated counterparties and the review list. Nothing is written to disk, so a
+restart starts again from `validation.json` and `test.json`.
 
+- One lock serialises simulations and reviews. FastAPI runs requests in a thread pool, and the
+  stream runs `simulate` in a thread, so the history index needs it.
 - `POST /api/simulations` hashes the payload. The same ID with the same payload returns the stored
-  assessment (`200`, `idempotent_replay: true`) and writes no duplicate events. The same ID with a
-  different payload returns `409`.
-- Scoring and commit happen under the lock, so concurrent duplicates commit exactly once (tested
-  with eight parallel requests).
-- Reviews are serialised the same way: the first final outcome wins and later attempts get `409`.
-- The original automated decision and score are immutable. A review stores its own record and
-  changes only the payment outcome (`approved_after_review` or `rejected_after_review`).
+  assessment (`200`, `idempotent_replay: true`). The same ID with another payload returns `409`.
+- A review records its own entry and changes only the payment outcome
+  (`approved_after_review` or `rejected_after_review`). The automated decision and score never
+  change. A second review of the same payment returns `409`.
 
-**Limitations:** state is lost on restart and is not shared between workers or instances. Durable,
-multi-instance operation would need a shared store and is a separate scope change.
+The state is per process. Run one backend process; extra workers or Vercel instances each have
+their own copy.
 
 ## Simulation clock
 
-Baseline events are historical. The simulation clock starts one hour after the last demo event and
-advances in real time. A simulation's sign-in events and request are stamped at or after the
-latest event, so the overlay stays strictly ordered.
+The baseline is the 15 days of `test.json`, assessed on top of the 15 validation days as history. The simulation clock starts one hour after the last
+test event and then follows real time. Sign-in events and the request of a simulation are stamped
+after the latest event, so the history stays in order.
 
 ## Live stream
 
-`backend/stream.py` owns one producer task per process. It starts with the server (unless
-`SECFLOW_AUTOSTART_STREAM=false`) and submits one request every 2 seconds, or batches of 5, 10 or
-20 every 4 seconds. Browsers poll `GET /api/live-transfers?after=<cursor>` and only call
-start, stop or mode, so extra tabs cannot multiply submissions.
-
-The producer re-checks `running` before every submission, so Stop takes effect within one
-submission. Stop does not depend on the feed endpoint, so it keeps working while feed polling fails.
+`backend/stream.py` runs one producer task per process. The task starts with the server unless
+`SECFLOW_AUTOSTART_STREAM=false`. It submits one payment every 2 seconds, or 5, 10 or 20 payments
+every 4 seconds. Browsers poll `GET /api/live-transfers?after=<cursor>` and call only start, stop
+or mode, so extra tabs never add submissions. The producer checks `running` before each submission,
+so Stop takes effect within one payment.
 
 ## API
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/health` | Readiness, data source, model/policy versions, memory-state disclosure |
-| GET | `/api/overview` | Totals, volumes, daily trend, recent activity, review queue |
+| GET | `/api/health` | Readiness, data file, model and policy versions, memory state |
+| GET | `/api/overview`, `/api/dashboard` | Totals, volumes, trend, recent activity, review queue, monitoring buckets |
 | GET | `/api/transactions` | Filter (`q`, `decision`, `decision_source`, `origin`, `review_status`, dates, score) and paginate |
-| GET | `/api/accounts`, `/api/accounts/{id}` | Named-account search, behaviour profile, context finding, linked transfers |
+| GET | `/api/accounts`, `/api/accounts/{id}` | Account search, behaviour profile, DBSCAN context, linked payments |
 | GET | `/api/parties` | Account and counterparty search for the simulator |
-| GET | `/api/simulator/options` | Known devices, recent recipients, beneficiaries with active evidence |
-| POST | `/api/simulations` | Assess and record one simulated request (idempotent) |
-| GET | `/api/live-transfers` | Cursor-based simulated assessments plus stream status |
-| GET/POST | `/api/simulation-stream[/start\|/stop\|/mode]` | Backend producer status and controls |
+| GET | `/api/simulator/options` | Known devices, recent recipients, beneficiaries with active evidence, schemes and limits |
+| POST | `/api/simulations` | Assess and record one simulated payment |
+| GET | `/api/live-transfers` | Simulated assessments after a cursor, plus the stream status |
+| GET, POST | `/api/simulation-stream`, `/start`, `/stop`, `/mode` | Stream status and controls |
 | GET | `/api/investigations/{id}` | Full assessment, timeline, reviews |
-| POST | `/api/investigations/{id}/reviews` | Approve or reject a Verify request with a required reason |
-| GET | `/api/algorithms`, `/api/evaluation` | Model metadata, distributions, search records, evaluation report |
+| POST | `/api/investigations/{id}/reviews` | Approve or reject a Verify decision with a reason |
+| GET | `/api/reviews` | Review history |
+| GET | `/api/algorithms`, `/api/algorithms/cluster-graph`, `/api/evaluation` | Model metadata, distributions, training report, cluster graph, evaluation report |
 
 Errors share one shape: `{"error": {"code", "message", "details"}}`. Unknown request fields are
-rejected (`422`), so a client cannot send `is_fraud` or `confirmed_fraud` to influence a decision.
+rejected with `422`, so a client cannot send `is_fraud` to influence a decision. A simulation must
+use `currency = MDL`, `transfer_type = instant`, one of the nine schemes a customer can start, and
+an alias of `+373` plus 8 digits. A personal sender above 5,000 MDL, or a business sender above
+100,000 MDL, gets `422`.
+
+`uv run python scripts/api_contract.py --check` calls every route the frontend uses and compares the
+JSON shape with `scripts/api_contract.baseline.json`. It fails on a missing key or a type change.
+Report fields removed on purpose are listed in the script's `REMOVED` table.

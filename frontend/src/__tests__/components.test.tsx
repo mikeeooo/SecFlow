@@ -86,3 +86,12 @@ describe("Investigation review", () => {
     expect(post && JSON.parse(String(post.init?.body))).toMatchObject({ action: "approve", reason: "Customer confirmed the payee by phone" });
   });
 });
+
+describe("MIA formatting", () => {
+  it("shows money in MDL and names the payment scheme", async () => {
+    const { formatMoney, formatScheme } = await import("../lib/format");
+    expect(formatMoney(4900)).toMatch(/^MDL\s4,900\.00$/);
+    expect(formatScheme("p2b_qr_static")).toBe("Static merchant QR");
+    expect(formatScheme("request_to_pay")).toBe("Request to Pay");
+  });
+});

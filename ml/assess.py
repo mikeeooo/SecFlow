@@ -1,21 +1,22 @@
-"""The single assessment pipeline used by live scoring, baseline replay, and evaluation.
+"""One path from a payment to a decision, shared by the app, the training report and the evaluation.
 
-features (once) -> IF / LOF / DBSCAN context (once each) -> rules -> pure combination ->
-time-aware trusted evidence -> evidence-first action table.
+features (only past events) -> IsolationForest, LOF, DBSCAN context -> rules -> risk score ->
+active trusted evidence -> decision table.
 """
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
 
+from datagen.records import Account, PaymentRequest
+from ml.evidence import EvidenceStore, SecurityEvidence, evidence_from_row
 from ml.features import FeatureSnapshot, build_features
-from ml.model import ModelBundle, ModelComponents
+from ml.history import HistoryIndex
+from ml.model import Components, ModelBundle
 from ml.policy import (
-    ComponentScores,
     OperatingPoint,
     Policy,
     PolicyResult,
@@ -27,94 +28,52 @@ from ml.policy import (
     evaluate_rules,
     segment_of,
 )
-from storage.evidence import EvidenceStore, SecurityEvidence
-from storage.history import HistoryIndex
-from storage.records import Account, PaymentRequest
 
 
 @dataclass(frozen=True)
 class AssessmentResult:
     request: PaymentRequest
     snapshot: FeatureSnapshot
-    components: ModelComponents | None
+    components: Components
     rules: RuleResult
-    risk: RiskBreakdown | None
+    risk: RiskBreakdown
     evidence: tuple[SecurityEvidence, ...]
     policy: PolicyResult
     status_notes: tuple[str, ...]
-    segment: str = "personal"
+    segment: str
 
 
-def finalize(
-    request: PaymentRequest,
-    snapshot: FeatureSnapshot,
-    components: ModelComponents | None,
-    evidence_store: EvidenceStore,
-    policy: Policy,
-    operating_point: OperatingPoint,
-    segment: str,
-) -> AssessmentResult:
-    rules = evaluate_rules(snapshot.facts, snapshot.history_status, policy)
-    finite = all(math.isfinite(v) for v in snapshot.payment_vector + snapshot.context_vector)
-    status, notes = assessment_status(
-        snapshot.history_status, request.amount, request.auth_method, components is not None, finite, policy
-    )
-    risk = None
-    if components is not None and finite:
-        risk = combine_scores(
-            ComponentScores(components.if_score, components.lof_score, components.context.score, rules.score),
-            operating_point.weights or policy.weights,
-        )
-    evidence = tuple(evidence_store.active_for(request))
-    decision = decide_action(risk, rules, evidence, status, operating_point, policy, segment)
-    return AssessmentResult(request, snapshot, components, rules, risk, evidence, decision, tuple(notes), segment)
+@dataclass(frozen=True)
+class Assessor:
+    """Everything a decision needs that does not change between payments."""
+
+    bundle: ModelBundle
+    evidence: EvidenceStore
+    policy: Policy
+    point: OperatingPoint
+
+    def assess_batch(self, requests: Sequence[PaymentRequest], keys: Mapping[str, int], history: HistoryIndex,
+                     accounts: Mapping[str, Account]) -> list[AssessmentResult]:
+        """Assess payments; each one sees only history ordered before its own key."""
+        snapshots = [build_features(r, keys[r.request_id], history, accounts.get(r.sender_id)) for r in requests]
+        if not snapshots:
+            return []
+        components = self.bundle.score_batch(np.array([s.payment_vector for s in snapshots]),
+                                             np.array([s.context_vector for s in snapshots]),
+                                             [s.context_status for s in snapshots])
+        return [self._decide(r, s, c, segment_of(accounts.get(r.sender_id)))
+                for r, s, c in zip(requests, snapshots, components, strict=True)]
+
+    def _decide(self, request: PaymentRequest, snapshot: FeatureSnapshot, components: Components,
+                segment: str) -> AssessmentResult:
+        rules = evaluate_rules(snapshot.facts, snapshot.history_status, self.policy)
+        status, notes = assessment_status(snapshot.history_status, request.amount, request.auth_method, self.policy)
+        risk = combine_scores({"isolation_forest": components.if_score, "lof": components.lof_score,
+                               "dbscan": components.context.score, "rules": rules.score}, self.policy.weights)
+        evidence = tuple(self.evidence.active_for(request))
+        decision = decide_action(risk, rules, evidence, status, self.point, self.policy, segment)
+        return AssessmentResult(request, snapshot, components, rules, risk, evidence, decision, tuple(notes), segment)
 
 
-def assess_one(
-    request: PaymentRequest,
-    key: int,
-    history: HistoryIndex,
-    account: Account | None,
-    bundle: ModelBundle | None,
-    evidence_store: EvidenceStore,
-    policy: Policy,
-    operating_point: OperatingPoint,
-) -> AssessmentResult:
-    snapshot = build_features(request, key, history, account)
-    components = bundle.score(snapshot) if bundle is not None else None
-    return finalize(request, snapshot, components, evidence_store, policy, operating_point, segment_of(account))
-
-
-def assess_batch(
-    requests: Sequence[PaymentRequest],
-    keys: Mapping[str, int],
-    history: HistoryIndex,
-    accounts: Mapping[str, Account],
-    bundle: ModelBundle | None,
-    evidence_store: EvidenceStore,
-    policy: Policy,
-    operating_point: OperatingPoint,
-) -> list[AssessmentResult]:
-    """Assess many historical requests; each sees only events before its own ordering key."""
-    snapshots = [build_features(r, keys[r.request_id], history, accounts.get(r.sender_id)) for r in requests]
-    components: list[ModelComponents | None]
-    if bundle is not None and snapshots:
-        components = list(
-            bundle.score_batch(
-                np.asarray([s.payment_vector for s in snapshots]),
-                np.asarray([s.context_vector for s in snapshots]),
-                [s.context_status for s in snapshots],
-            )
-        )
-    else:
-        components = [None] * len(snapshots)
-    return [
-        finalize(r, s, c, evidence_store, policy, operating_point, segment_of(accounts.get(r.sender_id)))
-        for r, s, c in zip(requests, snapshots, components, strict=True)
-    ]
-
-
-def build_evidence_store(rows: Sequence[dict], policy: Policy) -> EvidenceStore:
-    from storage.evidence import evidence_from_row
-
-    return EvidenceStore([evidence_from_row(r) for r in rows], policy.trusted_sources, policy.blocking_types)
+def evidence_store(rows: Sequence[dict], policy: Policy) -> EvidenceStore:
+    return EvidenceStore((evidence_from_row(r) for r in rows), policy.trusted_sources, policy.blocking_types)

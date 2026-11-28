@@ -1,6 +1,6 @@
 {
-  "model_version": "secflow-sk-1.1-326d6a99a3",
-  "feature_version": "features-1.1.0",
+  "model_version": "secflow-sk-3.0-4b97752f19",
+  "feature_version": "features-2.0.0",
   "payment_features": [
     "log_amount",
     "amount_zscore_30d",
@@ -25,7 +25,14 @@
     "log_recipient_unique_senders_7d",
     "log_recipient_inbound_24h",
     "pair_requests_24h",
-    "recipient_new_global"
+    "recipient_new_global",
+    "amount_to_tx_cap_ratio",
+    "daily_cumulative_to_cap_ratio",
+    "near_cap_count_24h",
+    "alias_rebound_age_hours",
+    "is_request_to_pay",
+    "qr_merchant_mismatch",
+    "scheme_novelty"
   ],
   "context_features": [
     "ctx_log_requests_24h",
@@ -40,126 +47,84 @@
   "lof_features": [
     "log_amount",
     "amount_zscore_30d",
-    "log_amount_to_prior_max_30d",
-    "requests_1h",
-    "requests_24h",
-    "log_sum_24h",
-    "velocity_ratio_24h",
-    "unique_recipients_24h",
-    "new_recipient",
-    "recipient_senders_24h",
-    "log_recipient_history_days",
-    "log_device_age_hours",
-    "auth_failures_24h",
-    "log_hours_since_last_request",
-    "log_account_age_days",
-    "log_incoming_24h",
-    "foreign_ip",
-    "weak_auth",
-    "hour_deviation",
-    "log_requests_30d",
-    "log_recipient_unique_senders_7d",
-    "log_recipient_inbound_24h",
-    "pair_requests_24h",
-    "recipient_new_global"
+    "log_amount_to_prior_max_30d"
   ],
   "sklearn_version": "1.9.1",
   "random_seed": 42,
   "training_dataset": {
-    "path": "storage/data/training",
+    "files": [
+      "storage/train.json",
+      "storage/validation.json"
+    ],
     "seed": 42,
-    "generator_version": "secflow-generator-1.1.0",
+    "generator_version": "secflow-mia-generator-2.0.0",
     "file_hashes": {
-      "accounts.jsonl": "ac539c366d18d1f0eb77ae562ddb40519f42a0788a5e49973fe3b5721e509f29",
-      "counterparties.jsonl": "8f3293bf85f3e53d502cae2422f403a36f48e4cc2a269e20f3994fefbf8154e4",
-      "requests.jsonl": "ea6b2e8148924f8fadecf7f187f1bdce1dcadd59b1c4bfb8c1f56a07008db7a6",
-      "payment_events.jsonl": "a50c0954577ee437dbf1a013d46ee838fd221aec3217a0a3d2047b69b5034f2b",
-      "authentication_events.jsonl": "9fd01d1668c23799177e984da49d7c28fc2bd3918a90834d601e00d877f522e9",
-      "security_events.jsonl": "02260e6c0a45e23e11fb76e0c8b8a04611afa974ade998e1d025716c5da6180c",
-      "evaluation_labels.jsonl": "5406481a7f27f77a02ecee8215efb9676fe2402bb877a0d9db580de9a27a7609",
-      "generator_account_params.jsonl": "349dc5d4276cfc94cab068dbf8b8ce1c6caec300c8365d8d280ff3e02a10d004",
-      "split_assignments.jsonl": "622321bc8f2c009c28bb64b4f5f06d82d1d31b185c44ff6b2757919719963bed"
+      "train.json": "d4a24243f20b1c25eb085d0fa7551cd09da753dd49021c5c0a44316ee829f02b",
+      "validation.json": "49d4a674c196c41c189a2d3cd2bf79df25fda3e8b4be136ae19cc614d930ae89"
+    },
+    "splits": {
+      "train": "train.json, days 1-70: preprocessing, IsolationForest, LOF, DBSCAN (no labels)",
+      "validation_mapping": "validation.json, days 71-85: IF and LOF score references (no labels)",
+      "validation_selection": "validation.json, days 71-85: Verify/Block threshold search (labels)"
     }
   },
   "fit_rows": {
-    "preprocessing": 53045,
-    "isolation_forest": 53045,
+    "preprocessing": 70000,
+    "isolation_forest": 70000,
     "lof": 20000,
     "dbscan": 20000,
-    "score_mapping_reference": 8870,
-    "weights_reference": 8870
+    "score_mapping_reference": 15000,
+    "weights_reference": 15000
   },
-  "holdout_accounts": 40,
+  "holdout_accounts": 0,
   "selected_parameters": {
     "isolation_forest": {
       "n_estimators": 200,
       "max_samples": 256
     },
     "lof": {
-      "subspace": "full",
-      "n_neighbors": 50,
+      "subspace": "amount",
+      "n_neighbors": 20,
       "fit_rows_requested": 20000
     },
     "dbscan": {
-      "min_samples": 10,
-      "eps": 1.15147,
+      "min_samples": 5,
+      "eps": 0.70514,
       "eps_quantile": 0.9
     },
     "weights": {
-      "isolation_forest": 0.8,
+      "isolation_forest": 0.65,
       "lof": 0.05,
       "dbscan": 0.0,
-      "rules": 0.15
+      "rules": 0.3
     }
   },
   "combination_weights": {
-    "isolation_forest": 0.8,
+    "isolation_forest": 0.65,
     "lof": 0.05,
     "dbscan": 0.0,
-    "rules": 0.15
+    "rules": 0.3
   },
   "segment_thresholds": {
     "personal": {
-      "verify": 80.0,
-      "block": 93.0
+      "verify": 68.0,
+      "block": 86.0
     },
     "business": {
-      "verify": 90.0,
-      "block": 99.0
+      "verify": 68.0,
+      "block": 86.0
     }
   },
   "dbscan_context": {
     "fit_profiles": 20000.0,
-    "core_samples": 18145.0,
-    "clusters": 17.0,
-    "noise_fraction": 0.0496,
-    "eps": 1.1514663297467178,
-    "min_samples": 10,
+    "core_samples": 18000.0,
+    "clusters": 123.0,
+    "noise_fraction": 0.0689,
+    "eps": 0.7051358079166585,
+    "min_samples": 5,
     "metric": "euclidean",
     "adapter": "frozen-core: within eps of a training core sample -> 0, beyond -> min(1, (d - eps) / eps), insufficient history -> 0"
   },
-  "score_mapping": "empirical CDF of inverted raw scores over the unlabelled calibration period",
-  "policy_version": "secflow-evidence-first-1.1.0+bf92c73f",
-  "operating_point": {
-    "verify": 83.0,
-    "block": 99.0,
-    "source": "validated",
-    "version": "op-8d3e6850",
-    "weights": {
-      "isolation_forest": 0.8,
-      "lof": 0.05,
-      "dbscan": 0.0,
-      "rules": 0.15
-    },
-    "segments": {
-      "personal": {
-        "verify": 80.0,
-        "block": 93.0
-      },
-      "business": {
-        "verify": 90.0,
-        "block": 99.0
-      }
-    }
-  }
+  "score_mapping": "empirical CDF of inverted raw scores over the validation payments (days 71-85)",
+  "policy_version": "secflow-evidence-first-3.0.0+c4573fe9"
 }

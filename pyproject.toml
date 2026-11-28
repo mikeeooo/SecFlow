@@ -1,7 +1,7 @@
 [project]
 name = "secflow"
-version = "1.0.0"
-description = "SecFlow: explainable payment-risk analysis with scikit-learn anomaly detection and an evidence-first decision policy."
+version = "2.0.0"
+description = "SecFlow: explainable risk analysis of MIA Plati Instant payments (MDL) with scikit-learn anomaly detection and an evidence-first decision policy."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

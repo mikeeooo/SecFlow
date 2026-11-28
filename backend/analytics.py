@@ -9,7 +9,6 @@ every core neighbourhood (`outside_context`), linked to their nearest frozen clu
 from __future__ import annotations
 
 import math
-import threading
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -17,10 +16,10 @@ from typing import Any
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-from ml.algorithms.dbscan_context import DBSCANContext
+from backend.views import COMPLETED_OUTCOMES
+from datagen.records import format_ts
+from ml.model import DbscanContext
 from ml.policy import OperatingPoint
-from storage.memory import COMPLETED_OUTCOMES, AssessmentRecord
-from storage.records import format_ts
 
 WINDOWS = {
     "history": {"bucket_seconds": 86_400, "max_buckets": None, "label": "Demonstration history and session, per day"},
@@ -42,7 +41,7 @@ def _mean(values: list[float]) -> float | None:
 
 
 def dashboard(
-    records: Sequence[AssessmentRecord], window: str, now_ts: int, point: OperatingPoint, goals: dict[str, float]
+    records: Sequence[Any], window: str, now_ts: int, point: OperatingPoint, goals: dict[str, float]
 ) -> dict[str, Any]:
     spec = WINDOWS[window]
     size = int(spec["bucket_seconds"])
@@ -84,13 +83,11 @@ def dashboard(
         else:
             b["blocked_amount"] += amount
         c = r.result.components
-        if c is not None:
-            b["scored"] += 1
-            b["_if"].append(c.if_score)
-            b["_lof"].append(c.lof_score)
-            b["outside_context"] += int(c.context.status == "outside_context")
-        if r.result.risk is not None:
-            b["_risk"].append(r.result.risk.total)
+        b["scored"] += 1
+        b["_if"].append(c.if_score)
+        b["_lof"].append(c.lof_score)
+        b["outside_context"] += int(c.context.status == "outside_context")
+        b["_risk"].append(r.result.risk.total)
         b["_rules"].append(r.result.rules.score)
         if r.latency_ms is not None:
             b["_latency"].append(r.latency_ms)
@@ -148,13 +145,12 @@ def dashboard(
 class ClusterGraphBuilder:
     """Builds the static cluster backbone once, then attaches current anomalies on each call."""
 
-    def __init__(self, context: DBSCANContext, members_cap: int = 12, link_factor: float = 2.0, seed: int = 7) -> None:
+    def __init__(self, context: DbscanContext, members_cap: int = 12, link_factor: float = 2.0, seed: int = 7) -> None:
         self.context = context
         self.members_cap = members_cap
         self.link_factor = link_factor
         self.seed = seed
         self._static: dict[str, Any] | None = None
-        self._lock = threading.Lock()
 
     def _build_static(self) -> dict[str, Any]:
         cores = np.asarray(self.context.core_samples)
@@ -219,32 +215,27 @@ class ClusterGraphBuilder:
             },
         }
 
-    def build(self, records: Sequence[AssessmentRecord], party: Callable[[str], Any], max_anomalies: int) -> dict[str, Any]:
-        with self._lock:
-            if self._static is None:
-                self._static = self._build_static()
+    def build(self, records: Sequence[Any], party: Callable[[str], Any], max_anomalies: int) -> dict[str, Any]:
+        if self._static is None:  # the frozen clusters never change, so build them once
+            self._static = self._build_static()
         static = self._static
-        outside = [
-            r for r in records
-            if r.result.components is not None and r.result.components.context.status == "outside_context"
-        ]
+        outside = [r for r in records if r.result.components.context.status == "outside_context"]
         outside.sort(key=lambda r: r.key, reverse=True)
         anomaly_nodes, anomaly_edges = [], []
         per_cluster: defaultdict[int, int] = defaultdict(int)
         for r in outside[:max_anomalies]:
-            ctx = r.result.components.context  # type: ignore[union-attr]
+            ctx = r.result.components.context
             node_id = f"a:{r.request.request_id}"
             anomaly_nodes.append({
                 "id": node_id, "kind": "anomaly", "cluster": ctx.nearest_cluster, "request_id": r.request.request_id,
-                "decision_label": r.result.policy.label, "risk_score": round(r.result.risk.total, 2) if r.result.risk else None,
-                "distance": round(ctx.distance or 0.0, 4), "sender": party(r.request.sender_id).name,
+                "decision_label": r.result.policy.label, "risk_score": round(r.result.risk.total, 2),
+                "distance": round(ctx.distance, 4), "sender": party(r.request.sender_id).name,
                 "recipient": party(r.request.recipient_id).name, "amount": r.request.amount,
                 "event_time": format_ts(r.request.ts), "origin": r.origin,
             })
-            if ctx.nearest_cluster is not None:
-                per_cluster[ctx.nearest_cluster] += 1
-                anomaly_edges.append({"source": f"c{ctx.nearest_cluster}", "target": node_id, "kind": "anomaly",
-                                      "distance": round(ctx.distance or 0.0, 4), "pairs": 0})
+            per_cluster[ctx.nearest_cluster] += 1
+            anomaly_edges.append({"source": f"c{ctx.nearest_cluster}", "target": node_id, "kind": "anomaly",
+                                  "distance": round(ctx.distance, 4), "pairs": 0})
         clusters = [{**c, "anomalies": per_cluster.get(c["cluster"], 0)} for c in static["clusters"]]
         return {
             "nodes": static["nodes"] + anomaly_nodes,
