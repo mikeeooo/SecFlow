@@ -29,7 +29,7 @@ from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES
 
 BUNDLE_FILE = "secflow_model.joblib"
 METADATA_FILE = "metadata.json"
-# LOF works best in a few related dimensions; the amount features gave the best validation AP.
+# LOF scores the three amount features. No other feature set was measured.
 LOF_FEATURES = ("log_amount", "amount_zscore_30d", "log_amount_to_prior_max_30d")
 LOF_COLUMNS = [PAYMENT_FEATURES.index(name) for name in LOF_FEATURES]
 

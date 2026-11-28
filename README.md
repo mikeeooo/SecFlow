@@ -16,6 +16,14 @@ Cei trei algoritmi sunt nesupervizați și sunt antrenați doar pe `train.json`,
 Ponderile sunt fixe, în `config/policy.json`. Etichetele din `validation.json` servesc doar la
 alegerea pragurilor Verify și Block, iar etichetele din `test.json` doar la evaluarea finală.
 
+**Regulile singure egalează scorul combinat.** Pe `test.json`, regulile singure au precizia medie
+(AP, aria sub curba precizie-recall) 0,675 [0,628; 0,721], iar scorul combinat are 0,668
+[0,621; 0,714]. Diferența pereche, combinat minus reguli, este -0,007 [-0,023; 0,009]. Cei trei
+detectori de anomalii nu adaugă o AP măsurabilă. Sistemul rămâne așa cum este. Criteriul de reușită
+este acum ca scorul combinat să nu fie semnificativ mai slab decât cea mai bună componentă singură,
+iar un test verifică asta la fiecare rulare CI. Decizia este în
+[docs/adr/0003-fixed-weights-and-the-rules-only-result.md](docs/adr/0003-fixed-weights-and-the-rules-only-result.md).
+
 Setul de date urmează regulile MIA: moneda este doar **MDL**, aliasul este numărul de telefon
 (`+373` și 8 cifre), există zece scheme de plată (`p2p_alias`, `p2p_iban`, QR static și dinamic,
 link de plată, Request to Pay, `b2b`, `p2g`, salarii, remitențe primite), iar limitele pentru
@@ -30,8 +38,10 @@ nu este niciodată prezentat drept fraudă confirmată.
 
 ## Pornire rapidă
 
-Cerințe: Python ≥ 3.12 cu [uv](https://docs.astral.sh/uv/) (dezvoltat pe Python 3.14.3) și
-Node.js ≥ 22.22 (dezvoltat pe Node 24.8). Nu sunt necesare servicii cloud sau credențiale.
+Cerințe: Python ≥ 3.12 cu [uv](https://docs.astral.sh/uv/) (dezvoltat pe Python 3.14.3, testat în CI
+pe 3.12 și 3.14) și Node.js ≥ 22.22 (dezvoltat pe Node 24.8). Nu sunt necesare servicii cloud sau
+credențiale. Setările se schimbă prin variabile `SECFLOW_*` sau într-un fișier `.env`. Toate sunt
+listate, cu valorile implicite, în `.env.example`.
 
 ```bash
 uv sync
@@ -118,20 +128,34 @@ uv run python -m backend.cli train      # antrenare pe train.json, alegerea prag
 uv run python -m backend.cli evaluate   # o singură evaluare înghețată pe test.json
 ```
 
-`generate` este determinist: același seed reproduce fișiere identice byte cu byte, iar un test
-verifică asta. `uv run python -m backend.cli validate` reverifică oricând cele trei fișiere,
+`generate` este determinist: același seed reproduce fișiere identice byte cu byte, iar
+`scripts/reproduce.py` verifică asta în CI. `uv run python -m backend.cli validate` reverifică oricând cele trei fișiere,
 hash-urile, numărul de plăți, moneda și tipul transferului, limitele MIA, tipurile de fraudă pe
 partiții, eliminarea etichetelor și rândurile copiate între fișiere. Antrenarea durează în jur de
 5 secunde, iar evaluarea în jur de 7 secunde.
 
 ## Verificări
 
+`.github/workflows/ci.yml` rulează toate aceste verificări la fiecare pull request.
+
 ```bash
-uv run pytest -q -p no:warnings
+uv run pytest -q -p no:warnings --cov
 ```
 
 ```bash
-uv run ruff check .
+uv run ruff check . && uv run ruff format --check .
+```
+
+```bash
+uv run mypy && uv run lint-imports
+```
+
+```bash
+uv run python scripts/reproduce.py              # regenerează datele, modelul și evaluarea și le compară
+```
+
+```bash
+uv run python scripts/experiments.py --check    # scorul combinat față de fiecare componentă
 ```
 
 ```bash
@@ -144,6 +168,10 @@ npm --prefix frontend test -- --run
 
 ```bash
 npm --prefix frontend run typecheck
+```
+
+```bash
+npm --prefix frontend run lint
 ```
 
 ```bash
@@ -165,11 +193,14 @@ Rezumatul tehnic al întregului proiect este în [docs/TEHNIC.md](docs/TEHNIC.md
 | `ml/evidence.py`, `ml/assess.py` | Dovezile de securitate și calea unică de la plată la decizie |
 | `ml/training.py`, `ml/evaluation.py` | Antrenarea cu alegerea pragurilor și evaluarea înghețată |
 | `scripts/api_contract.py` | Verificarea formei răspunsurilor API de care depinde interfața |
+| `scripts/reproduce.py`, `scripts/experiments.py` | Verificarea reproductibilității și comparația cu fiecare componentă |
 | `ml/models/` | Pachetul modelului, metadate, punct de operare, raport de antrenare |
 | `artifacts/evaluation.{json,md}` | Rezultatele măsurate ale evaluării |
+| `artifacts/timings.json` | Ora evaluării și latența, care se schimbă la fiecare rulare |
 | `backend/` | Aplicația FastAPI, serviciul, producătorul de flux, CLI, teste |
 | `frontend/` | Interfața React + TypeScript + Vite + Tailwind și testele ei |
 | `docs/` | Arhitectură, algoritmi, proveniența datelor, designul interfeței |
+| `docs/adr/` | Deciziile de arhitectură, cu contextul și consecințele lor |
 
 ## Rezultate măsurate (`storage/test.json`, date sintetice)
 
@@ -186,7 +217,24 @@ set de date generat și nu constituie dovezi de detecție sau de reducere a frau
 | Doar model + reguli, Verify sau Block | 78,1% |
 | Tipurile doar-în-test (`qr_code_tampering`, `invoice_redirect`) | 56,7% semnalate (34 din 60) |
 | Conturi noi (40 de conturi, 678 de plăți) | toate cele 30 de fraude semnalate, 23,1% din plățile legitime revizuite |
-| Latența unei plăți | p50 4,6 ms, p95 5,3 ms (în proces) |
+| Latența unei plăți | p50 4,6 ms, p95 4,7 ms (în proces, `artifacts/timings.json`) |
+
+### Scorul combinat față de fiecare componentă
+
+Provine din `scripts/experiments.py` (`docs/audit/ml_experiments.json`). Intervalele de încredere
+de 95% vin din 1.000 de reeșantionări bootstrap ale plăților de test.
+
+| Scor | AP pe validare | AP pe test [IÎ 95%] |
+|---|---:|---:|
+| Scorul combinat, ponderi fixe | 0,719 | 0,668 [0,621; 0,714] |
+| Doar reguli | 0,696 | 0,675 [0,628; 0,721] |
+| Doar IsolationForest | 0,566 | 0,495 [0,445; 0,550] |
+| Doar LOF | 0,056 | 0,051 [0,036; 0,072] |
+| Doar DBSCAN | 0,028 | 0,035 [0,028; 0,044] |
+
+Regulile sunt cea mai bună componentă pe validare și egalează scorul combinat pe test. Cu
+reeșantionări pe campanii, diferența combinat minus reguli este -0,007 [-0,032; 0,017]. Fără
+IsolationForest sau fără LOF, AP nu scade cu o valoare pe care bootstrap-ul o poate deosebi de zero.
 
 ### Recall pe tip de fraudă
 

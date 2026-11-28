@@ -6,9 +6,15 @@ A weighted sum turns them into a risk score from 0 to 100, and a fixed decision 
 score into **Permit**, **Verify** or **Block**. Labels are used for two things only: to choose the
 Verify and Block thresholds on `validation.json`, and to measure the result once on `test.json`.
 
-Every number on this page comes from `ml/models/training_report.json` and
+Most numbers on this page come from `ml/models/training_report.json` and
 `artifacts/evaluation.json`. Run `uv run python -m backend.cli train` and then
-`uv run python -m backend.cli evaluate` to regenerate both.
+`uv run python -m backend.cli evaluate` to regenerate both. The other sources are these:
+
+- The comparison of the combined score with each component alone comes from
+  `scripts/experiments.py`, which writes `docs/audit/ml_experiments.json`.
+- The latency comes from `artifacts/timings.json`, which `evaluate` rewrites on every run.
+- The rule-weight counts in [Rules](#rules) and the 5.81% in [Limitations](#limitations) come from
+  earlier one-off runs. No script in the repo reruns them.
 
 ## What each file is used for
 
@@ -54,8 +60,8 @@ All three are fitted on `train.json` only. The settings are fixed in `ml/trainin
 
 | Detector | What it measures | Settings | Why these settings |
 |---|---|---|---|
-| `IsolationForest` | How few random splits isolate the payment from the rest | 200 trees, 256 samples per tree, seed 42 | 256 is the sample size from the original paper. 200 trees give stable scores. |
-| `LocalOutlierFactor(novelty=True)` | How much lower the local density is than that of the 20 nearest training payments | 20 neighbours, 3 amount features, a seeded 20,000-row sample | LOF works best in a few related dimensions. The sample keeps each LOF query fast. |
+| `IsolationForest` | How few random splits isolate the payment from the rest | 200 trees, 256 samples per tree, seed 42 | 256 is the sample size from the original paper. The tree count was not tuned. The training report has one configuration. |
+| `LocalOutlierFactor(novelty=True)` | How much lower the local density is than that of the 20 nearest training payments | 20 neighbours, 3 amount features, a seeded 20,000-row sample | LOF uses a few related dimensions. No other feature set was measured. The sample keeps each LOF query fast. |
 | `DBSCAN` | Whether the 24-hour account profile sits inside a dense cluster of normal profiles | `min_samples = 5`, `eps` = 90th percentile of the 5th-neighbour distance (0.705) | The k-distance rule is the usual way to pick `eps` for DBSCAN. |
 
 Before fitting, `Preprocessor` clips every feature to its 0.5–99.5% training range and standardises
@@ -122,9 +128,12 @@ The rules still fire and still count as corroboration, so they keep explaining d
 risk = 100 × (0.65 × IF + 0.05 × LOF + 0.00 × DBSCAN + 0.30 × rules)
 ```
 
-The weights are fixed in `config/policy.json`. They are the weights that an exhaustive search on
-validation picked in an earlier version of SecFlow. Because the weights sum to 1, every score splits
-into four contributions that the interface draws as one bar.
+The weights are fixed in `config/policy.json`. A search on validation picked them in an earlier
+version of SecFlow. A full search on today's validation scores picks other weights: IF 0.40, LOF
+0.05, DBSCAN 0.00 and rules 0.55, with validation AP 0.725 against 0.719. The weights were kept,
+because the test set had already been seen
+([ADR 0003](adr/0003-fixed-weights-and-the-rules-only-result.md)). Because the weights sum to 1,
+every score splits into four contributions that the interface draws as one bar.
 
 Training measures the average precision (AP) of these weights next to a few alternatives on
 validation:
@@ -210,6 +219,17 @@ Each component on its own, flagging its top 5% (cut-off from validation; DBSCAN 
 | Rules | 34.0% | 86.1% | 0.675 | 0.960 |
 | Combined risk score | | | 0.668 | 0.963 |
 
+**Rules alone match the combined score.** On test, rules alone have AP 0.675 [0.628, 0.721] and the
+combined score has AP 0.668 [0.621, 0.714]. The paired bootstrap difference, combined minus rules,
+is -0.007 [-0.023, 0.009] with payment-level resamples and -0.007 [-0.032, 0.017] with campaign-level
+resamples. The anomaly detectors add no measurable AP: in a leave-one-out ablation, dropping
+IsolationForest or LOF costs no AP that the bootstrap can tell apart from zero. The combined score
+is not significantly worse than rules alone, which is the bar that
+[ADR 0003](adr/0003-fixed-weights-and-the-rules-only-result.md) sets.
+`backend/tests/test_controls.py` checks that bar on every CI run. It also checks that shuffled test
+labels give an AP at the fraud prevalence, 0.024. The intervals come from 1,000 bootstrap resamples
+of test, in `docs/audit/ml_experiments.json`.
+
 Recall per fraud type (30 test payments each):
 
 | Fraud type | Verify or Block | Block |
@@ -236,7 +256,8 @@ Other measurements:
 - Unusual but legitimate payments (750): 26.8% reviewed, 2 blocked. Near-limit planned purchases
   (30 of 30) and a limit increase followed by a large payment (17 of 18) are almost always reviewed.
 - Routine legitimate payments (13,890): 2.3% reviewed, 2 blocked.
-- One payment takes 4.6 ms at the median and 5.3 ms at p95, in process.
+- One payment takes 4.6 ms at the median and 4.7 ms at p95, in process, on the machine that wrote
+  `artifacts/timings.json`. The latency changes on every run.
 
 ## Limitations
 

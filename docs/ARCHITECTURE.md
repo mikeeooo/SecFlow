@@ -26,7 +26,7 @@
 |---|---|
 | `storage/` | Data only: `train.json`, `validation.json`, `test.json` (see [DATASET.md](DATASET.md)) |
 | `datagen/` | Generator, identities, runtime records, loader and validator, `manifest.json` |
-| `config/` | `settings.py` (paths and stream timing), `policy.json` (weights, rules, goals, MIA limits), `limits.py` |
+| `config/` | `settings.py` (paths and stream timing, from `SECFLOW_*` variables), `policy.json` (weights, rules, goals, MIA limits), `limits.py` |
 | `ml/history.py` | Time-ordered history index: every query looks only at events before a key |
 | `ml/features.py` | The feature function used by training, evaluation and the app |
 | `ml/model.py` | Preprocessor, CDF mapping, DBSCAN context and the saved `ModelBundle` |
@@ -95,6 +95,14 @@ after the latest event, so the history stays in order.
 every 4 seconds. Browsers poll `GET /api/live-transfers?after=<cursor>` and call only start, stop
 or mode, so extra tabs never add submissions. The producer checks `running` before each submission,
 so Stop takes effect within one payment.
+
+## Settings
+
+`config/settings.py` reads 8 `SECFLOW_*` variables from the environment or from `.env` in the repo
+root. `.env.example` lists them with their defaults. They set the data, model, artifact and policy
+paths, whether the stream starts with the server, and the two stream intervals. A `SECFLOW_*` name
+that SecFlow does not read, or a value that does not parse, stops the process with an error that
+names the variable.
 
 ## API
 
