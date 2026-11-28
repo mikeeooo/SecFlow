@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 # Events that share a timestamp are ordered auth -> payment -> request, then by identifier.
 EVENT_RANK = {"auth": 0, "payment": 1, "request": 2}
@@ -95,7 +96,7 @@ class Counterparty:
     category: str
 
 
-def request_from_row(row: dict) -> PaymentRequest:
+def request_from_row(row: dict[str, Any]) -> PaymentRequest:
     """Runtime request from one assessed dataset row (label columns are never read)."""
     registered = row.get("alias_registered_at")
     return PaymentRequest(
@@ -120,7 +121,7 @@ def request_from_row(row: dict) -> PaymentRequest:
     )
 
 
-def auth_from_session_event(event: dict, account_id: str, session_id: str) -> AuthEvent:
+def auth_from_session_event(event: dict[str, Any], account_id: str, session_id: str) -> AuthEvent:
     return AuthEvent(
         event_id=event["event_id"],
         ts=parse_ts(event["timestamp"]),

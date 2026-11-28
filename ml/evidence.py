@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from datagen.records import PaymentRequest, parse_ts
 
@@ -38,7 +39,7 @@ class SecurityEvidence:
         return current
 
 
-def evidence_from_row(row: dict) -> SecurityEvidence:
+def evidence_from_row(row: dict[str, Any]) -> SecurityEvidence:
     """Parse one `security_evidence` entry. Without a status history it is effective from `recorded_at`."""
     recorded = parse_ts(row["recorded_at"])
     history = row.get("status_history") or [{"at": row["recorded_at"], "status": row["status"]}]

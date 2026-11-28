@@ -16,7 +16,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import numpy as np
 import sklearn
@@ -113,6 +113,22 @@ def fit_detectors(payment: np.ndarray, context: np.ndarray, context_ok: np.ndarr
     }
 
 
+class ThresholdRow(TypedDict):
+    """One Verify/Block pair scored on validation, as the training report stores it."""
+
+    verify_threshold: float
+    block_threshold: float
+    recall_verify_or_block: float
+    recall_block_only: float
+    verify_rate: float
+    block_rate: float
+    legitimate_false_block_rate: float
+    block_precision: float | None  # None when the pair blocks nothing
+    predicted_blocks: int
+    false_blocks: int
+    meets_goals: bool
+
+
 def select_thresholds(
     risk: np.ndarray, families: np.ndarray, unsafe: np.ndarray, y: np.ndarray, policy: Policy
 ) -> tuple[OperatingPoint, dict[str, Any]]:
@@ -125,7 +141,8 @@ def select_thresholds(
     verify_budget = goals["max_verify_rate"] - policy.new_account_verify_reserve
     search = policy.threshold_search
     grid = {name: np.arange(s["start"], s["stop"] + 1e-9, s["step"]) for name, s in search.items()}
-    candidates, frontier = [], {}
+    candidates: list[ThresholdRow] = []
+    frontier: dict[float, ThresholdRow] = {}
     for verify in grid["verify"]:
         for block in grid["block"]:
             if block <= verify:
@@ -133,23 +150,26 @@ def select_thresholds(
             codes = decision_codes(risk, families, unsafe, verify, block, policy.min_families)
             blocked = codes == 2
             n_blocks, true_blocks = int(blocked.sum()), int((blocked & y).sum())
-            row = {
+            precision = true_blocks / n_blocks if n_blocks else None
+            verify_rate = float((codes == 1).mean())
+            false_block_rate = (n_blocks - true_blocks) / float((~y).sum())
+            row: ThresholdRow = {
                 "verify_threshold": float(verify),
                 "block_threshold": float(block),
                 "recall_verify_or_block": float(((codes > 0) & y).sum() / y.sum()),
                 "recall_block_only": true_blocks / float(y.sum()),
-                "verify_rate": float((codes == 1).mean()),
+                "verify_rate": verify_rate,
                 "block_rate": float(blocked.mean()),
-                "legitimate_false_block_rate": (n_blocks - true_blocks) / float((~y).sum()),
-                "block_precision": true_blocks / n_blocks if n_blocks else None,
+                "legitimate_false_block_rate": false_block_rate,
+                "block_precision": precision,
                 "predicted_blocks": n_blocks,
                 "false_blocks": n_blocks - true_blocks,
+                "meets_goals": bool(
+                    verify_rate <= verify_budget
+                    and false_block_rate <= goals["max_legitimate_false_block_rate"]
+                    and (precision is None or precision >= goals["min_block_precision"])
+                ),
             }
-            row["meets_goals"] = bool(
-                row["verify_rate"] <= verify_budget
-                and row["legitimate_false_block_rate"] <= goals["max_legitimate_false_block_rate"]
-                and (n_blocks == 0 or row["block_precision"] >= goals["min_block_precision"])
-            )
             candidates.append(row)
             best = frontier.get(row["verify_threshold"])
             if row["meets_goals"] and (best is None or row["recall_block_only"] > best["recall_block_only"]):

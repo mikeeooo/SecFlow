@@ -50,3 +50,13 @@ root_packages = ["backend", "ml", "datagen", "config"]
 name = "Layers backend -> ml -> datagen -> config"
 type = "layers"
 layers = ["backend", "ml", "datagen", "config"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["config", "datagen", "ml"]
+
+[[tool.mypy.overrides]]
+# scikit-learn and joblib ship no type information.
+module = ["sklearn", "sklearn.*", "joblib"]
+ignore_missing_imports = true

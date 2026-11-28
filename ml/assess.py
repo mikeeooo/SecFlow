@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -98,5 +99,5 @@ class Assessor:
         )
 
 
-def evidence_store(rows: Sequence[dict], policy: Policy) -> EvidenceStore:
+def evidence_store(rows: Sequence[dict[str, Any]], policy: Policy) -> EvidenceStore:
     return EvidenceStore((evidence_from_row(r) for r in rows), policy.trusted_sources, policy.blocking_types)
