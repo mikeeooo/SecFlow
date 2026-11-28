@@ -648,7 +648,7 @@ class _Generator:
 
     def _auth_method(self, account: str) -> str:
         mix = self.params[account].auth_mix
-        return self._choice(list(mix.keys()), list(mix.values()))
+        return str(self._choice(list(mix.keys()), list(mix.values())))
 
     def _hour_offset(self, account: str) -> int:
         p = self.params[account]
@@ -835,7 +835,7 @@ class _Generator:
             and (business is None or self._is_business(a) == business)
         ]
         roomy = self._with_room(candidates, day_start, max(needed, 1_500.0))
-        return self._choice(roomy or candidates)
+        return str(self._choice(roomy or candidates))
 
     def _victims(self, day_start: int, count: int, needed: float, business: bool | None = False) -> list[str]:
         candidates = [

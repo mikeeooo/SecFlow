@@ -156,7 +156,9 @@ def build_features(
     # so repeated payments inside one burst do not make an unknown beneficiary look established.
     pair_first = history.first_pair_key(request.sender_id, request.recipient_id)
     paid_before = pair_first is not None and pair_first < key
-    relationship_hours = (t - pair_first // KEY_SCALE) / HOUR if paid_before else None
+    relationship_hours = (
+        (t - pair_first // KEY_SCALE) / HOUR if pair_first is not None and paid_before else None
+    )
     new_recipient = relationship_hours is None or relationship_hours < 24
 
     rec = history.recipient.get(request.recipient_id)

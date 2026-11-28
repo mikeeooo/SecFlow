@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 POLICY_PATH = ROOT / "config" / "policy.json"
@@ -34,8 +35,8 @@ class MiaLimits:
         return self.business if segment == "business" else self.personal
 
 
-def parse_limits(raw: dict) -> MiaLimits:
-    def segment(block: dict) -> SegmentLimits:
+def parse_limits(raw: dict[str, Any]) -> MiaLimits:
+    def segment(block: dict[str, Any]) -> SegmentLimits:
         month = block.get("per_month")
         return SegmentLimits(
             float(block["per_transaction"]),

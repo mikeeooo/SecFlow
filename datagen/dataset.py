@@ -177,7 +177,8 @@ def load_labels(paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
 def read_manifest(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise DatasetError(f"Missing manifest: {path}. Run `python -m backend.cli generate`.")
-    return json.loads(path.read_text(encoding="utf-8"))
+    manifest: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return manifest
 
 
 def file_hashes(paths: Iterable[Path]) -> dict[str, str]:
@@ -241,7 +242,9 @@ def validate_dataset(storage_dir: Path, manifest_path: Path) -> list[str]:
             problems.append(f"{name}: {over_cap} personal payment(s) above {limits.per_transaction:,.0f} MDL")
         if over := sum(v > limits.per_day + 1e-6 for v in spent_day.values()):
             problems.append(f"{name}: {over} personal sender-day(s) above the daily limit")
-        if over := sum(v > limits.per_month + 1e-6 for v in spent_month.values()):
+        if limits.per_month is not None and (
+            over := sum(v > limits.per_month + 1e-6 for v in spent_month.values())
+        ):
             problems.append(f"{name}: {over} personal sender-month(s) above the monthly limit")
         for fraud_type in ALL_FRAUD_TYPES:
             wanted = (

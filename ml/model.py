@@ -47,7 +47,8 @@ class Preprocessor:
         return self
 
     def transform(self, matrix: np.ndarray) -> np.ndarray:
-        return self.scaler.transform(np.clip(np.asarray(matrix, dtype=np.float64), self.lower, self.upper))
+        clipped = np.clip(np.asarray(matrix, dtype=np.float64), self.lower, self.upper)
+        return np.asarray(self.scaler.transform(clipped), dtype=np.float64)
 
 
 def cdf(reference: np.ndarray, raw: np.ndarray) -> np.ndarray:
@@ -152,6 +153,8 @@ def load_bundle(directory: Path) -> ModelBundle:
     if not path.exists():
         raise BundleError(f"Model bundle not found at {path}. Run `python -m backend.cli train`.")
     bundle = joblib.load(path)
+    if not isinstance(bundle, ModelBundle):
+        raise BundleError(f"{path} holds a {type(bundle).__name__}, not a ModelBundle; retrain it.")
     meta = bundle.metadata
     if (
         meta["feature_version"] != FEATURE_VERSION

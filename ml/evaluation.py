@@ -11,6 +11,7 @@ import json
 import math
 import time
 from collections import Counter
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from itertools import pairwise
 from typing import Any
@@ -21,10 +22,11 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from config.settings import Settings
 from datagen.dataset import file_hashes, load_labels, load_partitions
 from datagen.generator import ALL_FRAUD_TYPES, TEST_ONLY_FRAUD_TYPES
+from datagen.records import Account
 from ml.assess import AssessmentResult, Assessor, evidence_store
 from ml.history import HistoryIndex
 from ml.model import load_bundle
-from ml.policy import COMPONENTS, decide_action, load_operating_point, load_policy
+from ml.policy import COMPONENTS, Policy, decide_action, load_operating_point, load_policy
 
 REVIEW_BUDGET = 0.05  # a component alone flags its top 5% (threshold taken from validation)
 LATENCY_SAMPLE = 300
@@ -239,7 +241,7 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     cold = np.array([r.request.sender_id not in earlier for r in results])
     unseen = np.isin(fraud_type, TEST_ONLY_FRAUD_TYPES)
     full, model_only = policy_metrics(codes, y), policy_metrics(model_codes, y)
-    summary = {
+    summary: dict[str, Any] = {
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "scope": (
             "Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in "
@@ -328,7 +330,7 @@ def run_evaluation(settings: Settings) -> dict[str, Any]:
     return summary
 
 
-def _splits(partition_of: dict[str, str], labels: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _splits(partition_of: Mapping[str, str], labels: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for rid, part in partition_of.items():
         if rid in labels:  # assessed payments only, not incoming credits
@@ -340,7 +342,7 @@ def _splits(partition_of: dict[str, str], labels: dict[str, dict[str, Any]]) -> 
     return out
 
 
-def _goals(full: dict[str, Any], policy) -> list[dict[str, Any]]:
+def _goals(full: dict[str, Any], policy: Policy) -> list[dict[str, Any]]:
     goals, blocks, precision = policy.goals, full["predicted_blocks"], full["block_only"]["precision"]
     return [
         {
@@ -368,7 +370,13 @@ def _goals(full: dict[str, Any], policy) -> list[dict[str, Any]]:
     ]
 
 
-def _latency(assessor: Assessor, results, keys, history, accounts) -> dict[str, Any]:
+def _latency(
+    assessor: Assessor,
+    results: list[AssessmentResult],
+    keys: Mapping[str, int],
+    history: HistoryIndex,
+    accounts: Mapping[str, Account],
+) -> dict[str, Any]:
     """Time the single-payment path (what one simulation costs) on a seeded sample of test payments."""
     rng = np.random.default_rng(0)
     sample = [

@@ -104,3 +104,9 @@ def test_a_bundle_from_other_feature_code_is_refused(tmp_path: Path) -> None:
     joblib.dump(bundle, tmp_path / "secflow_model.joblib")
     with pytest.raises(BundleError):
         load_bundle(tmp_path)
+
+
+def test_a_file_that_is_not_a_bundle_is_refused(tmp_path: Path) -> None:
+    joblib.dump({"metadata": {}}, tmp_path / "secflow_model.joblib")
+    with pytest.raises(BundleError, match="not a ModelBundle"):
+        load_bundle(tmp_path)
