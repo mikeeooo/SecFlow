@@ -21,7 +21,7 @@ around the bar stays neutral.
 | Canvas / panel / raised | `#0B0C0F` / `#16171C` / `#202228` | — |
 | Label / secondary | `#F2F2F5` / `#A5A7B0` | 16.0:1 / 7.5:1 |
 | Accent (links, focus) | `#4DA3FF` | 6.8:1 |
-| Filled buttons | `#0A6FD6` (primary), `#C4372B` (destructive) | white text 4.9:1 / 5.4:1 |
+| Filled buttons | `#0A6FD6` (primary), `#C4372B` (destructive) | white text 4.9:1 / 5.35:1 |
 | Permitted | `#32D74B` | 9.3:1 |
 | Needs verification | `#FFB340` | 10.0:1 |
 | Preventive risk block | `#FF6961` | 6.3:1 |

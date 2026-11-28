@@ -15,12 +15,12 @@ fraudă. Toate datele sunt sintetice.
 |---|---|
 | `storage/` | Doar date: `train.json`, `validation.json`, `test.json` |
 | `datagen/` | Generatorul cu seed, identitățile, încărcarea și validarea datelor, `manifest.json` |
-| `config/` | `settings.py`, `policy.json` (ponderi, reguli, obiective, limite MIA), `limits.py` |
+| `config/` | `settings.py` (variabilele `SECFLOW_*`, listate în `.env.example`), `policy.json` (ponderi, reguli, obiective, limite MIA), `limits.py` |
 | `ml/` | Istoricul ordonat în timp, caracteristici, cei trei algoritmi scikit-learn, reguli și decizie, dovezi de securitate, antrenare, evaluare, modelul salvat în `ml/models/` |
 | `scripts/` | `api_contract.py`, verificarea formei răspunsurilor API de care depinde interfața |
 | `backend/` | Aplicația FastAPI, serviciul de evaluare, fluxul live simulat, CLI, teste |
 | `frontend/` | Interfața React, TypeScript, Vite și Tailwind, cu teste |
-| `artifacts/` | Raportul de evaluare: `evaluation.json` și `evaluation.md` |
+| `artifacts/` | Raportul de evaluare: `evaluation.json` și `evaluation.md`. Ora evaluării și latența sunt în `timings.json`. |
 
 ## Setul de date
 
@@ -186,6 +186,11 @@ reale.
 | Rata Verify | 4,49%. Obiectivul de cel mult 5% este atins. |
 | Blocări false pentru plăți legitime | 0,03% (4 din 14.640). Obiectivul de cel mult 0,1% este atins. |
 
+Regulile singure egalează scorul combinat. Pe test, regulile au AP 0,675 [0,628; 0,721], iar
+scorul combinat are 0,668 [0,621; 0,714]. Diferența pereche este -0,007 [-0,023; 0,009], deci
+detectorii de anomalii nu adaugă o AP măsurabilă. Decizia de a păstra sistemul și criteriul nou sunt
+în [ADR 0003](adr/0003-fixed-weights-and-the-rules-only-result.md).
+
 Detecția este slabă pentru `romance_scam` (40%), `investment_scam` (50%) și `invoice_redirect`
 (33,3%). Tabelul complet pe tipuri de fraudă și de anomalie este în
 [raportul de evaluare](../artifacts/evaluation.md). Comanda `uv run python -m backend.cli evaluate`
@@ -238,7 +243,12 @@ Rulează comenzile din rădăcina proiectului.
 | `uv run python -m backend.cli evaluate` | Evaluează o singură dată pe `test.json` |
 | `uv run uvicorn backend.api:app --host 127.0.0.1 --port 8001` | Pornește backend-ul |
 | `npm --prefix frontend run dev` | Pornește interfața pe <http://localhost:5173> |
-| `uv run pytest` | Rulează testele backend |
+| `uv run pytest --cov` | Rulează testele backend, cu pragul de acoperire de 97% |
+| `uv run mypy` | Verifică tipurile în modul strict |
+| `uv run lint-imports` | Verifică straturile `backend -> ml -> datagen -> config` |
+| `uv run python scripts/reproduce.py` | Regenerează datele, modelul și evaluarea și le compară cu fișierele salvate |
+| `uv run python scripts/experiments.py --check` | Compară scorul combinat cu fiecare componentă |
+| `npm --prefix frontend run lint` | Rulează oxlint pe interfață |
 | `npm --prefix frontend test -- --run` | Rulează testele frontend |
 | `uv run python scripts/api_contract.py --check` | Verifică forma răspunsurilor API față de `scripts/api_contract.baseline.json` |
 

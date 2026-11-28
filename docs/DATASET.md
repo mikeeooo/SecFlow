@@ -99,7 +99,7 @@ p2b_link 5,853; p2p_iban 4,770; request_to_pay 2,530; b2p_salary 2,155; p2g 1,39
 
 ## The runtime view
 
-`datagen.dataset.load_partition(path)` and `load_partitions(paths)` read the rows, **drop the label
+`datagen.dataset.load_partitions(paths)` reads the rows of one or more files, **drops the label
 columns as each row is read**, and rebuild everything the pipeline needs:
 
 - accounts from the sender columns of assessed rows;
