@@ -53,6 +53,7 @@ from datagen.records import (
     make_key,
 )
 from ml.assess import AssessmentResult, Assessor, evidence_store
+from ml.evaluation import TIMINGS_FILE, with_timings
 from ml.history import HistoryIndex
 from ml.model import load_bundle
 from ml.policy import load_operating_point, load_policy
@@ -143,7 +144,9 @@ class SecFlowService:
         self.reviews: list[ReviewHistoryItem] = []
         self._seq = 0
         self._assess_baseline(keys)
-        self.evaluation = self._read_json(settings.artifacts_dir / "evaluation.json")
+        evaluation = self._read_json(settings.artifacts_dir / "evaluation.json")
+        timings = self._read_json(settings.artifacts_dir / TIMINGS_FILE)
+        self.evaluation = evaluation and with_timings(evaluation, timings)
         self.training = self._read_json(settings.models_dir / "training_report.json")
         self._sim_epoch = max(self.history.max_key // KEY_SCALE, self.dataset.requests[-1].ts) + 3_600
         self._wall_epoch = time.monotonic()

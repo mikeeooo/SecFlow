@@ -1,5 +1,4 @@
 {
-  "generated_at": "2026-11-28T05:56:06Z",
   "scope": "Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in MDL). Results describe this generated data only; they are not evidence of real-world detection.",
   "model_version": "secflow-sk-3.0-4b97752f19",
   "policy_version": "secflow-evidence-first-3.0.0+c4573fe9",
@@ -1035,15 +1034,6 @@
     "insufficient_history": 18,
     "limited_history": 178
   },
-  "latency_ms": {
-    "requests_timed": 300,
-    "scope": "single-request path: features + IF + LOF + DBSCAN context + rules + evidence + policy, in-process",
-    "mean": 4.548,
-    "p50": 4.561,
-    "p95": 4.685,
-    "p99": 4.786,
-    "max": 5.147
-  },
   "validation_goals": {
     "max_legitimate_false_block_rate": 0.001,
     "max_verify_rate": 0.05,
@@ -1082,7 +1072,6 @@
     "verify_rate": 0.044866666666666666,
     "legitimate_false_block_rate": 0.000273224043715847,
     "model_only_recall_verify_or_block": 0.7805555555555556,
-    "test_only_fraud_recall_verify_or_block": 0.5666666666666667,
-    "latency_p95_ms": 4.685
+    "test_only_fraud_recall_verify_or_block": 0.5666666666666667
   }
 }
