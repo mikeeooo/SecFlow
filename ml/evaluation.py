@@ -21,8 +21,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 from config.settings import Settings
 from datagen.dataset import file_hashes, load_labels, load_partitions
-from datagen.generator import ALL_FRAUD_TYPES, TEST_ONLY_FRAUD_TYPES
-from datagen.records import Account
+from datagen.records import ALL_FRAUD_TYPES, TEST_ONLY_FRAUD_TYPES, Account
 from ml.assess import AssessmentResult, Assessor, evidence_store
 from ml.history import HistoryIndex
 from ml.model import load_bundle

@@ -16,6 +16,21 @@ KEY_SCALE = 1_000_000  # ordering key = epoch_seconds * KEY_SCALE + global seque
 INSTANT_TRANSFER = "instant"
 CURRENCY = "MDL"  # MIA Plati Instant settles in Moldovan lei only
 QR_SCHEMES = frozenset({"p2b_qr_static", "p2b_qr_dynamic"})
+# Fraud types in every partition, and the two that appear only in test.json.
+FRAUD_TYPES = (
+    "account_takeover_phishing",
+    "sim_swap_takeover",
+    "vishing_impersonation",
+    "request_to_pay_scam",
+    "marketplace_scam",
+    "investment_scam",
+    "romance_scam",
+    "money_mule",
+    "limit_structuring",
+    "coordinated_beneficiary",
+)
+TEST_ONLY_FRAUD_TYPES = ("qr_code_tampering", "invoice_redirect")
+ALL_FRAUD_TYPES = FRAUD_TYPES + TEST_ONLY_FRAUD_TYPES
 
 
 def parse_ts(value: str) -> int:

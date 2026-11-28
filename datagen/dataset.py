@@ -16,20 +16,20 @@ from typing import Any
 
 from config.limits import MIA_LIMITS
 from datagen.generator import (
-    ALL_FRAUD_TYPES,
     DAY_SECONDS,
-    FRAUD_TYPES,
     LABEL_COLUMNS,
     MIA_SPEC,
     PARTITION_FILES,
     SETTLEMENT_SECONDS,
-    TEST_ONLY_FRAUD_TYPES,
     row_fingerprint,
     sha256_file,
 )
 from datagen.records import (
+    ALL_FRAUD_TYPES,
     CURRENCY,
+    FRAUD_TYPES,
     INSTANT_TRANSFER,
+    TEST_ONLY_FRAUD_TYPES,
     Account,
     AuthEvent,
     Counterparty,
