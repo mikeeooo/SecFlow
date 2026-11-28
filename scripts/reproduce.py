@@ -47,6 +47,19 @@ def stable_json(path: Path, volatile: list[str]) -> Any:
     return data
 
 
+def differences(a: Any, b: Any, where: str = "") -> list[str]:
+    """Dotted paths of the leaves where two JSON values differ."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        return [
+            d for k in sorted(a.keys() | b.keys()) for d in differences(a.get(k), b.get(k), f"{where}.{k}")
+        ]
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        return [
+            d for i, (x, y) in enumerate(zip(a, b, strict=True)) for d in differences(x, y, f"{where}[{i}]")
+        ]
+    return [] if a == b else [f"{where}: {a!r} != {b!r}"]
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="secflow-repro-") as tmp:
         out = Path(tmp)
@@ -73,13 +86,15 @@ def main() -> int:
         for committed, rebuilt in pairs:
             volatile = VOLATILE.get(committed.name)
             if volatile is None:
-                same = committed.read_bytes() == rebuilt.read_bytes()
+                diff = [] if committed.read_bytes() == rebuilt.read_bytes() else ["bytes differ"]
                 how = "bytes"
             else:
-                same = stable_json(committed, volatile) == stable_json(rebuilt, volatile)
+                diff = differences(stable_json(committed, volatile), stable_json(rebuilt, volatile))
                 how = "json without " + ", ".join(volatile)
-            failures += not same
-            print(f"{'same' if same else 'DIFFERENT':9} {committed.relative_to(ROOT)} ({how})")
+            failures += bool(diff)
+            print(f"{'DIFFERENT' if diff else 'same':9} {committed.relative_to(ROOT)} ({how})")
+            for line in diff[:20]:
+                print(f"    {line}")
     print(f"{len(pairs) - failures} of {len(pairs)} committed files reproduced")
     return 1 if failures else 0
 
