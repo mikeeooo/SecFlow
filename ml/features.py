@@ -22,7 +22,7 @@ from typing import Any
 
 from config.limits import MIA_LIMITS
 from datagen.records import KEY_SCALE, QR_SCHEMES, Account, PaymentRequest
-from runtime.history import HistoryIndex
+from ml.history import HistoryIndex
 
 FEATURE_VERSION = "features-2.0.0"
 HOUR = 3_600
