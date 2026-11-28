@@ -47,7 +47,7 @@ from datagen.identities import (
     build_accounts,
     build_counterparties,
 )
-from datagen.records import CURRENCY, INSTANT_TRANSFER, QR_SCHEMES
+from datagen.records import CURRENCY, FRAUD_TYPES, INSTANT_TRANSFER, QR_SCHEMES, TEST_ONLY_FRAUD_TYPES
 
 GENERATOR_VERSION = "secflow-mia-generator-2.0.0"
 SCHEMA_VERSION = "2.0"
@@ -58,20 +58,6 @@ SETTLEMENT_SECONDS = (
 )
 MIN_PAYMENT = 10.0  # smallest generated payment in MDL
 
-FRAUD_TYPES = (
-    "account_takeover_phishing",
-    "sim_swap_takeover",
-    "vishing_impersonation",
-    "request_to_pay_scam",
-    "marketplace_scam",
-    "investment_scam",
-    "romance_scam",
-    "money_mule",
-    "limit_structuring",
-    "coordinated_beneficiary",
-)
-TEST_ONLY_FRAUD_TYPES = ("qr_code_tampering", "invoice_redirect")
-ALL_FRAUD_TYPES = FRAUD_TYPES + TEST_ONLY_FRAUD_TYPES
 ANOMALY_TYPES = (
     "near_limit_planned_purchase",
     "limit_increase_then_large_payment",

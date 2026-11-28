@@ -11,7 +11,8 @@ import pytest
 
 from backend.tests.conftest import ROOT, STORAGE
 from datagen.dataset import DatasetError, load_partitions, read_rows, validate_dataset
-from datagen.generator import TEST_ONLY_FRAUD_TYPES, generate_dataset, sha256_file, write_rows
+from datagen.generator import generate_dataset, sha256_file, write_rows
+from datagen.records import TEST_ONLY_FRAUD_TYPES
 
 MANIFEST = ROOT / "datagen" / "manifest.json"
 
