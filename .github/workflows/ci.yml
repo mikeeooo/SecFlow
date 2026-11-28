@@ -102,6 +102,8 @@ jobs:
       - run: uv sync --frozen
       - name: Rebuild data, models and evaluation and compare with the committed files
         run: uv run --frozen python scripts/reproduce.py
+      - name: ML experiments, with the rules-only baseline in the job summary
+        run: uv run --frozen python scripts/experiments.py --check >> "$GITHUB_STEP_SUMMARY"
 
   lighthouse:
     runs-on: ubuntu-latest
