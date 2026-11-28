@@ -2,7 +2,7 @@
 outside docs/audit/.
 
     uv run python scripts/experiments.py            # writes docs/audit/ml_experiments.json, prints markdown
-    uv run python scripts/experiments.py --check    # exit 1 unless the results match that file
+    uv run python scripts/experiments.py --check    # exit 1 unless every number is within 1e-4 of that file
 
 a. The combined risk score against each component alone on test.json: average precision (PR-AUC) and
    recall at a fixed false-positive rate (1% and 5%, threshold set on validation.json), each with a
@@ -514,10 +514,11 @@ def main() -> int:
     text = json.dumps(report, indent=2) + "\n"
     print(render_markdown(report))
     if "--check" in sys.argv:
-        # Within the tolerance scripts/reproduce.py allows for LOF floats across platforms.
+        # The committed bundle scores validation and test with last-bit differences on Linux. At a
+        # near-tied cut that moves one payment, which changes a rate by about 7e-5, and AP by less.
         from reproduce import differences
 
-        diff = differences(json.loads(OUT.read_text()), json.loads(text))
+        diff = differences(json.loads(OUT.read_text()), json.loads(text), tolerance=1e-4)
         print("\n".join(diff) or f"Results match {OUT.relative_to(ROOT)}.")
         return 1 if diff else 0
     OUT.parent.mkdir(parents=True, exist_ok=True)
