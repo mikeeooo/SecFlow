@@ -18,6 +18,9 @@ dev = [
     "pytest>=8.3",
     "httpx>=0.27",
     "ruff>=0.6",
+    "pytest-cov>=7.1.0",
+    "import-linter>=2.17",
+    "mypy>=2.4.1",
 ]
 
 [tool.uv]
@@ -31,3 +34,18 @@ addopts = "-q"
 line-length = 110
 target-version = "py312"
 exclude = ["frontend"]
+
+[tool.coverage.run]
+source = ["backend", "ml", "datagen", "config"]
+omit = ["backend/tests/*"]
+
+[tool.coverage.report]
+fail_under = 97
+
+[tool.importlinter]
+root_packages = ["backend", "ml", "datagen", "config"]
+
+[[tool.importlinter.contracts]]
+name = "Layers backend -> ml -> datagen -> config"
+type = "layers"
+layers = ["backend", "ml", "datagen", "config"]

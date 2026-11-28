@@ -1,0 +1,139 @@
+# Every Phase 1 check from docs/AUDIT.md, run as a gate on each pull request and on main.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SECFLOW_AUTOSTART_STREAM: "false"
+
+jobs:
+  python:
+    name: python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+      - name: Import contracts in pyproject.toml
+        run: uv run --frozen lint-imports
+      - name: Tests with the coverage floor in pyproject.toml
+        run: uv run --frozen pytest --cov --cov-report=term
+      - name: API contract against scripts/api_contract.baseline.json
+        run: uv run --frozen python scripts/api_contract.py --check
+      - name: mypy --strict (not blocking yet)
+        continue-on-error: true
+        run: uv run --frozen mypy --strict backend ml datagen config
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+      - name: pip-audit on the locked Python packages
+        run: |
+          uv export --frozen --all-groups --no-emit-project --no-hashes -o "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --disable-pip --no-deps --progress-spinner off
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: npm audit on the locked frontend packages
+        working-directory: frontend
+        run: npm audit --audit-level=low
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: gitleaks over every commit on every fetched ref
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="--all" .
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: tsc --noEmit
+        run: npm run typecheck
+      - name: ESLint
+        if: false # turned on with the ESLint config
+        run: npm run lint
+      - run: npm test
+      - name: vite build
+        run: npx vite build
+
+  reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+      - run: uv sync --frozen
+      - name: Rebuild data, models and evaluation and compare with the committed files
+        run: uv run --frozen python scripts/reproduce.py
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build the frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+      - run: uv sync --frozen
+      - name: Serve the build from uvicorn
+        run: |
+          # The venv binary, not `uv run`, so the server does not hold the uv cache lock until the job ends.
+          .venv/bin/uvicorn backend.api:app --port 8021 > "$RUNNER_TEMP/uvicorn.log" 2>&1 &
+          curl -sSf --retry 120 --retry-connrefused --retry-delay 1 http://127.0.0.1:8021/api/health > /dev/null
+      - name: Lighthouse, accessibility must stay at 100
+        run: |
+          npx --yes lighthouse@12.8.2 http://127.0.0.1:8021/ --preset=desktop \
+            --only-categories=performance,accessibility,best-practices,seo \
+            --output=json --output-path="$RUNNER_TEMP/lighthouse.json" \
+            --chrome-flags="--headless=new --no-sandbox" --quiet
+          jq '.categories | map_values(.score * 100)' "$RUNNER_TEMP/lighthouse.json"
+          jq -e '.categories.accessibility.score == 1' "$RUNNER_TEMP/lighthouse.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse
+          path: |
+            ${{ runner.temp }}/lighthouse.json
+            ${{ runner.temp }}/uvicorn.log
