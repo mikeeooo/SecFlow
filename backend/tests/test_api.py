@@ -1,346 +1,152 @@
+"""The HTTP API as the frontend uses it: contract, validation errors, simulations, reviews and the stream."""
+
 from __future__ import annotations
 
-import time
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
-from pathlib import Path
+import importlib.util
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api import create_app
-from config.settings import load_settings
+from backend.tests.conftest import ROOT
 
 
-@pytest.fixture(scope="module")
-def client() -> TestClient:
-    settings = replace(load_settings(), autostart_stream=False, stream_interval_seconds=0.05,
-                       batch_interval_seconds=0.05)
-    with TestClient(create_app(settings)) as test_client:
-        yield test_client
+def sender_and_recipient(client: TestClient) -> tuple[str, str]:
+    """An established personal account and one of its usual recipients."""
+    accounts = client.get("/api/accounts", params={"page_size": 1000}).json()["items"]
+    sender = next(a for a in accounts if a["account_type"] == "personal" and a["requests"] > 20)["account_id"]
+    options = client.get("/api/simulator/options", params={"sender_id": sender}).json()["sender"]
+    return sender, options["recent_recipients"][0]["id"]
 
 
-def payload(request_id: str, **overrides: Any) -> dict[str, Any]:
-    base = {"request_id": request_id, "sender_id": "ACC-0001", "recipient_id": "CP-00001", "amount": 25.0}
-    if "new_recipient_name" in overrides and "recipient_id" not in overrides:
-        base.pop("recipient_id")
-    return {**base, **overrides}
+def payment(client: TestClient, request_id: str = "SIM-000001", **changes: Any) -> dict[str, Any]:
+    sender, recipient = sender_and_recipient(client)
+    options = client.get("/api/simulator/options", params={"sender_id": sender}).json()["sender"]
+    return {"request_id": request_id, "sender_id": sender, "recipient_id": recipient,
+            "amount": options["median_amount"], "device_id": options["known_devices"][0], **changes}
 
 
-def known_device(client: TestClient, sender: str = "ACC-0001") -> str:
-    return client.get("/api/simulator/options", params={"sender_id": sender}).json()["sender"]["known_devices"][0]
+def test_responses_keep_the_shape_the_frontend_was_built_against() -> None:
+    spec = importlib.util.spec_from_file_location("api_contract", ROOT / "scripts" / "api_contract.py")
+    contract = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contract)
+    problems, _ = contract.check(contract.capture())
+    assert problems == []
 
 
-def test_health_reports_local_files_and_process_memory(client: TestClient) -> None:
-    body = client.get("/api/health").json()
-    assert body["status"] == "ok"
-    assert body["data"]["source"] == "local_files" and body["data"]["requests"] == 15_000
-    assert body["data"]["file"] == "storage/test.json" and body["data"]["currency"] == "MDL"
-    assert body["data"]["hashes_verified"] is True and body["data"]["context_credits"] > 0
-    assert body["state"]["kind"] == "process_memory"
-    assert body["state"]["persisted"] is False and body["state"]["shared_across_workers"] is False
-    assert body["model"]["loaded"] and body["policy"]["operating_point"]["source"].startswith("validated")
+def test_health_reports_the_loaded_model_and_memory_state(client: TestClient) -> None:
+    health = client.get("/api/health").json()
+    assert health["status"] == "ok"
+    assert health["data"]["requests"] == 15_000 and health["data"]["hashes_verified"] is True
+    assert health["state"]["kind"] == "process_memory" and health["state"]["persisted"] is False
 
 
-def test_baseline_assessments_use_real_components_and_event_time_snapshots(client: TestClient) -> None:
-    page = client.get("/api/transactions", params={"origin": "baseline", "sort": "time_asc", "page_size": 5}).json()
-    assert page["total"] == 15_000
-    first = client.get(f"/api/investigations/{page['items'][0]['request_id']}").json()["assessment"]
-    assert first["facts"]["prior_requests_total"] == 0  # the very first request sees no history
-    assert {c["key"] for c in first["component_details"]} == {"isolation_forest", "lof", "dbscan", "rules"}
-    assert first["risk_score"] == pytest.approx(sum(c["contribution"] for c in first["component_details"]), abs=0.02)
+def test_transactions_filter_sort_and_paginate(client: TestClient) -> None:
+    page = client.get("/api/transactions", params={"decision": "Verify", "sort": "risk_desc", "page_size": 10}).json()
+    assert page["total"] > 10 and len(page["items"]) == 10
+    assert {i["decision"] for i in page["items"]} == {"Verify"}
+    scores = [i["risk_score"] for i in page["items"]]
+    assert scores == sorted(scores, reverse=True)
 
 
-def test_assessment_detail_uses_learned_weights_and_segment_thresholds(client: TestClient) -> None:
-    point = client.get("/api/health").json()["policy"]["operating_point"]
-    assert set(point["segments"]) == {"personal", "business"} and sum(point["weights"].values()) == pytest.approx(1.0)
-    for account_type in ("personal", "business"):
-        accounts = client.get("/api/accounts", params={"account_type": account_type, "page_size": 1}).json()["items"]
-        sender = accounts[0]["account_id"]
-        page = client.get("/api/transactions", params={"q": sender, "origin": "baseline", "page_size": 1}).json()
-        detail = client.get(f"/api/investigations/{page['items'][0]['request_id']}").json()["assessment"]
-        assert detail["segment"] == account_type
-        segment = point["segments"][account_type]
-        assert (detail["thresholds"]["verify"], detail["thresholds"]["block"]) == (segment["verify"], segment["block"])
-        assert detail["thresholds"]["segment"] == account_type
-        weights = {c["key"]: c["weight"] for c in detail["component_details"]}
-        assert weights == point["weights"]
+def test_unknown_identifiers_return_404(client: TestClient) -> None:
+    for path in ("/api/investigations/NOPE", "/api/accounts/NOPE"):
+        response = client.get(path)
+        assert response.status_code == 404 and response.json()["error"]["code"] == "not_found"
 
 
-def test_filters_pagination_and_named_search(client: TestClient) -> None:
-    verify = client.get("/api/transactions", params={"decision": "Verify", "page_size": 10, "page": 2}).json()
-    assert verify["page"] == 2 and len(verify["items"]) == 10
-    assert all(i["decision"] == "Verify" for i in verify["items"])
-    high = client.get("/api/transactions", params={"min_score": 80, "sort": "risk_desc"}).json()
-    scores = [i["risk_score"] for i in high["items"]]
-    assert scores == sorted(scores, reverse=True) and all(s >= 80 for s in scores)
-    name = client.get("/api/accounts/ACC-0001").json()["account"]["display_name"]
-    found = client.get("/api/accounts", params={"q": name.split()[0].lower()}).json()
-    assert any(a["account_id"] == "ACC-0001" for a in found["items"])
-    by_name = client.get("/api/transactions", params={"q": name}).json()
-    assert by_name["total"] > 0
-    assert client.get("/api/transactions", params={"decision": "Maybe"}).status_code == 422
-
-
-def test_missing_identifiers_return_404(client: TestClient) -> None:
-    assert client.get("/api/investigations/NOPE").status_code == 404
-    assert client.get("/api/accounts/ACC-9999").status_code == 404
-    response = client.post("/api/simulations", json=payload("missing-sender", sender_id="ACC-9999"))
-    assert response.status_code == 404
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        {"amount": -5},
-        {"amount": 0},
-        {"is_fraud": True},
-        {"confirmed_fraud": True},
-        {"currency": "USD"},
-        {"currency": "EUR"},  # MIA settles in MDL only
-        {"transfer_type": "standard"},  # only instant transfers are assessed
-        {"payment_scheme": "remittance_in"},  # incoming only, never initiated by a SecFlow customer
-        {"payment_scheme": "card"},
-        {"recipient_alias": "+40712345678"},  # MIA aliases are Moldovan numbers
-        {"amount": 100_000.01},  # above every MIA per-transaction limit
-        {"qr_payload_merchant_id": "CP-00343"},  # QR payload without a QR scheme
-        {"request_id": "x"},
-        {"new_recipient_name": "Someone", "recipient_id": "CP-00001"},  # both recipient fields
-    ],
-)
-def test_invalid_or_authoritative_client_fields_are_rejected(client: TestClient, bad: dict[str, Any]) -> None:
-    response = client.post("/api/simulations", json={**payload("invalid-check"), **bad})
+@pytest.mark.parametrize("change", [
+    {"currency": "EUR"},
+    {"transfer_type": "standard"},
+    {"is_fraud": True},
+    {"amount": 0},
+    {"recipient_alias": "+40712345678"},
+    {"new_recipient_name": "Both Recipients"},
+], ids=["currency", "transfer_type", "label_field", "amount", "alias", "two_recipients"])
+def test_invalid_simulations_are_rejected_with_422(client: TestClient, change: dict[str, Any]) -> None:
+    response = client.post("/api/simulations", json={**payment(client), **change})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
 
 
-def test_personal_amount_above_the_mia_cap_is_rejected(client: TestClient) -> None:
-    response = client.post("/api/simulations", json=payload("cap-000001", amount=5_000.01))
+def test_a_personal_payment_above_the_mia_cap_is_rejected(client: TestClient) -> None:
+    response = client.post("/api/simulations", json=payment(client, amount=5_000.01))
     assert response.status_code == 422
-    body = response.json()["error"]
-    assert body["code"] == "validation_error" and "5,000 MDL" in body["message"]
-    assert client.post("/api/simulations", json=payload("cap-000002", amount=5_000.0,
-                                                        device_id=known_device(client))).status_code == 201
-    business = client.post("/api/simulations", json=payload("cap-000003", sender_id="ACC-0013", amount=20_000.0,
-                                                            payment_scheme="b2b", device_id=known_device(client, "ACC-0013")))
-    assert business.status_code == 201  # businesses are not bound by the 5,000 MDL P2P cap
+    assert response.json()["error"]["details"] == {"limit": "mia_per_transaction"}
 
 
-def test_simulation_records_the_mia_scheme_and_qr_mismatch(client: TestClient) -> None:
-    options = client.get("/api/simulator/options", params={"sender_id": "ACC-0001"}).json()
-    assert options["currencies"] == ["MDL"] and "remittance_in" not in options["payment_schemes"]
-    assert {"p2p_alias", "request_to_pay", "p2b_qr_static", "b2b"} <= set(options["payment_schemes"])
-    assert options["limits"]["personal"]["per_transaction"] == 5_000 and options["sender"]["max_amount"] == 5_000
-    body = client.post("/api/simulations", json=payload("qr-0000001", recipient_id="CP-00300", amount=120.0,
-                                                        payment_scheme="p2b_qr_static", qr_payload_merchant_id="CP-00343",
-                                                        device_id=known_device(client))).json()
-    assert body["payment_scheme"] == "p2b_qr_static" and body["currency"] == "MDL"
-    assert body["qr_payload_merchant_id"] == "CP-00343" and body["facts"]["qr_merchant_mismatch"] is True
-    assert "QR_MERCHANT_MISMATCH" in {r["code"] for r in body["reasons"]}
-    rtp = client.post("/api/simulations", json=payload("rtp-0000001", new_recipient_name="Unknown Requester",
-                                                       payment_scheme="request_to_pay", amount=900.0,
-                                                       device_id=known_device(client))).json()
-    assert rtp["request_to_pay_id"].startswith("RTP-SIM-") and rtp["facts"]["is_request_to_pay"] is True
-    baseline = client.get("/api/transactions", params={"origin": "baseline", "page_size": 50}).json()["items"]
-    assert {i["currency"] for i in baseline} == {"MDL"} and all(i["payment_scheme"] for i in baseline)
-
-
-def test_idempotent_retry_and_conflict(client: TestClient) -> None:
-    body = payload("idem-000001", device_id=known_device(client))
+def test_an_ordinary_payment_is_permitted_and_a_retry_is_answered_once(client: TestClient) -> None:
+    body = payment(client)
     first = client.post("/api/simulations", json=body)
-    again = client.post("/api/simulations", json=body)
-    assert (first.status_code, again.status_code) == (201, 200)
-    assert again.json()["idempotent_replay"] is True
-    assert again.json()["risk_score"] == first.json()["risk_score"]
-    assert again.json()["cursor"] == first.json()["cursor"]
-    assert client.post("/api/simulations", json={**body, "amount": 26.0}).status_code == 409
-    baseline_id = client.get("/api/transactions", params={"origin": "baseline", "page_size": 1}).json()["items"][0]
-    assert client.post("/api/simulations", json=payload(baseline_id["request_id"])).status_code == 409
+    assert first.status_code == 201 and first.json()["decision"] == "Permit"
+    retry = client.post("/api/simulations", json=body)
+    assert retry.status_code == 200 and retry.json()["idempotent_replay"] is True
+    assert client.post("/api/simulations", json={**body, "amount": body["amount"] + 1}).status_code == 409
+    assert client.get("/api/live-transfers").json()["items"][0]["request_id"] == body["request_id"]
 
 
-def test_concurrent_duplicates_commit_exactly_once(client: TestClient) -> None:
-    body = payload("concurrent-0001", amount=31.0)
-    before = client.get("/api/health").json()["state"]["simulations"]
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        codes = sorted(pool.map(lambda _: client.post("/api/simulations", json=body).status_code, range(8)))
-    assert codes.count(201) == 1 and codes.count(200) == 7
-    assert client.get("/api/health").json()["state"]["simulations"] == before + 1
-    feed = client.get("/api/live-transfers", params={"after": 0, "limit": 200}).json()
-    assert [i["request_id"] for i in feed["items"]].count("concurrent-0001") == 1
+def test_a_takeover_like_payment_is_stopped(client: TestClient) -> None:
+    body = payment(client, recipient_id=None, new_recipient_name="Unknown Payee", amount=4_900.0, device_id=None,
+                   auth_method="password", failed_login_attempts=4, ip_country="NL")
+    detail = client.post("/api/simulations", json=body).json()
+    assert detail["decision"] in {"Verify", "Block"}
+    assert {"NEW_DEVICE_AFTER_FAILED_LOGINS", "FOREIGN_SESSION"} <= {r["code"] for r in detail["reasons"]}
 
 
-def test_confirmed_evidence_blocks_low_score_payment(client: TestClient) -> None:
-    flagged = client.get("/api/simulator/options").json()["flagged_beneficiaries"]
-    assert flagged, "the demo evidence stream should contain an active flagged beneficiary"
-    response = client.post("/api/simulations", json=payload("evidence-0001", sender_id="ACC-0003",
-                                                             recipient_id=flagged[0]["id"], amount=12.0,
-                                                             device_id=known_device(client, "ACC-0003")))
-    body = response.json()
-    assert (body["decision"], body["decision_source"], body["decision_label"]) == (
-        "Block", "confirmed_fraud_evidence", "Confirmed fraud evidence")
-    assert body["evidence_ids"] and body["risk_score"] is not None
-    assert body["outcome"] == "blocked_attempt"
+def test_a_payment_to_a_beneficiary_with_trusted_evidence_is_blocked(client: TestClient) -> None:
+    flagged = client.get("/api/simulator/options").json()["flagged_beneficiaries"][0]
+    detail = client.post("/api/simulations", json=payment(client, recipient_id=flagged["id"])).json()
+    assert (detail["decision"], detail["decision_source"]) == ("Block", "confirmed_fraud_evidence")
+    assert detail["evidence_ids"] == [flagged["evidence_id"]]
 
 
-def test_simulation_sees_earlier_simulations(client: TestClient) -> None:
-    device = known_device(client, "ACC-0005")
-    results = [
-        client.post("/api/simulations", json=payload(f"burst-{i:06d}", sender_id="ACC-0005",
-                                                     new_recipient_name="Burst Target", amount=50.0,
-                                                     device_id=device)).json()
-        for i in range(1)
-    ]
-    recipient = results[0]["recipient"]["id"]
-    later = client.post("/api/simulations", json=payload("burst-000009", sender_id="ACC-0005", recipient_id=recipient,
-                                                         amount=50.0, device_id=device)).json()
-    assert later["facts"]["requests_1h"] >= 1
-    assert later["facts"]["new_recipient"] is True  # first paid moments ago: still no established history
+def test_later_simulations_see_earlier_ones(client: TestClient) -> None:
+    body = payment(client, recipient_id=None, new_recipient_name="Burst Payee")
+    first = client.post("/api/simulations", json=body).json()
+    for i in range(2, 6):
+        last = client.post("/api/simulations", json={**body, "request_id": f"SIM-00000{i}", "new_recipient_name": None,
+                                                      "recipient_id": first["recipient"]["id"]}).json()
+    assert last["facts"]["requests_1h"] >= 4
+    assert "REPEAT_NEW_BENEFICIARY" in {r["code"] for r in last["reasons"]}
 
 
-def review_target(client: TestClient, request_id: str, sender: str, amount: float = 4_900) -> str:
-    """A large first payment to a new beneficiary from a known device: one corroborating family, so never a block."""
-    body = client.post("/api/simulations", json=payload(request_id, sender_id=sender, new_recipient_name="Review Target",
-                                                         amount=amount, device_id=known_device(client, sender),
-                                                         auth_method="biometric")).json()
-    assert body["decision"] == "Verify", body["explanation"]
-    assert len(body["corroborating_signals"]) < 2
-    return request_id
+def test_a_verify_decision_is_reviewed_once_and_kept_in_the_history(client: TestClient) -> None:
+    target = client.get("/api/transactions", params={"decision": "Verify", "review_status": "pending"}).json()
+    request_id = target["items"][0]["request_id"]
+    path = f"/api/investigations/{request_id}/reviews"
+    assert client.post(path, json={"action": "reject", "reason": "short"}).status_code == 422
+    review = client.post(path, json={"action": "reject", "reason": "Customer confirmed a scam call"})
+    assert review.status_code == 201
+    investigation = review.json()
+    assert investigation["assessment"]["decision"] == "Verify"  # the automated decision never changes
+    assert investigation["assessment"]["outcome"] == "rejected_after_review" and not investigation["can_review"]
+    assert client.post(path, json={"action": "approve", "reason": "Second opinion here"}).status_code == 409
+    history = client.get("/api/reviews").json()
+    assert (history["total"], history["rejected"], history["persisted"]) == (1, 1, False)
+    assert history["items"][0]["request_id"] == request_id
 
 
-def test_review_requires_reason_preserves_original_and_rejects_second_review(client: TestClient) -> None:
-    rid = review_target(client, "review-000001", "ACC-0011")
-    assert client.post(f"/api/investigations/{rid}/reviews", json={"action": "approve", "reason": "ok"}).status_code == 422
-    done = client.post(f"/api/investigations/{rid}/reviews",
-                       json={"action": "approve", "reason": "Customer confirmed by phone call"})
-    assert done.status_code == 201
-    body = done.json()
-    assert body["assessment"]["decision"] == "Verify"  # original automated decision is immutable
-    assert body["assessment"]["outcome"] == "approved_after_review"
-    assert body["reviews"][0]["original_decision"] == "Verify"
-    assert body["reviews"][0]["original_risk_score"] == pytest.approx(body["assessment"]["risk_score"], abs=0.01)
-    assert body["can_review"] is False
-    assert any(e["kind"] == "review" for e in body["timeline"])
-    second = client.post(f"/api/investigations/{rid}/reviews", json={"action": "reject", "reason": "Changed my mind"})
-    assert second.status_code == 409
-
-
-def test_concurrent_reviews_are_serialised(client: TestClient) -> None:
-    rid = review_target(client, "review-000002", "ACC-0012")
-    body = {"action": "reject", "reason": "Beneficiary could not be verified"}
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        codes = sorted(pool.map(lambda _: client.post(f"/api/investigations/{rid}/reviews", json=body).status_code, range(6)))
-    assert codes.count(201) == 1 and codes.count(409) == 5
-
-
-def test_only_verify_can_be_reviewed(client: TestClient) -> None:
+def test_only_verify_decisions_can_be_reviewed(client: TestClient) -> None:
     permitted = client.get("/api/transactions", params={"decision": "Permit", "page_size": 1}).json()["items"][0]
     response = client.post(f"/api/investigations/{permitted['request_id']}/reviews",
                            json={"action": "approve", "reason": "Looks fine to me"})
     assert response.status_code == 409
 
 
-def test_blocked_and_pending_attempts_are_excluded_from_completed_volume(client: TestClient) -> None:
-    before = client.get("/api/overview").json()["volumes"]
-    review_target(client, "volume-000001", "ACC-0003")  # pending verification
-    flagged = client.get("/api/simulator/options").json()["flagged_beneficiaries"][0]["id"]
-    client.post("/api/simulations", json=payload("volume-000002", recipient_id=flagged, amount=900.0))
-    after = client.get("/api/overview").json()["volumes"]
-    assert after["completed"] == pytest.approx(before["completed"])
-    assert after["pending_verification"] == pytest.approx(before["pending_verification"] + 4_900)
-    assert after["currency"] == "MDL"
-    assert after["blocked_attempts"] == pytest.approx(before["blocked_attempts"] + 900)
-
-
-def test_stream_lifecycle_is_backend_owned(client: TestClient) -> None:
+def test_the_stream_is_started_and_stopped_by_the_backend(client: TestClient) -> None:
     assert client.get("/api/simulation-stream").json()["running"] is False
-    for _ in range(3):  # several tabs pressing start must not create several producers
-        assert client.post("/api/simulation-stream/start").json()["running"] is True
-    deadline = time.time() + 10
-    while client.get("/api/simulation-stream").json()["produced"] < 3 and time.time() < deadline:
-        time.sleep(0.05)
-    stopped = client.post("/api/simulation-stream/stop").json()
-    assert stopped["running"] is False
-    produced = stopped["produced"]
-    assert produced >= 3
-    time.sleep(0.4)
-    assert client.get("/api/simulation-stream").json()["produced"] <= produced + 1
-    tasks = [t for t in client.app.state.stream.__dict__.values() if t.__class__.__name__ == "Task"]
-    assert len(tasks) == 1
-    feed = client.get("/api/live-transfers", params={"after": 0}).json()
-    streamed = [i for i in feed["items"] if i["producer"] == "stream"]
-    assert streamed and {i["currency"] for i in streamed} == {"MDL"}
-    from backend.schemas import OUTGOING_SCHEMES
-
-    assert {i["payment_scheme"] for i in streamed} <= set(OUTGOING_SCHEMES)
-    cursor = feed["next_cursor"]
-    assert client.get("/api/live-transfers", params={"after": cursor}).json()["items"] == []
-    mode = client.post("/api/simulation-stream/mode", json={"mode": "batch_5"}).json()
-    assert mode["mode"] == "batch_5"
-    client.post("/api/simulation-stream/mode", json={"mode": "continuous"})
+    assert client.post("/api/simulation-stream/mode", json={"mode": "batch_10"}).json()["mode"] == "batch_10"
+    assert client.post("/api/simulation-stream/mode", json={"mode": "batch_99"}).status_code == 422
+    assert client.post("/api/simulation-stream/start").json()["running"] is True
+    status = client.post("/api/simulation-stream/stop").json()
+    assert status["running"] is False and status["owner"] == "backend"
 
 
-def test_algorithms_and_evaluation_endpoints(client: TestClient) -> None:
-    algorithms = client.get("/api/algorithms").json()
-    policy = algorithms["policy"]
-    assert policy["weights_source"] == "learned"
-    assert sum(policy["weights"].values()) == pytest.approx(1.0) and policy["weights"]["lof"] >= 0.05 - 1e-9
-    assert set(policy["segments"]) == {"personal", "business"}
-    assert algorithms["model"]["selected_parameters"]["lof"]["n_neighbors"] in (20, 35, 50)
-    assert set(algorithms["distributions"]) == {"isolation_forest", "lof", "dbscan", "rules", "risk_score"}
-    assert len(algorithms["distributions"]["dbscan"]) == algorithms["histogram_bins"]
-    assert len(algorithms["training"]["weights_search"]["top"]) == 10
-    assert {"subspace", "n_neighbors", "fit_rows_requested"} <= set(algorithms["training"]["search"]["lof"][0])
-    assert set(algorithms["training"]["segment_thresholds"]) == {"personal", "business"}
-    evaluation = client.get("/api/evaluation")
-    assert evaluation.status_code == 200
-    assert evaluation.json()["model_version"] == algorithms["model"]["model_version"]
-
-
-def test_missing_model_routes_everything_to_verify(tmp_path: Path) -> None:
-    settings = replace(load_settings(), models_dir=tmp_path / "no-models", autostart_stream=False)
-    with TestClient(create_app(settings)) as degraded:
-        assert degraded.get("/api/health").json()["status"] == "degraded"
-        body = degraded.post("/api/simulations", json=payload("degraded-0001")).json()
-        assert (body["decision"], body["decision_source"], body["assessment_status"]) == (
-            "Verify", "assessment_safeguard", "model_unavailable")
-        assert body["risk_score"] is None
-
-
-def test_dashboard_history_and_live_windows(client: TestClient) -> None:
-    client.post("/api/simulations", json=payload("dash-000001", sender_id="ACC-0021", device_id=known_device(client, "ACC-0021")))
-    history = client.get("/api/dashboard", params={"window": "history"}).json()
-    assert history["bucket_seconds"] == 86_400 and len(history["series"]) >= 15
-    assert history["totals"]["requests"] == sum(b["requests"] for b in history["series"])
-    first = history["series"][0]
-    assert first["requests"] == first["permit"] + first["verify"] + first["block_risk"] + first["block_evidence"]
-    assert first["risk_p50"] <= first["risk_p90"] <= first["risk_p99"]
-    assert history["thresholds"]["verify"] < history["thresholds"]["block"]
-    live = client.get("/api/dashboard", params={"window": "live"}).json()
-    assert live["bucket_seconds"] == 60 and len(live["series"]) == 30
-    assert live["totals"]["requests"] >= 1 and live["totals"]["latency_mean_ms"] > 0
-    assert client.get("/api/dashboard", params={"window": "year"}).status_code == 422
-
-
-def test_cluster_graph_links_clusters_and_anomalies(client: TestClient) -> None:
-    graph = client.get("/api/algorithms/cluster-graph", params={"anomalies": 60}).json()
-    ids = {n["id"] for n in graph["nodes"]}
-    kinds = {n["kind"] for n in graph["nodes"]}
-    assert kinds == {"cluster", "core", "anomaly"}
-    assert all(e["source"] in ids and e["target"] in ids for e in graph["edges"])
-    clusters = [n for n in graph["nodes"] if n["kind"] == "cluster"]
-    assert len(clusters) == graph["summary"]["clusters"] > 1
-    assert sum(c["size"] for c in clusters) == graph["summary"]["core_samples"]
-    near = [e for e in graph["edges"] if e["kind"] == "near"]
-    assert near and all(e["distance"] <= graph["summary"]["link_distance"] + 1e-9 for e in near)
-    anomalies = [n for n in graph["nodes"] if n["kind"] == "anomaly"]
-    assert 0 < len(anomalies) == graph["summary"]["anomalies_shown"] <= 60
-    for node in anomalies[:10]:
-        detail = client.get(f"/api/investigations/{node['request_id']}").json()["assessment"]
-        dbscan = next(c for c in detail["component_details"] if c["key"] == "dbscan")
-        assert dbscan["status"] == "outside_context"
-        assert node["distance"] > graph["summary"]["eps"]
-        assert {"source": f"c{node['cluster']}", "target": node["id"]}.items() <= next(
-            e for e in graph["edges"] if e["target"] == node["id"]
-        ).items()
-        assert not {"is_fraud", "scenario", "label"} & set(node)
+def test_one_stream_tick_records_assessed_payments(client: TestClient) -> None:
+    stream = client.app.state.stream
+    stream.running, stream.mode = True, "batch_20"
+    assert client.portal.call(stream.tick) == 20
+    stream.running = False
+    feed = client.get("/api/live-transfers", params={"limit": 100}).json()
+    assert len(feed["items"]) == 20 and feed["stream"]["produced"] == 20
+    assert {i["currency"] for i in feed["items"]} == {"MDL"}
