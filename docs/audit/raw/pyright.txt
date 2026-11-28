@@ -1,0 +1,1233 @@
+$ npx pyright@1.1.408 -p <temp pyrightconfig.json outside the repo>
+{
+  "include": ["<repo>/backend", "<repo>/ml", "<repo>/datagen", "<repo>/config"],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.14",
+  "venvPath": "<repo>",
+  "venv": ".venv",
+  "executionEnvironments": [{"root": "<repo>"}]
+}
+backend/analytics.py
+  backend/analytics.py:17:6 - error: Stub file not found for "sklearn.neighbors" (reportMissingTypeStubs)
+  backend/analytics.py:47:16 - error: Argument of type "int | str | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "int | str | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  backend/analytics.py:47:16 - error: Argument of type "int | str | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "int | str | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  backend/analytics.py:53:35 - error: Argument of type "int | str | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "int | str | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  backend/analytics.py:53:35 - error: Argument of type "int | str | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "int | str | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  backend/analytics.py:113:24 - error: No overloads for "round" match the provided arguments (reportCallIssue)
+  backend/analytics.py:113:30 - error: Argument of type "Any | str | float | None" cannot be assigned to parameter "number" of type "_SupportsRound2[_T@round]" in function "round"
+    Type "Any | str | float | None" is not assignable to type "_SupportsRound2[float]"
+      "str" is incompatible with protocol "_SupportsRound2[float]"
+        "__round__" is not present (reportArgumentType)
+  backend/analytics.py:114:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  backend/analytics.py:117:18 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:117:34 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:118:18 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:118:60 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:119:18 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:119:34 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:120:19 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:120:44 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:133:38 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:133:58 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:134:36 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/analytics.py:134:60 - error: Type of "s" is unknown (reportUnknownVariableType)
+  backend/analytics.py:156:28 - error: Type of "core_samples" is partially unknown
+    Type of "core_samples" is "str | Unknown | Any" (reportUnknownMemberType)
+  backend/analytics.py:156:28 - error: Argument type is partially unknown
+    Argument corresponds to parameter "a" in function "asarray"
+    Argument type is "str | Unknown | Any" (reportUnknownArgumentType)
+  backend/analytics.py:164:9 - error: Type of "distances" is unknown (reportUnknownVariableType)
+  backend/analytics.py:164:20 - error: Type of "indices" is unknown (reportUnknownVariableType)
+  backend/analytics.py:164:30 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None) -> Unknown" (reportUnknownMemberType)
+  backend/analytics.py:164:30 - error: Type of "kneighbors" is unknown (reportUnknownMemberType)
+  backend/analytics.py:172:23 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  backend/analytics.py:184:13 - error: Type of "dist" is unknown (reportUnknownVariableType)
+  backend/analytics.py:184:19 - error: Type of "idx" is unknown (reportUnknownVariableType)
+  backend/analytics.py:184:25 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None) -> Unknown" (reportUnknownMemberType)
+  backend/analytics.py:184:25 - error: Type of "kneighbors" is unknown (reportUnknownMemberType)
+  backend/analytics.py:188:38 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  backend/analytics.py:189:116 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  backend/analytics.py:229:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  backend/analytics.py:237:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  backend/analytics.py:247:40 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+backend/api.py
+  backend/api.py:78:15 - error: Function "mia_limit" is not accessed (reportUnusedFunction)
+  backend/api.py:82:15 - error: Function "not_found" is not accessed (reportUnusedFunction)
+  backend/api.py:86:15 - error: Function "conflict" is not accessed (reportUnusedFunction)
+  backend/api.py:90:15 - error: Function "invalid" is not accessed (reportUnusedFunction)
+  backend/api.py:97:15 - error: Function "http_error" is not accessed (reportUnusedFunction)
+  backend/api.py:107:9 - error: Function "health" is not accessed (reportUnusedFunction)
+  backend/api.py:111:9 - error: Function "overview" is not accessed (reportUnusedFunction)
+  backend/api.py:117:9 - error: Function "transactions" is not accessed (reportUnusedFunction)
+  backend/api.py:121:9 - error: Function "accounts" is not accessed (reportUnusedFunction)
+  backend/api.py:131:9 - error: Function "account" is not accessed (reportUnusedFunction)
+  backend/api.py:135:9 - error: Function "parties" is not accessed (reportUnusedFunction)
+  backend/api.py:139:9 - error: Function "simulator_options" is not accessed (reportUnusedFunction)
+  backend/api.py:143:9 - error: Function "simulate" is not accessed (reportUnusedFunction)
+  backend/api.py:149:9 - error: Function "live_transfers" is not accessed (reportUnusedFunction)
+  backend/api.py:161:9 - error: Function "stream_status" is not accessed (reportUnusedFunction)
+  backend/api.py:165:15 - error: Function "stream_start" is not accessed (reportUnusedFunction)
+  backend/api.py:169:15 - error: Function "stream_stop" is not accessed (reportUnusedFunction)
+  backend/api.py:173:15 - error: Function "stream_mode" is not accessed (reportUnusedFunction)
+  backend/api.py:177:9 - error: Function "investigation" is not accessed (reportUnusedFunction)
+  backend/api.py:181:9 - error: Function "review" is not accessed (reportUnusedFunction)
+  backend/api.py:185:9 - error: Function "review_history" is not accessed (reportUnusedFunction)
+  backend/api.py:196:9 - error: Function "algorithms" is not accessed (reportUnusedFunction)
+  backend/api.py:200:9 - error: Function "monitoring_dashboard" is not accessed (reportUnusedFunction)
+  backend/api.py:206:9 - error: Function "cluster_graph" is not accessed (reportUnusedFunction)
+  backend/api.py:212:9 - error: Function "evaluation" is not accessed (reportUnusedFunction)
+  backend/api.py:230:9 - error: Function "spa" is not accessed (reportUnusedFunction)
+backend/service.py
+  backend/service.py:54:51 - error: Type of "evidence_store" is partially unknown
+    Type of "evidence_store" is "(rows: Sequence[dict[Unknown, Unknown]], policy: Policy) -> EvidenceStore" (reportUnknownVariableType)
+  backend/service.py:108:5 - error: Type of "reviews" is partially unknown
+    Type of "reviews" is "list[Unknown]" (reportUnknownVariableType)
+  backend/service.py:142:27 - error: Type of "_read_json" is partially unknown
+    Type of "_read_json" is "(path: Unknown) -> (dict[str, Any] | None)" (reportUnknownMemberType)
+  backend/service.py:143:25 - error: Type of "_read_json" is partially unknown
+    Type of "_read_json" is "(path: Unknown) -> (dict[str, Any] | None)" (reportUnknownMemberType)
+  backend/service.py:168:20 - error: Type of parameter "path" is unknown (reportUnknownParameterType)
+  backend/service.py:168:20 - error: Type annotation is missing for parameter "path" (reportMissingParameterType)
+  backend/service.py:169:27 - error: Type of "read_text" is unknown (reportUnknownMemberType)
+  backend/service.py:169:27 - error: Argument type is unknown
+    Argument corresponds to parameter "s" in function "loads" (reportUnknownArgumentType)
+  backend/service.py:169:48 - error: Type of "exists" is unknown (reportUnknownMemberType)
+  backend/service.py:317:75 - error: Argument of type "str" cannot be assigned to parameter "action" of type "Literal['approve', 'reject']" in function "__init__"
+    Type "str" is not assignable to type "Literal['approve', 'reject']"
+      "str" is not assignable to type "Literal['approve']"
+      "str" is not assignable to type "Literal['reject']" (reportArgumentType)
+  backend/service.py:318:85 - error: Argument of type "str" cannot be assigned to parameter "original_decision" of type "Decision" in function "__init__"
+    Type "str" is not assignable to type "Decision"
+      "str" is not assignable to type "Literal['Permit']"
+      "str" is not assignable to type "Literal['Verify']"
+      "str" is not assignable to type "Literal['Block']" (reportArgumentType)
+  backend/service.py:319:41 - error: Argument of type "str" cannot be assigned to parameter "original_decision_label" of type "DecisionLabel" in function "__init__"
+    Type "str" is not assignable to type "DecisionLabel"
+      "str" is not assignable to type "Literal['Confirmed fraud evidence']"
+      "str" is not assignable to type "Literal['Preventive risk block']"
+      "str" is not assignable to type "Literal['Needs verification']"
+      "str" is not assignable to type "Literal['Permitted']" (reportArgumentType)
+  backend/service.py:320:35 - error: Argument of type "str" cannot be assigned to parameter "resulting_outcome" of type "Outcome" in function "__init__"
+    Type "str" is not assignable to type "Outcome"
+      "str" is not assignable to type "Literal['permitted']"
+      "str" is not assignable to type "Literal['pending_verification']"
+      "str" is not assignable to type "Literal['blocked_attempt']"
+      "str" is not assignable to type "Literal['approved_after_review']"
+      "str" is not assignable to type "Literal['rejected_after_review']" (reportArgumentType)
+  backend/service.py:320:68 - error: Argument of type "str" cannot be assigned to parameter "origin" of type "Literal['baseline', 'simulation']" in function "__init__"
+    Type "str" is not assignable to type "Literal['baseline', 'simulation']"
+      "str" is not assignable to type "Literal['baseline']"
+      "str" is not assignable to type "Literal['simulation']" (reportArgumentType)
+  backend/service.py:420:70 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  backend/service.py:444:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  backend/service.py:450:34 - error: Argument type is partially unknown
+    Argument corresponds to parameter "items" in function "__init__"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  backend/service.py:548:9 - error: Type of "daily" is partially unknown
+    Type of "daily" is "defaultdict[str, Counter[Unknown]]" (reportUnknownVariableType)
+  backend/service.py:548:26 - error: Expected type arguments for generic class "Counter" (reportMissingTypeArgument)
+  backend/service.py:581:46 - error: Argument type is partially unknown
+    Argument corresponds to parameter "map" in function "__init__"
+    Argument type is "Counter[Unknown]" (reportUnknownArgumentType)
+  backend/service.py:581:57 - error: Type of "c" is partially unknown
+    Type of "c" is "Counter[Unknown]" (reportUnknownVariableType)
+  backend/service.py:581:69 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "dict_items[str, Counter[Unknown]]" (reportUnknownArgumentType)
+backend/tests/test_api.py
+  backend/tests/test_api.py:16:5 - error: Type of "accounts" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:16:16 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:16:16 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:17:5 - error: Type of "sender" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:17:19 - error: Argument type is partially unknown
+    Argument corresponds to parameter "i" in function "next"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/tests/test_api.py:17:25 - error: Type of "a" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:18:5 - error: Type of "options" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:18:15 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:18:15 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:19:12 - error: Return type, "tuple[Unknown, Unknown]", is partially unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:24:5 - error: Type of "options" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:24:15 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:24:15 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:31:48 - error: Argument of type "ModuleSpec | None" cannot be assigned to parameter "spec" of type "ModuleSpec" in function "module_from_spec"
+    Type "ModuleSpec | None" is not assignable to type "ModuleSpec"
+      "None" is not assignable to "ModuleSpec" (reportArgumentType)
+  backend/tests/test_api.py:32:10 - error: "loader" is not a known attribute of "None" (reportOptionalMemberAccess)
+  backend/tests/test_api.py:32:17 - error: "exec_module" is not a known attribute of "None" (reportOptionalMemberAccess)
+  backend/tests/test_api.py:38:5 - error: Type of "health" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:38:14 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:38:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:46:5 - error: Type of "totals" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:46:14 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:46:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:52:5 - error: Type of "page" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:52:12 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:52:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:53:39 - error: Argument type is unknown
+    Argument corresponds to parameter "obj" in function "len" (reportUnknownArgumentType)
+  backend/tests/test_api.py:54:31 - error: Type of "i" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:55:5 - error: Type of "scores" is partially unknown
+    Type of "scores" is "list[Unknown]" (reportUnknownVariableType)
+  backend/tests/test_api.py:55:35 - error: Type of "i" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:56:29 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  backend/tests/test_api.py:61:9 - error: Type of "response" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:61:20 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:62:16 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:62:48 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:74:5 - error: Type of "response" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:74:16 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:75:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:76:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:80:5 - error: Type of "response" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:80:16 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:81:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:82:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:87:5 - error: Type of "first" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:87:13 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:88:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:88:41 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:89:5 - error: Type of "retry" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:89:13 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:90:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:90:41 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:91:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:91:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:92:12 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:92:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:98:5 - error: Type of "detail" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:98:14 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:98:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:100:84 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:104:5 - error: Type of "flagged" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:104:15 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:104:15 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:105:5 - error: Type of "detail" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:105:14 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:105:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:112:5 - error: Type of "first" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:112:13 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:112:13 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:114:9 - error: Type of "last" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:114:16 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:114:16 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:116:12 - error: "last" is possibly unbound (reportPossiblyUnboundVariable)
+  backend/tests/test_api.py:117:55 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:117:60 - error: "last" is possibly unbound (reportPossiblyUnboundVariable)
+  backend/tests/test_api.py:121:5 - error: Type of "target" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:121:14 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:121:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:122:5 - error: Type of "request_id" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:124:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:124:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:125:5 - error: Type of "review" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:125:14 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:126:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:127:5 - error: Type of "investigation" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:127:21 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:130:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:130:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:131:5 - error: Type of "history" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:131:15 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:131:15 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:137:5 - error: Type of "permitted" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:137:17 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:137:17 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:138:5 - error: Type of "response" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:138:16 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:140:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:144:12 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:144:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:145:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:145:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:146:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:146:12 - error: Type of "status_code" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:147:12 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:147:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:148:5 - error: Type of "status" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:148:14 - error: Type of "post" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:148:14 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:153:5 - error: Type of "stream" is partially unknown
+    Type of "stream" is "Any | Unknown" (reportUnknownVariableType)
+  backend/tests/test_api.py:153:14 - error: Type of "state" is partially unknown
+    Type of "state" is "Any | Unknown" (reportUnknownMemberType)
+  backend/tests/test_api.py:153:14 - error: Type of "stream" is partially unknown
+    Type of "stream" is "Any | Unknown" (reportUnknownMemberType)
+  backend/tests/test_api.py:153:25 - error: Cannot access attribute "state" for class "FunctionType"
+    Attribute "state" is unknown (reportFunctionMemberAccess)
+  backend/tests/test_api.py:153:25 - error: Cannot access attribute "state" for class "_WrapASGI2"
+    Attribute "state" is unknown (reportAttributeAccessIssue)
+  backend/tests/test_api.py:155:26 - error: "call" is not a known attribute of "None" (reportOptionalMemberAccess)
+  backend/tests/test_api.py:155:31 - error: Type of "tick" is partially unknown
+    Type of "tick" is "Any | Unknown" (reportUnknownMemberType)
+  backend/tests/test_api.py:155:31 - error: Argument type is partially unknown
+    Argument corresponds to parameter "func" in function "call"
+    Argument type is "Any | Unknown" (reportUnknownArgumentType)
+  backend/tests/test_api.py:157:5 - error: Type of "feed" is unknown (reportUnknownVariableType)
+  backend/tests/test_api.py:157:12 - error: Type of "get" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:157:12 - error: Type of "json" is unknown (reportUnknownMemberType)
+  backend/tests/test_api.py:158:16 - error: Argument type is unknown
+    Argument corresponds to parameter "obj" in function "len" (reportUnknownArgumentType)
+  backend/tests/test_api.py:159:31 - error: Type of "i" is unknown (reportUnknownVariableType)
+backend/tests/test_dataset.py
+  backend/tests/test_dataset.py:19:5 - error: Return type, "dict[str, list[dict[Unknown, Unknown]]]", is partially unknown (reportUnknownParameterType)
+  backend/tests/test_dataset.py:19:30 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  backend/tests/test_dataset.py:20:12 - error: Return type, "dict[str, list[dict[Unknown, Unknown]]]", is partially unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:39:48 - error: Type of parameter "rows" is unknown (reportUnknownParameterType)
+  backend/tests/test_dataset.py:39:48 - error: Type annotation is missing for parameter "rows" (reportMissingParameterType)
+  backend/tests/test_dataset.py:41:9 - error: Type of "assessed" is partially unknown
+    Type of "assessed" is "list[Unknown]" (reportUnknownVariableType)
+  backend/tests/test_dataset.py:41:27 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:42:20 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  backend/tests/test_dataset.py:43:16 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/tests/test_dataset.py:43:34 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:46:57 - error: Type of parameter "rows" is unknown (reportUnknownParameterType)
+  backend/tests/test_dataset.py:46:57 - error: Type annotation is missing for parameter "rows" (reportMissingParameterType)
+  backend/tests/test_dataset.py:48:41 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:49:33 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:52:70 - error: Type of parameter "rows" is unknown (reportUnknownParameterType)
+  backend/tests/test_dataset.py:52:70 - error: Type annotation is missing for parameter "rows" (reportMissingParameterType)
+  backend/tests/test_dataset.py:53:9 - error: Type of "part" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:53:17 - error: Type of "values" is unknown (reportUnknownMemberType)
+  backend/tests/test_dataset.py:54:40 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:55:35 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:56:20 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "max"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  backend/tests/test_dataset.py:56:36 - error: Type of "r" is unknown (reportUnknownVariableType)
+  backend/tests/test_dataset.py:70:49 - error: Argument type is partially unknown
+    Argument corresponds to parameter "argvalues" in function "__call__"
+    Argument type is "list[tuple[(r: Unknown) -> Unknown, Literal['not instant transfers in MDL']] | tuple[(r: Unknown) -> (Unknown | None), Literal['above 5,000 MDL']]]" (reportUnknownArgumentType)
+  backend/tests/test_dataset.py:71:13 - error: Type of parameter "r" is unknown (reportUnknownLambdaType)
+  backend/tests/test_dataset.py:71:16 - error: Type of "update" is unknown (reportUnknownMemberType)
+  backend/tests/test_dataset.py:71:16 - error: Return type of lambda is unknown (reportUnknownLambdaType)
+  backend/tests/test_dataset.py:72:13 - error: Type of parameter "r" is unknown (reportUnknownLambdaType)
+  backend/tests/test_dataset.py:72:16 - error: Type of "update" is unknown (reportUnknownMemberType)
+  backend/tests/test_dataset.py:72:16 - error: Return type of lambda, "Unknown | None", is partially unknown (reportUnknownLambdaType)
+  backend/tests/test_dataset.py:75:57 - error: Type of parameter "change" is unknown (reportUnknownParameterType)
+  backend/tests/test_dataset.py:75:57 - error: Type annotation is missing for parameter "change" (reportMissingParameterType)
+backend/tests/test_policy.py
+  backend/tests/test_policy.py:35:56 - error: Type of parameter "evidence" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:35:56 - error: Type annotation is missing for parameter "evidence" (reportMissingParameterType)
+  backend/tests/test_policy.py:35:98 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:35:98 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:36:46 - error: Argument type is unknown
+    Argument corresponds to parameter "evidence" in function "decide_action" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:36:71 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide_action" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:39:16 - error: Type of parameter "changes" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:39:16 - error: Type annotation is missing for parameter "changes" (reportMissingParameterType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "evidence_id" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "evidence_type" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "entity_type" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "entity_id" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "source" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "recorded_at" of type "int" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "int"
+      "str" is not assignable to "int" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "effective_from" of type "int" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "int"
+      "str" is not assignable to "int" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "effective_until" of type "int | None" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "int | None"
+      Type "str" is not assignable to type "int | None"
+        "str" is not assignable to "int"
+        "str" is not assignable to "None" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "status_history" of type "tuple[tuple[int, str], ...]" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "tuple[tuple[int, str], ...]"
+      "int" is not assignable to "tuple[tuple[int, str], ...]" (reportArgumentType)
+  backend/tests/test_policy.py:43:31 - error: Argument of type "str | int | tuple[tuple[int, str]] | Unknown | None" cannot be assigned to parameter "note" of type "str" in function "__init__"
+    Type "str | int | tuple[tuple[int, str]] | Unknown | None" is not assignable to type "str"
+      "int" is not assignable to "str" (reportArgumentType)
+  backend/tests/test_policy.py:46:53 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:46:53 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:47:100 - error: Type of "weights" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:47:100 - error: Argument type is unknown
+    Argument corresponds to parameter "weights" in function "combine_scores" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:52:42 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:52:42 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:53:32 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:54:32 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:55:46 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:58:75 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:58:75 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:60:44 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:63:51 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:63:51 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:64:41 - error: Type of "trusted_sources" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:64:41 - error: Argument type is unknown
+    Argument corresponds to parameter "trusted_sources" in function "__init__" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:64:65 - error: Type of "blocking_types" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:64:65 - error: Argument type is unknown
+    Argument corresponds to parameter "blocking_types" in function "__init__" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:66:76 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide_action" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:77:54 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:77:54 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:78:35 - error: Type of "trusted_sources" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:78:35 - error: Argument type is unknown
+    Argument corresponds to parameter "trusted_sources" in function "__init__" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:78:59 - error: Type of "blocking_types" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:78:59 - error: Argument type is unknown
+    Argument corresponds to parameter "blocking_types" in function "__init__" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:82:87 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:82:87 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:83:58 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "assessment_status" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:84:55 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "assessment_status" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:85:56 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "assessment_status" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:86:62 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:89:47 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:89:47 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:93:50 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "evaluate_rules" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:98:58 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:98:58 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:102:60 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "evaluate_rules" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:106:51 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_policy.py:106:51 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_policy.py:110:81 - error: Type of "min_families" is unknown (reportUnknownMemberType)
+  backend/tests/test_policy.py:110:81 - error: Argument type is unknown
+    Argument corresponds to parameter "min_families" in function "decision_codes" (reportUnknownArgumentType)
+  backend/tests/test_policy.py:114:98 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "decide" (reportUnknownArgumentType)
+backend/tests/test_training.py
+  backend/tests/test_training.py:9:8 - error: Stub file not found for "joblib" (reportMissingTypeStubs)
+  backend/tests/test_training.py:24:5 - error: Return type, "dict[Unknown, Unknown]", is partially unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:24:13 - error: Type of parameter "tmp_path_factory" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:24:13 - error: Type annotation is missing for parameter "tmp_path_factory" (reportMissingParameterType)
+  backend/tests/test_training.py:24:31 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:24:31 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_training.py:24:42 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  backend/tests/test_training.py:29:13 - error: Type of parameter "paths" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:29:13 - error: Type annotation is missing for parameter "paths" (reportMissingParameterType)
+  backend/tests/test_training.py:30:28 - error: Argument type is unknown
+    Argument corresponds to parameter "iterable" in function "__init__" (reportUnknownArgumentType)
+  backend/tests/test_training.py:31:25 - error: Argument type is unknown
+    Argument corresponds to parameter "paths" in function "load_labels" (reportUnknownArgumentType)
+  backend/tests/test_training.py:35:9 - error: Type of "models" is unknown (reportUnknownVariableType)
+  backend/tests/test_training.py:35:18 - error: Type of "mktemp" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:36:84 - error: Argument type is unknown
+    Argument corresponds to parameter "models_dir" in function "train_models" (reportUnknownArgumentType)
+  backend/tests/test_training.py:36:92 - error: Argument type is unknown
+    Argument corresponds to parameter "policy" in function "train_models" (reportUnknownArgumentType)
+  backend/tests/test_training.py:40:12 - error: Return type, "dict[Unknown, Unknown]", is partially unknown (reportUnknownVariableType)
+  backend/tests/test_training.py:43:48 - error: Type of parameter "trained" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:43:48 - error: Type annotation is missing for parameter "trained" (reportMissingParameterType)
+  backend/tests/test_training.py:47:50 - error: Type of parameter "trained" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:47:50 - error: Type annotation is missing for parameter "trained" (reportMissingParameterType)
+  backend/tests/test_training.py:48:27 - error: Type of "read_text" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:48:27 - error: Argument type is unknown
+    Argument corresponds to parameter "s" in function "loads" (reportUnknownArgumentType)
+  backend/tests/test_training.py:53:58 - error: Type of parameter "trained" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:53:58 - error: Type annotation is missing for parameter "trained" (reportMissingParameterType)
+  backend/tests/test_training.py:53:67 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:53:67 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  backend/tests/test_training.py:54:5 - error: Type of "chosen" is unknown (reportUnknownVariableType)
+  backend/tests/test_training.py:56:37 - error: Type of "goals" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:56:71 - error: Type of "new_account_verify_reserve" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:57:53 - error: Type of "goals" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:60:53 - error: Type of parameter "trained" is unknown (reportUnknownParameterType)
+  backend/tests/test_training.py:60:53 - error: Type annotation is missing for parameter "trained" (reportMissingParameterType)
+  backend/tests/test_training.py:62:27 - error: Type of "read_text" is unknown (reportUnknownMemberType)
+  backend/tests/test_training.py:62:27 - error: Argument type is unknown
+    Argument corresponds to parameter "s" in function "loads" (reportUnknownArgumentType)
+  backend/tests/test_training.py:98:5 - error: Type of "dump" is partially unknown
+    Type of "dump" is "(value: Unknown, filename: Unknown, compress: int = 0, protocol: Unknown | None = None) -> (list[str | Unknown] | None)" (reportUnknownMemberType)
+backend/views.py
+  backend/views.py:71:16 - error: Argument of type "str" cannot be assigned to parameter "origin" of type "Literal['baseline', 'simulation']" in function "__init__"
+    Type "str" is not assignable to type "Literal['baseline', 'simulation']"
+      "str" is not assignable to type "Literal['baseline']"
+      "str" is not assignable to type "Literal['simulation']" (reportArgumentType)
+  backend/views.py:80:18 - error: Argument of type "str" cannot be assigned to parameter "decision" of type "Decision" in function "__init__"
+    Type "str" is not assignable to type "Decision"
+      "str" is not assignable to type "Literal['Permit']"
+      "str" is not assignable to type "Literal['Verify']"
+      "str" is not assignable to type "Literal['Block']" (reportArgumentType)
+  backend/views.py:81:25 - error: Argument of type "str" cannot be assigned to parameter "decision_source" of type "DecisionSource" in function "__init__"
+    Type "str" is not assignable to type "DecisionSource"
+      "str" is not assignable to type "Literal['confirmed_fraud_evidence']"
+      "str" is not assignable to type "Literal['risk_policy']"
+      "str" is not assignable to type "Literal['assessment_safeguard']" (reportArgumentType)
+  backend/views.py:82:24 - error: Argument of type "str" cannot be assigned to parameter "decision_label" of type "DecisionLabel" in function "__init__"
+    Type "str" is not assignable to type "DecisionLabel"
+      "str" is not assignable to type "Literal['Confirmed fraud evidence']"
+      "str" is not assignable to type "Literal['Preventive risk block']"
+      "str" is not assignable to type "Literal['Needs verification']"
+      "str" is not assignable to type "Literal['Permitted']" (reportArgumentType)
+  backend/views.py:84:17 - error: Argument of type "str" cannot be assigned to parameter "outcome" of type "Outcome" in function "__init__"
+    Type "str" is not assignable to type "Outcome"
+      "str" is not assignable to type "Literal['permitted']"
+      "str" is not assignable to type "Literal['pending_verification']"
+      "str" is not assignable to type "Literal['blocked_attempt']"
+      "str" is not assignable to type "Literal['approved_after_review']"
+      "str" is not assignable to type "Literal['rejected_after_review']" (reportArgumentType)
+  backend/views.py:85:23 - error: Argument of type "str" cannot be assigned to parameter "review_status" of type "Literal['not_applicable', 'pending', 'approved', 'rejected']" in function "__init__"
+    Type "str" is not assignable to type "Literal['not_applicable', 'pending', 'approved', 'rejected']"
+      "str" is not assignable to type "Literal['not_applicable']"
+      "str" is not assignable to type "Literal['pending']"
+      "str" is not assignable to type "Literal['approved']"
+      "str" is not assignable to type "Literal['rejected']" (reportArgumentType)
+  backend/views.py:86:17 - error: Argument of type "str" cannot be assigned to parameter "segment" of type "Literal['personal', 'business']" in function "__init__"
+    Type "str" is not assignable to type "Literal['personal', 'business']"
+      "str" is not assignable to type "Literal['personal']"
+      "str" is not assignable to type "Literal['business']" (reportArgumentType)
+  backend/views.py:120:31 - error: Argument type is partially unknown
+    Argument corresponds to parameter "raw" in function "__init__"
+    Argument type is "Unknown | None" (reportUnknownArgumentType)
+  backend/views.py:120:62 - error: No overloads for "round" match the provided arguments (reportCallIssue)
+  backend/views.py:120:68 - error: Argument of type "float | None" cannot be assigned to parameter "number" of type "_SupportsRound2[_T(2)@round]" in function "round"
+    Type "float | None" is not assignable to type "_SupportsRound2[float]"
+      "None" is incompatible with protocol "_SupportsRound2[float]"
+        "__round__" is not present (reportArgumentType)
+  backend/views.py:140:60 - error: Argument of type "str" cannot be assigned to parameter "segment" of type "Literal['personal', 'business']" in function "__init__"
+    Type "str" is not assignable to type "Literal['personal', 'business']"
+      "str" is not assignable to type "Literal['personal']"
+      "str" is not assignable to type "Literal['business']" (reportArgumentType)
+  backend/views.py:159:58 - error: Argument of type "str" cannot be assigned to parameter "action" of type "Literal['approve', 'reject']" in function "__init__"
+    Type "str" is not assignable to type "Literal['approve', 'reject']"
+      "str" is not assignable to type "Literal['approve']"
+      "str" is not assignable to type "Literal['reject']" (reportArgumentType)
+  backend/views.py:160:71 - error: Argument of type "str" cannot be assigned to parameter "original_decision" of type "Decision" in function "__init__"
+    Type "str" is not assignable to type "Decision"
+      "str" is not assignable to type "Literal['Permit']"
+      "str" is not assignable to type "Literal['Verify']"
+      "str" is not assignable to type "Literal['Block']" (reportArgumentType)
+  backend/views.py:161:89 - error: Argument of type "str" cannot be assigned to parameter "resulting_outcome" of type "Outcome" in function "__init__"
+    Type "str" is not assignable to type "Outcome"
+      "str" is not assignable to type "Literal['permitted']"
+      "str" is not assignable to type "Literal['pending_verification']"
+      "str" is not assignable to type "Literal['blocked_attempt']"
+      "str" is not assignable to type "Literal['approved_after_review']"
+      "str" is not assignable to type "Literal['rejected_after_review']" (reportArgumentType)
+config/limits.py
+  config/limits.py:37:18 - error: Type of parameter "raw" is partially unknown
+    Parameter type is "dict[Unknown, Unknown]" (reportUnknownParameterType)
+  config/limits.py:37:23 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  config/limits.py:38:17 - error: Type of parameter "block" is partially unknown
+    Parameter type is "dict[Unknown, Unknown]" (reportUnknownParameterType)
+  config/limits.py:38:24 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  config/limits.py:39:9 - error: Type of "month" is partially unknown
+    Type of "month" is "Unknown | None" (reportUnknownVariableType)
+  config/limits.py:39:17 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  config/limits.py:40:36 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  config/limits.py:40:69 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  config/limits.py:41:36 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  config/limits.py:43:24 - error: Argument type is unknown
+    Argument corresponds to parameter "currency" in function "__init__" (reportUnknownArgumentType)
+  config/limits.py:43:49 - error: Argument type is unknown
+    Argument corresponds to parameter "block" in function "segment" (reportUnknownArgumentType)
+  config/limits.py:43:75 - error: Argument type is unknown
+    Argument corresponds to parameter "block" in function "segment" (reportUnknownArgumentType)
+  config/limits.py:44:30 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+datagen/dataset.py
+  datagen/dataset.py:38:5 - error: Type of "auth_from_session_event" is partially unknown
+    Type of "auth_from_session_event" is "(event: dict[Unknown, Unknown], account_id: str, session_id: str) -> AuthEvent" (reportUnknownVariableType)
+  datagen/dataset.py:40:5 - error: Type of "request_from_row" is partially unknown
+    Type of "request_from_row" is "(row: dict[Unknown, Unknown]) -> PaymentRequest" (reportUnknownVariableType)
+  datagen/dataset.py:72:12 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/dataset.py:149:5 - error: Type of "present" is partially unknown
+    Type of "present" is "set[str] | set[Unknown]" (reportUnknownVariableType)
+  datagen/dataset.py:152:37 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "set[str] | set[Unknown]" (reportUnknownArgumentType)
+  datagen/dataset.py:191:24 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[bool | Unknown, None, None]" (reportUnknownArgumentType)
+  datagen/dataset.py:191:28 - error: Operator "+" not supported for "None" (reportOptionalOperand)
+datagen/generator.py
+  datagen/generator.py:244:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:248:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:256:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:265:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:266:5 - error: Type of "counterparties" is partially unknown
+    Type of "counterparties" is "list[Unknown]" (reportUnknownVariableType)
+  datagen/generator.py:268:5 - error: Type of "cp_alias_registered" is partially unknown
+    Type of "cp_alias_registered" is "dict[Unknown, int]" (reportUnknownVariableType)
+  datagen/generator.py:269:9 - error: Type of "counterparty_id" is unknown (reportUnknownMemberType)
+  datagen/generator.py:269:83 - error: Type of "c" is unknown (reportUnknownVariableType)
+  datagen/generator.py:269:106 - error: Type of "alias" is unknown (reportUnknownMemberType)
+  datagen/generator.py:271:52 - error: Argument type is partially unknown
+    Argument corresponds to parameter "counterparties" in function "_build_account_params"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:272:32 - error: Argument type is partially unknown
+    Argument corresponds to parameter "counterparties" in function "__init__"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:272:48 - error: Argument type is partially unknown
+    Argument corresponds to parameter "drift_billers" in function "__init__"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:272:63 - error: Argument type is partially unknown
+    Argument corresponds to parameter "cp_alias_registered" in function "__init__"
+    Argument type is "dict[Unknown, int]" (reportUnknownArgumentType)
+  datagen/generator.py:416:5 - error: Type of "events" is partially unknown
+    Type of "events" is "list[Unknown]" (reportUnknownVariableType)
+  datagen/generator.py:468:16 - error: Return type, "dict[Unknown, Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:790:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:795:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:795:24 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:796:75 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:796:98 - error: Argument type is unknown
+    Argument corresponds to parameter "expires_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:797:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:818:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:822:16 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:823:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:823:24 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:824:72 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:824:95 - error: Argument type is unknown
+    Argument corresponds to parameter "expires_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:825:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:842:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:850:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:866:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:869:44 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:870:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:870:31 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:870:31 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  datagen/generator.py:870:40 - error: Type of "d" is unknown (reportUnknownVariableType)
+  datagen/generator.py:871:91 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:871:101 - error: Argument type is unknown
+    Argument corresponds to parameter "effective_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:872:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:888:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:891:45 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:892:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:892:28 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:892:28 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "min"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  datagen/generator.py:892:37 - error: Type of "d" is unknown (reportUnknownVariableType)
+  datagen/generator.py:893:88 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:893:98 - error: Argument type is unknown
+    Argument corresponds to parameter "effective_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:895:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:913:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:916:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:962:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:968:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:968:24 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:969:98 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:969:108 - error: Argument type is unknown
+    Argument corresponds to parameter "effective_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:971:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:997:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1000:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1019:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1023:13 - error: Type of "first" is unknown (reportUnknownVariableType)
+  datagen/generator.py:1023:25 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:1023:25 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "min"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  datagen/generator.py:1023:34 - error: Type of "d" is unknown (reportUnknownVariableType)
+  datagen/generator.py:1024:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:1025:93 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:1025:103 - error: Argument type is unknown
+    Argument corresponds to parameter "effective_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:1026:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1041:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1044:44 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:1045:13 - error: Type of "recorded" is unknown (reportUnknownVariableType)
+  datagen/generator.py:1045:28 - error: Type of "ts" is unknown (reportUnknownMemberType)
+  datagen/generator.py:1045:28 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "min"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  datagen/generator.py:1045:37 - error: Type of "d" is unknown (reportUnknownVariableType)
+  datagen/generator.py:1046:91 - error: Argument type is unknown
+    Argument corresponds to parameter "recorded_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:1046:101 - error: Argument type is unknown
+    Argument corresponds to parameter "effective_at" in function "_add_evidence" (reportUnknownArgumentType)
+  datagen/generator.py:1047:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1065:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1068:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1105:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1107:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1123:13 - error: Variable "index" is not accessed (reportUnusedVariable)
+  datagen/generator.py:1126:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1128:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1140:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1143:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1168:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1172:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1245:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1248:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1350:5 - error: Type of "days" is partially unknown
+    Type of "days" is "set[Unknown]" (reportUnknownVariableType)
+  datagen/generator.py:1355:17 - error: Type of "add" is partially unknown
+    Type of "add" is "(element: Unknown, /) -> None" (reportUnknownMemberType)
+  datagen/generator.py:1356:12 - error: Return type, "set[Unknown]", is partially unknown (reportUnknownVariableType)
+  datagen/generator.py:1437:29 - error: "_day_number" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  datagen/generator.py:1456:64 - error: Argument type is partially unknown
+    Argument corresponds to parameter "paths" in function "_manifest"
+    Argument type is "dict[Unknown, Unknown]" (reportUnknownArgumentType)
+  datagen/generator.py:1465:92 - error: "_is_business" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  datagen/generator.py:1466:55 - error: "_is_business" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  datagen/generator.py:1525:9 - error: Type of "row" is partially unknown
+    Type of "row" is "dict[str, str | bool | float | list[Unknown] | None]" (reportUnknownVariableType)
+  datagen/generator.py:1531:75 - error: "_is_business" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  datagen/generator.py:1532:61 - error: "_is_business" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  datagen/generator.py:1539:24 - error: Argument type is partially unknown
+    Argument corresponds to parameter "object" in function "append"
+    Argument type is "tuple[tuple[int, Literal[0], str, str, float, Literal['']], dict[str, str | bool | float | list[Unknown] | None]]" (reportUnknownArgumentType)
+datagen/records.py
+  datagen/records.py:98:22 - error: Type of parameter "row" is partially unknown
+    Parameter type is "dict[Unknown, Unknown]" (reportUnknownParameterType)
+  datagen/records.py:98:27 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  datagen/records.py:100:5 - error: Type of "registered" is partially unknown
+    Type of "registered" is "Unknown | None" (reportUnknownVariableType)
+  datagen/records.py:100:18 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  datagen/records.py:102:20 - error: Argument type is unknown
+    Argument corresponds to parameter "request_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:103:21 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  datagen/records.py:104:19 - error: Argument type is unknown
+    Argument corresponds to parameter "sender_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:105:22 - error: Argument type is unknown
+    Argument corresponds to parameter "recipient_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:106:24 - error: Argument type is unknown
+    Argument corresponds to parameter "recipient_type" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:107:22 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  datagen/records.py:108:18 - error: Argument type is unknown
+    Argument corresponds to parameter "currency" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:109:17 - error: Argument type is unknown
+    Argument corresponds to parameter "channel" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:110:19 - error: Argument type is unknown
+    Argument corresponds to parameter "device_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:111:20 - error: Argument type is unknown
+    Argument corresponds to parameter "session_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:112:21 - error: Argument type is unknown
+    Argument corresponds to parameter "auth_method" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:113:20 - error: Argument type is unknown
+    Argument corresponds to parameter "ip_country" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:114:23 - error: Argument type is unknown
+    Argument corresponds to parameter "transfer_type" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:115:24 - error: Argument type is unknown
+    Argument corresponds to parameter "payment_scheme" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:116:27 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  datagen/records.py:116:27 - error: Argument type is partially unknown
+    Argument corresponds to parameter "request_to_pay_id" in function "__init__"
+    Argument type is "Unknown | None" (reportUnknownArgumentType)
+  datagen/records.py:117:32 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  datagen/records.py:117:32 - error: Argument type is partially unknown
+    Argument corresponds to parameter "qr_payload_merchant_id" in function "__init__"
+    Argument type is "Unknown | None" (reportUnknownArgumentType)
+  datagen/records.py:118:25 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  datagen/records.py:118:25 - error: Argument type is partially unknown
+    Argument corresponds to parameter "recipient_alias" in function "__init__"
+    Argument type is "Unknown | None" (reportUnknownArgumentType)
+  datagen/records.py:119:38 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  datagen/records.py:123:29 - error: Type of parameter "event" is partially unknown
+    Parameter type is "dict[Unknown, Unknown]" (reportUnknownParameterType)
+  datagen/records.py:123:36 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  datagen/records.py:125:18 - error: Argument type is unknown
+    Argument corresponds to parameter "event_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:126:21 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  datagen/records.py:129:19 - error: Argument type is unknown
+    Argument corresponds to parameter "device_id" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:130:20 - error: Argument type is unknown
+    Argument corresponds to parameter "event_type" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:131:21 - error: Argument type is unknown
+    Argument corresponds to parameter "auth_method" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:132:20 - error: Argument type is unknown
+    Argument corresponds to parameter "ip_country" in function "__init__" (reportUnknownArgumentType)
+  datagen/records.py:133:16 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  datagen/records.py:133:16 - error: Argument type is partially unknown
+    Argument corresponds to parameter "reason" in function "__init__"
+    Argument type is "Unknown | None" (reportUnknownArgumentType)
+ml/assess.py
+  ml/assess.py:15:58 - error: Type of "evidence_from_row" is partially unknown
+    Type of "evidence_from_row" is "(row: dict[Unknown, Unknown]) -> SecurityEvidence" (reportUnknownVariableType)
+  ml/assess.py:78:20 - error: Type of parameter "rows" is partially unknown
+    Parameter type is "Sequence[dict[Unknown, Unknown]]" (reportUnknownParameterType)
+  ml/assess.py:78:35 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  ml/assess.py:79:52 - error: Type of "r" is partially unknown
+    Type of "r" is "dict[Unknown, Unknown]" (reportUnknownVariableType)
+ml/evaluation.py
+  ml/evaluation.py:19:6 - error: Stub file not found for "sklearn.metrics" (reportMissingTypeStubs)
+  ml/evaluation.py:19:29 - error: Type of "average_precision_score" is partially unknown
+    Type of "average_precision_score" is "(y_true: Unknown, y_score: Unknown, *, average: str = "macro", pos_label: int = 1, sample_weight: Unknown | None = None) -> (Unknown | float | Any | Literal[0])" (reportUnknownVariableType)
+  ml/evaluation.py:19:54 - error: Type of "roc_auc_score" is partially unknown
+    Type of "roc_auc_score" is "(y_true: Unknown, y_score: Unknown, *, average: str = "macro", sample_weight: Unknown | None = None, max_fpr: Unknown | None = None, multi_class: str = "raise", labels: Unknown | None = None) -> (float64 | Unknown | float | Any | Literal[0])" (reportUnknownVariableType)
+  ml/evaluation.py:24:51 - error: Type of "evidence_store" is partially unknown
+    Type of "evidence_store" is "(rows: Sequence[dict[Unknown, Unknown]], policy: Policy) -> EvidenceStore" (reportUnknownVariableType)
+  ml/evaluation.py:91:40 - error: Argument type is partially unknown
+    Argument corresponds to parameter "x" in function "__new__"
+    Argument type is "Unknown | float | Any | Literal[0]" (reportUnknownArgumentType)
+  ml/evaluation.py:91:94 - error: Argument type is partially unknown
+    Argument corresponds to parameter "x" in function "__new__"
+    Argument type is "float64 | Unknown | float | Any | Literal[0]" (reportUnknownArgumentType)
+  ml/evaluation.py:108:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/evaluation.py:208:27 - error: Argument of type "Mapping[str, str]" cannot be assigned to parameter "partition_of" of type "dict[str, str]" in function "_splits"
+    "Mapping[str, str]" is not assignable to "dict[str, str]" (reportArgumentType)
+  ml/evaluation.py:260:51 - error: Argument of type "Literal['verify_or_block']" cannot be assigned to parameter "key" of type "SupportsIndex | slice[Any, Any, Any]" in function "__getitem__"
+    Type "Literal['verify_or_block']" is not assignable to type "SupportsIndex | slice[Any, Any, Any]"
+      "Literal['verify_or_block']" is incompatible with protocol "SupportsIndex"
+        "__index__" is not present
+      "Literal['verify_or_block']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:260:51 - error: "__getitem__" method not defined on type "int" (reportIndexIssue)
+  ml/evaluation.py:260:51 - error: No overloads for "__getitem__" match the provided arguments (reportCallIssue)
+  ml/evaluation.py:260:51 - error: Argument of type "Literal['verify_or_block']" cannot be assigned to parameter "s" of type "slice[Any, Any, Any]" in function "__getitem__"
+    "Literal['verify_or_block']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:260:51 - error: Argument of type "Literal['recall']" cannot be assigned to parameter "key" of type "SupportsIndex | slice[Any, Any, Any]" in function "__getitem__"
+    Type "Literal['recall']" is not assignable to type "SupportsIndex | slice[Any, Any, Any]"
+      "Literal['recall']" is incompatible with protocol "SupportsIndex"
+        "__index__" is not present
+      "Literal['recall']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:260:51 - error: "__getitem__" method not defined on type "float" (reportIndexIssue)
+  ml/evaluation.py:260:51 - error: "__getitem__" method not defined on type "int" (reportIndexIssue)
+  ml/evaluation.py:260:51 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+  ml/evaluation.py:260:51 - error: No overloads for "__getitem__" match the provided arguments (reportCallIssue)
+  ml/evaluation.py:260:51 - error: Argument of type "Literal['recall']" cannot be assigned to parameter "s" of type "slice[Any, Any, Any]" in function "__getitem__"
+    "Literal['recall']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:261:27 - error: Argument of type "Literal['p95']" cannot be assigned to parameter "key" of type "SupportsIndex | slice[Any, Any, Any]" in function "__getitem__"
+    Type "Literal['p95']" is not assignable to type "SupportsIndex | slice[Any, Any, Any]"
+      "Literal['p95']" is incompatible with protocol "SupportsIndex"
+        "__index__" is not present
+      "Literal['p95']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:261:27 - error: "__getitem__" method not defined on type "int" (reportIndexIssue)
+  ml/evaluation.py:261:27 - error: No overloads for "__getitem__" match the provided arguments (reportCallIssue)
+  ml/evaluation.py:261:27 - error: Argument of type "Literal['p95']" cannot be assigned to parameter "s" of type "slice[Any, Any, Any]" in function "__getitem__"
+    "Literal['p95']" is not assignable to "slice[Any, Any, Any]" (reportArgumentType)
+  ml/evaluation.py:281:34 - error: Type of parameter "policy" is unknown (reportUnknownParameterType)
+  ml/evaluation.py:281:34 - error: Type annotation is missing for parameter "policy" (reportMissingParameterType)
+  ml/evaluation.py:282:5 - error: Type of "goals" is unknown (reportUnknownVariableType)
+  ml/evaluation.py:282:32 - error: Type of "goals" is unknown (reportUnknownMemberType)
+  ml/evaluation.py:291:48 - error: Argument type is partially unknown
+    Argument corresponds to parameter "o" in function "__new__"
+    Argument type is "Unknown | Literal[False]" (reportUnknownArgumentType)
+  ml/evaluation.py:297:34 - error: Type of parameter "results" is unknown (reportUnknownParameterType)
+  ml/evaluation.py:297:34 - error: Type annotation is missing for parameter "results" (reportMissingParameterType)
+  ml/evaluation.py:297:43 - error: Type of parameter "keys" is unknown (reportUnknownParameterType)
+  ml/evaluation.py:297:43 - error: Type annotation is missing for parameter "keys" (reportMissingParameterType)
+  ml/evaluation.py:297:49 - error: Type of parameter "history" is unknown (reportUnknownParameterType)
+  ml/evaluation.py:297:49 - error: Type annotation is missing for parameter "history" (reportMissingParameterType)
+  ml/evaluation.py:297:58 - error: Type of parameter "accounts" is unknown (reportUnknownParameterType)
+  ml/evaluation.py:297:58 - error: Type annotation is missing for parameter "accounts" (reportMissingParameterType)
+  ml/evaluation.py:300:5 - error: Type of "sample" is partially unknown
+    Type of "sample" is "list[Unknown]" (reportUnknownVariableType)
+  ml/evaluation.py:300:15 - error: Type of "request" is unknown (reportUnknownMemberType)
+  ml/evaluation.py:300:63 - error: Argument type is unknown
+    Argument corresponds to parameter "obj" in function "len" (reportUnknownArgumentType)
+  ml/evaluation.py:300:97 - error: Argument type is unknown
+    Argument corresponds to parameter "obj" in function "len" (reportUnknownArgumentType)
+  ml/evaluation.py:302:9 - error: Type of "request" is unknown (reportUnknownVariableType)
+  ml/evaluation.py:304:31 - error: Argument type is partially unknown
+    Argument corresponds to parameter "requests" in function "assess_batch"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:304:42 - error: Argument type is unknown
+    Argument corresponds to parameter "keys" in function "assess_batch" (reportUnknownArgumentType)
+  ml/evaluation.py:304:48 - error: Argument type is unknown
+    Argument corresponds to parameter "history" in function "assess_batch" (reportUnknownArgumentType)
+  ml/evaluation.py:304:57 - error: Argument type is unknown
+    Argument corresponds to parameter "accounts" in function "assess_batch" (reportUnknownArgumentType)
+  ml/evaluation.py:305:9 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/evaluation.py:306:5 - error: Type of "sort" is partially unknown
+    Type of "sort" is "Overload[(*, key: None = None, reverse: bool = False) -> None, (*, key: (Unknown) -> (SupportsDunderLT[Any] | SupportsDunderGT[Any]), reverse: bool = False) -> None]" (reportUnknownMemberType)
+  ml/evaluation.py:307:35 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:309:41 - error: Argument type is partially unknown
+    Argument corresponds to parameter "a" in function "mean"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:309:69 - error: Argument type is unknown
+    Argument corresponds to parameter "number" in function "round" (reportUnknownArgumentType)
+  ml/evaluation.py:309:81 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:310:26 - error: Argument type is unknown
+    Argument corresponds to parameter "number" in function "round" (reportUnknownArgumentType)
+  ml/evaluation.py:310:42 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:311:26 - error: Argument type is unknown
+    Argument corresponds to parameter "number" in function "round" (reportUnknownArgumentType)
+  ml/evaluation.py:311:42 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/evaluation.py:311:82 - error: Argument type is unknown
+    Argument corresponds to parameter "number" in function "round" (reportUnknownArgumentType)
+ml/evidence.py
+  ml/evidence.py:41:23 - error: Type of parameter "row" is partially unknown
+    Parameter type is "dict[Unknown, Unknown]" (reportUnknownParameterType)
+  ml/evidence.py:41:28 - error: Expected type arguments for generic class "dict" (reportMissingTypeArgument)
+  ml/evidence.py:43:25 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  ml/evidence.py:44:5 - error: Type of "history" is partially unknown
+    Type of "history" is "Unknown | list[dict[str, Unknown]]" (reportUnknownVariableType)
+  ml/evidence.py:44:15 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  ml/evidence.py:46:21 - error: Argument type is unknown
+    Argument corresponds to parameter "evidence_id" in function "__init__" (reportUnknownArgumentType)
+  ml/evidence.py:47:23 - error: Argument type is unknown
+    Argument corresponds to parameter "evidence_type" in function "__init__" (reportUnknownArgumentType)
+  ml/evidence.py:48:21 - error: Argument type is unknown
+    Argument corresponds to parameter "entity_type" in function "__init__" (reportUnknownArgumentType)
+  ml/evidence.py:49:19 - error: Argument type is unknown
+    Argument corresponds to parameter "entity_id" in function "__init__" (reportUnknownArgumentType)
+  ml/evidence.py:50:16 - error: Argument type is unknown
+    Argument corresponds to parameter "source" in function "__init__" (reportUnknownArgumentType)
+  ml/evidence.py:52:33 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  ml/evidence.py:53:34 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  ml/evidence.py:53:56 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  ml/evidence.py:54:24 - error: Argument type is partially unknown
+    Argument corresponds to parameter "status_history" in function "__init__"
+    Argument type is "tuple[tuple[int, Unknown], ...]" (reportUnknownArgumentType)
+  ml/evidence.py:54:30 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "__new__"
+    Argument type is "Generator[tuple[int, Unknown], None, None]" (reportUnknownArgumentType)
+  ml/evidence.py:54:40 - error: Argument type is unknown
+    Argument corresponds to parameter "value" in function "parse_ts" (reportUnknownArgumentType)
+  ml/evidence.py:54:67 - error: Type of "h" is partially unknown
+    Type of "h" is "Unknown | dict[str, Unknown]" (reportUnknownVariableType)
+  ml/evidence.py:55:14 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  ml/evidence.py:55:14 - error: Argument type is unknown
+    Argument corresponds to parameter "note" in function "__init__" (reportUnknownArgumentType)
+ml/features.py
+  ml/features.py:157:5 - error: Type of "relationship_hours" is partially unknown
+    Type of "relationship_hours" is "Unknown | float | None" (reportUnknownVariableType)
+  ml/features.py:157:31 - error: Operator "//" not supported for "None" (reportOptionalOperand)
+  ml/features.py:158:5 - error: Type of "new_recipient" is partially unknown
+    Type of "new_recipient" is "Unknown | bool" (reportUnknownVariableType)
+  ml/features.py:304:47 - error: Argument type is partially unknown
+    Argument corresponds to parameter "number" in function "round"
+    Argument type is "Unknown | float" (reportUnknownArgumentType)
+ml/history.py
+  ml/history.py:20:5 - error: Type of "keys" is partially unknown
+    Type of "keys" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:21:5 - error: Type of "amounts" is partially unknown
+    Type of "amounts" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:22:5 - error: Type of "recipients" is partially unknown
+    Type of "recipients" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:32:5 - error: Type of "keys" is partially unknown
+    Type of "keys" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:33:5 - error: Type of "senders" is partially unknown
+    Type of "senders" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:39:5 - error: Type of "keys" is partially unknown
+    Type of "keys" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:40:5 - error: Type of "devices" is partially unknown
+    Type of "devices" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:42:5 - error: Type of "alias_rebounds" is partially unknown
+    Type of "alias_rebounds" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:43:5 - error: Type of "limit_changes" is partially unknown
+    Type of "limit_changes" is "list[Unknown]" (reportUnknownVariableType)
+  ml/history.py:48:5 - error: Type of "keys" is partially unknown
+    Type of "keys" is "list[Unknown]" (reportUnknownVariableType)
+ml/model.py
+  ml/model.py:21:8 - error: Stub file not found for "joblib" (reportMissingTypeStubs)
+  ml/model.py:23:6 - error: Stub file not found for "sklearn.cluster" (reportMissingTypeStubs)
+  ml/model.py:24:6 - error: Stub file not found for "sklearn.ensemble" (reportMissingTypeStubs)
+  ml/model.py:25:6 - error: Stub file not found for "sklearn.neighbors" (reportMissingTypeStubs)
+  ml/model.py:26:6 - error: Stub file not found for "sklearn.preprocessing" (reportMissingTypeStubs)
+  ml/model.py:46:23 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None, sample_weight: Unknown | None = None) -> StandardScaler" (reportUnknownMemberType)
+  ml/model.py:50:16 - error: Type of "transform" is partially unknown
+    Type of "transform" is "(X: Unknown, copy: Unknown | None = None) -> (str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any])" (reportUnknownMemberType)
+  ml/model.py:50:16 - error: Type "str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any]" is not assignable to return type "ndarray[_AnyShape, dtype[Any]]"
+    Type "str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any]" is not assignable to type "ndarray[_AnyShape, dtype[Any]]"
+      "str" is not assignable to "ndarray[_AnyShape, dtype[Any]]" (reportReturnType)
+  ml/model.py:50:16 - error: Return type, "str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any]", is partially unknown (reportUnknownVariableType)
+  ml/model.py:76:23 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None, sample_weight: Unknown | None = None) -> StandardScaler" (reportUnknownMemberType)
+  ml/model.py:77:9 - error: Type of "scaled" is partially unknown
+    Type of "scaled" is "str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any]" (reportUnknownVariableType)
+  ml/model.py:77:18 - error: Type of "transform" is partially unknown
+    Type of "transform" is "(X: Unknown, copy: Unknown | None = None) -> (str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any])" (reportUnknownMemberType)
+  ml/model.py:78:18 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None, sample_weight: Unknown | None = None) -> DBSCAN" (reportUnknownMemberType)
+  ml/model.py:79:9 - error: Type of "core_samples" is partially unknown
+    Type of "core_samples" is "str | Unknown | Any" (reportUnknownMemberType)
+  ml/model.py:81:9 - error: Type of "nn" is unknown (reportUnknownMemberType)
+  ml/model.py:81:19 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None) -> Unknown" (reportUnknownMemberType)
+  ml/model.py:81:55 - error: Type of "core_samples" is partially unknown
+    Type of "core_samples" is "str | Unknown | Any" (reportUnknownMemberType)
+  ml/model.py:83:39 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any]" (reportUnknownArgumentType)
+  ml/model.py:84:39 - error: Type of "core_samples" is partially unknown
+    Type of "core_samples" is "str | Unknown | Any" (reportUnknownMemberType)
+  ml/model.py:84:39 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "str | Unknown | Any" (reportUnknownArgumentType)
+  ml/model.py:86:37 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  ml/model.py:91:9 - error: Type of "distances" is unknown (reportUnknownVariableType)
+  ml/model.py:91:20 - error: Type of "indices" is unknown (reportUnknownVariableType)
+  ml/model.py:91:30 - error: Type of "nn" is unknown (reportUnknownMemberType)
+  ml/model.py:91:30 - error: Type of "kneighbors" is unknown (reportUnknownMemberType)
+  ml/model.py:91:49 - error: Type of "transform" is partially unknown
+    Type of "transform" is "(X: Unknown, copy: Unknown | None = None) -> (str | tuple[str, str] | Unknown | Any | tuple[Unknown, Unknown | Any])" (reportUnknownMemberType)
+  ml/model.py:93:13 - error: Type of "distance" is unknown (reportUnknownVariableType)
+  ml/model.py:93:23 - error: Type of "index" is unknown (reportUnknownVariableType)
+  ml/model.py:93:44 - error: Argument type is unknown
+    Argument corresponds to parameter "iter1" in function "__new__" (reportUnknownArgumentType)
+  ml/model.py:93:61 - error: Argument type is unknown
+    Argument corresponds to parameter "iter2" in function "__new__" (reportUnknownArgumentType)
+  ml/model.py:96:17 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/model.py:98:17 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/model.py:98:75 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  ml/model.py:100:34 - error: Argument type is unknown
+    Argument corresponds to parameter "arg2" in function "min" (reportUnknownArgumentType)
+  ml/model.py:101:17 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/model.py:101:78 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  ml/model.py:102:16 - error: Return type, "list[Unknown]", is partially unknown (reportUnknownVariableType)
+  ml/model.py:131:16 - error: Return type, "tuple[Unknown, Unknown]", is partially unknown (reportUnknownVariableType)
+  ml/model.py:131:17 - error: Type of "score_samples" is partially unknown
+    Type of "score_samples" is "(X: Unknown) -> Unknown" (reportUnknownMemberType)
+  ml/model.py:131:58 - error: Type of "score_samples" is partially unknown
+    Type of "score_samples" is "_Wrapped[..., Unknown, ..., Unknown]" (reportUnknownMemberType)
+  ml/model.py:142:9 - error: Type of "dump" is partially unknown
+    Type of "dump" is "(value: Unknown, filename: Unknown, compress: int = 0, protocol: Unknown | None = None) -> (list[str | Unknown] | None)" (reportUnknownMemberType)
+  ml/model.py:150:14 - error: Type of "load" is partially unknown
+    Type of "load" is "(filename: Unknown, mmap_mode: Unknown | None = None, ensure_native_byte_order: str = "auto") -> Any" (reportUnknownMemberType)
+ml/policy.py
+  ml/policy.py:20:38 - error: Type of "parse_limits" is partially unknown
+    Type of "parse_limits" is "(raw: dict[Unknown, Unknown]) -> MiaLimits" (reportUnknownVariableType)
+  ml/policy.py:230:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/policy.py:232:5 - error: Type of "families" is partially unknown
+    Type of "families" is "tuple[Unknown, ...]" (reportUnknownVariableType)
+  ml/policy.py:232:22 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "__new__"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/policy.py:232:29 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "set[Unknown]" (reportUnknownArgumentType)
+  ml/policy.py:232:30 - error: Type of "family" is unknown (reportUnknownMemberType)
+  ml/policy.py:232:43 - error: Type of "t" is unknown (reportUnknownVariableType)
+  ml/policy.py:232:61 - error: Type of "corroborating" is unknown (reportUnknownMemberType)
+  ml/policy.py:233:36 - error: Type of "weight" is unknown (reportUnknownMemberType)
+  ml/policy.py:233:36 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sum"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  ml/policy.py:233:49 - error: Type of "t" is unknown (reportUnknownVariableType)
+  ml/policy.py:233:67 - error: Argument type is partially unknown
+    Argument corresponds to parameter "triggered" in function "__init__"
+    Argument type is "tuple[Unknown, ...]" (reportUnknownArgumentType)
+  ml/policy.py:233:73 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "__new__"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/policy.py:233:85 - error: Argument type is partially unknown
+    Argument corresponds to parameter "corroborating_families" in function "__init__"
+    Argument type is "tuple[Unknown, ...]" (reportUnknownArgumentType)
+ml/training.py
+  ml/training.py:22:8 - error: Stub file not found for "sklearn" (reportMissingTypeStubs)
+  ml/training.py:23:6 - error: Stub file not found for "sklearn.ensemble" (reportMissingTypeStubs)
+  ml/training.py:24:6 - error: Stub file not found for "sklearn.metrics" (reportMissingTypeStubs)
+  ml/training.py:24:29 - error: Type of "average_precision_score" is partially unknown
+    Type of "average_precision_score" is "(y_true: Unknown, y_score: Unknown, *, average: str = "macro", pos_label: int = 1, sample_weight: Unknown | None = None) -> (Unknown | float | Any | Literal[0])" (reportUnknownVariableType)
+  ml/training.py:25:6 - error: Stub file not found for "sklearn.neighbors" (reportMissingTypeStubs)
+  ml/training.py:26:6 - error: Stub file not found for "sklearn.preprocessing" (reportMissingTypeStubs)
+  ml/training.py:81:18 - error: Argument type is partially unknown
+    Argument corresponds to parameter "x" in function "__new__"
+    Argument type is "Unknown | float | Any | Literal[0]" (reportUnknownArgumentType)
+  ml/training.py:89:15 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None, sample_weight: Unknown | None = None) -> IsolationForest" (reportUnknownMemberType)
+  ml/training.py:89:66 - error: Argument of type "Literal[256]" cannot be assigned to parameter "max_samples" of type "str" in function "__init__"
+    "Literal[256]" is not assignable to "str" (reportArgumentType)
+  ml/training.py:93:11 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None) -> LocalOutlierFactor" (reportUnknownMemberType)
+  ml/training.py:97:5 - error: Type of "scaled" is unknown (reportUnknownVariableType)
+  ml/training.py:97:14 - error: Type of "fit_transform" is partially unknown
+    Type of "fit_transform" is "(X: Unknown, y: Unknown | None = None, **fit_params: Unknown) -> Unknown" (reportUnknownMemberType)
+  ml/training.py:98:5 - error: Type of "k_distance" is unknown (reportUnknownVariableType)
+  ml/training.py:98:18 - error: Type of "fit" is partially unknown
+    Type of "fit" is "(X: Unknown, y: Unknown | None = None) -> Unknown" (reportUnknownMemberType)
+  ml/training.py:98:18 - error: Type of "kneighbors" is unknown (reportUnknownMemberType)
+  ml/training.py:98:71 - error: Argument type is unknown
+    Argument corresponds to parameter "X" in function "fit" (reportUnknownArgumentType)
+  ml/training.py:99:17 - error: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  ml/training.py:99:29 - error: Argument type is unknown
+    Argument corresponds to parameter "a" in function "quantile" (reportUnknownArgumentType)
+  ml/training.py:138:17 - error: Operator "<=" not supported for "None" (reportOptionalOperand)
+  ml/training.py:138:17 - error: Argument type is partially unknown
+    Argument corresponds to parameter "o" in function "__new__"
+    Argument type is "Unknown | bool" (reportUnknownArgumentType)
+  ml/training.py:139:21 - error: Operator "<=" not supported for "None" (reportOptionalOperand)
+  ml/training.py:140:39 - error: Operator ">=" not supported for "None" (reportOptionalOperand)
+  ml/training.py:141:13 - error: Type of "append" is partially unknown
+    Type of "append" is "(object: Unknown, /) -> None" (reportUnknownMemberType)
+  ml/training.py:142:13 - error: Type of "best" is partially unknown
+    Type of "best" is "Unknown | None" (reportUnknownVariableType)
+  ml/training.py:142:20 - error: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  ml/training.py:145:5 - error: Type of "feasible" is partially unknown
+    Type of "feasible" is "list[Unknown]" (reportUnknownVariableType)
+  ml/training.py:145:23 - error: Type of "c" is unknown (reportUnknownVariableType)
+  ml/training.py:148:5 - error: Type of "chosen" is unknown (reportUnknownVariableType)
+  ml/training.py:148:18 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "max"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/training.py:148:32 - error: Argument type is partially unknown
+    Argument corresponds to parameter "key" in function "max"
+    Argument type is "(c: Unknown) -> tuple[Unknown, Unknown, Unknown, Unknown]" (reportUnknownArgumentType)
+  ml/training.py:148:39 - error: Type of parameter "c" is unknown (reportUnknownLambdaType)
+  ml/training.py:148:42 - error: Return type of lambda, "tuple[Unknown, Unknown, Unknown, Unknown]", is partially unknown (reportUnknownLambdaType)
+  ml/training.py:151:28 - error: Argument type is unknown
+    Argument corresponds to parameter "verify" in function "__init__" (reportUnknownArgumentType)
+  ml/training.py:151:56 - error: Argument type is unknown
+    Argument corresponds to parameter "block" in function "__init__" (reportUnknownArgumentType)
+  ml/training.py:152:5 - error: Type of "initial" is partially unknown
+    Type of "initial" is "Unknown | None" (reportUnknownVariableType)
+  ml/training.py:152:20 - error: Argument type is partially unknown
+    Argument corresponds to parameter "i" in function "next"
+    Argument type is "Generator[Unknown, None, None]" (reportUnknownArgumentType)
+  ml/training.py:152:27 - error: Type of "c" is unknown (reportUnknownVariableType)
+  ml/training.py:154:66 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/training.py:154:106 - error: Argument type is partially unknown
+    Argument corresponds to parameter "obj" in function "len"
+    Argument type is "list[Unknown]" (reportUnknownArgumentType)
+  ml/training.py:155:81 - error: Type of "k" is unknown (reportUnknownVariableType)
+  ml/training.py:155:93 - error: Argument type is partially unknown
+    Argument corresponds to parameter "iterable" in function "sorted"
+    Argument type is "dict[Unknown, Unknown]" (reportUnknownArgumentType)
+687 errors, 0 warnings, 0 informations
+
+wall seconds, 3 runs after a warm-up:
+pyright run 1: 3.5248570442199707 s
+pyright run 2: 3.6255819797515869 s
+pyright run 3: 3.6494691371917725 s

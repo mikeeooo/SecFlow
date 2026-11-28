@@ -1,0 +1,52 @@
+$ zsh run_repro.sh   (SECFLOW_STORAGE_DIR, SECFLOW_MANIFEST_PATH, SECFLOW_MODELS_DIR, SECFLOW_ARTIFACTS_DIR point at a temp dir)
+generate exit=0 seconds=7.4691541194915771
+train A exit=0 seconds=7.1271440982818604
+train B exit=0 seconds=6.9785010814666748
+evaluate (committed models) exit=0 seconds=7.1031801700592041
+evaluate (retrained models A) exit=0 seconds=7.0699448585510254
+done
+
+$ python3 compare_repro.py <repo> <temp dir>
+== 1. generate into a temp dir vs committed storage/ and datagen/manifest.json (sha256, first 16 hex)
+  train.json       committed d4a24243f20b1c25  regenerated d4a24243f20b1c25  byte-identical=True
+  validation.json  committed 49d4a674c196c41c  regenerated 49d4a674c196c41c  byte-identical=True
+  test.json        committed 99c981ff70dddcb9  regenerated 99c981ff70dddcb9  byte-identical=True
+  manifest.json    committed ab441cb1e822ee6e  regenerated ab441cb1e822ee6e  byte-identical=True
+  generate log tail: ['train: 75,416 rows, 1500 fraud -> storage/train.json', 'validation: 16,138 rows, 300 fraud -> storage/validation.json', 'test: 16,205 rows, 360 fraud -> storage/test.json', 'dataset: valid']
+
+== 2. train twice (A, B) into temp dirs vs each other and vs committed ml/models/
+  secflow_model.joblib   A f2f6e98575808958  B f2f6e98575808958  committed f2f6e98575808958  A==B True  A==committed True
+  metadata.json          A df735c647d111b5f  B df735c647d111b5f  committed df735c647d111b5f  A==B True  A==committed True
+  operating_point.json   A 8c959e6747e3e7f6  B 8c959e6747e3e7f6  committed 8c959e6747e3e7f6  A==B True  A==committed True
+  training_report.json   A ba9dd6c248268c77  B f23fec263cd790ea  committed a3beefeb009f568f  A==B False  A==committed False
+  metadata.json A vs B: 0 differing leaves
+  metadata.json A vs committed: 0 differing leaves
+  operating_point.json A vs B: 0 differing leaves
+  operating_point.json A vs committed: 0 differing leaves
+  training_report.json A vs B: 3 differing leaves
+     .search.isolation_forest[0].fit_seconds: 0.137 | 0.136
+     .search.lof[0].fit_seconds: 0.066 | 0.065
+     .training_seconds: 5.28 | 5.26
+  training_report.json A vs committed: 2 differing leaves
+     .search.isolation_forest[0].fit_seconds: 0.137 | 0.161
+     .training_seconds: 5.28 | 5.19
+
+== 3. evaluate: committed models -> temp artifacts vs committed artifacts/evaluation.json
+  [committed models] 7 differing leaves; 0 outside ('generated_at', 'latency_ms', 'headline.latency_p95_ms')
+     .generated_at: committed 2026-11-28T05:56:06Z | rerun 2026-11-28T06:54:02Z
+     .headline.latency_p95_ms: committed 4.685 | rerun 4.665
+     .latency_ms.max: committed 5.147 | rerun 5.133
+     .latency_ms.mean: committed 4.548 | rerun 4.601
+     .latency_ms.p50: committed 4.561 | rerun 4.597
+     .latency_ms.p95: committed 4.685 | rerun 4.665
+     .latency_ms.p99: committed 4.786 | rerun 4.711
+     headline: {'test_requests': 15000, 'test_fraud': 360, 'recall_verify_or_block': 0.7861, 'precision_verify_or_block': 0.3529, 'recall_block_only': 0.3472, 'block_precision': 0.969, 'verify_rate': 0.0449, 'legitimate_false_block_rate': 0.0003, 'model_only_recall_verify_or_block': 0.7806, 'test_only_fraud_recall_verify_or_block': 0.5667, 'latency_p95_ms': 4.665}
+  [retrained models A] 7 differing leaves; 0 outside ('generated_at', 'latency_ms', 'headline.latency_p95_ms')
+     .generated_at: committed 2026-11-28T05:56:06Z | rerun 2026-11-28T06:54:09Z
+     .headline.latency_p95_ms: committed 4.685 | rerun 4.692
+     .latency_ms.max: committed 5.147 | rerun 23.232
+     .latency_ms.mean: committed 4.548 | rerun 4.628
+     .latency_ms.p50: committed 4.561 | rerun 4.563
+     .latency_ms.p95: committed 4.685 | rerun 4.692
+     .latency_ms.p99: committed 4.786 | rerun 5.15
+     headline: {'test_requests': 15000, 'test_fraud': 360, 'recall_verify_or_block': 0.7861, 'precision_verify_or_block': 0.3529, 'recall_block_only': 0.3472, 'block_precision': 0.969, 'verify_rate': 0.0449, 'legitimate_false_block_rate': 0.0003, 'model_only_recall_verify_or_block': 0.7806, 'test_only_fraud_recall_verify_or_block': 0.5667, 'latency_p95_ms': 4.692}

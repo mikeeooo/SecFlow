@@ -1,0 +1,48 @@
+== Evaluation-derived claims
+README.md:189                claim: p50 4.6 ms, p95 5.3 ms                                  measured: p50 4.561 ms, p95 4.685 ms (artifacts/evaluation.json)
+docs/ALGORITHMS.md:239       claim: 4.6 ms median, 5.3 ms p95                               measured: p50 4.561 ms, p95 4.685 ms
+artifacts/evaluation.md      claim: (source of README numbers)                              measured: 300 single payments: mean 4.548 ms, p95 4.685 ms, p99 4.786 ms.
+
+== Dataset claims
+docs/DATASET.md:21-22        claim: indented train.json would be 103 MB                     measured: 102.8 MB (compact 79.8 MB)
+docs/DATASET.md:97-98        claim: b2b 32,989; p2p_alias 10,565; ...                       measured: {'b2b': 32989, 'p2p_alias': 10565, 'p2b_qr_static': 8024, 'p2b_qr_dynamic': 6878, 'p2b_link': 5853, 'p2p_iban': 4770, 'request_to_pay': 2530, 'b2p_salary': 2155, 'p2g': 1399, 'remittance_in': 253}
+docs/DATASET.md:120          claim: 400 accounts (336 personal, 64 business)                measured: 360 senders in train {'personal': 296, 'business': 64}
+docs/DATASET.md:120          claim: (all partitions)                                        measured: 400 senders {'personal': 336, 'business': 64}
+docs/DATASET.md:127          claim: median personal 156 MDL, business 5,381 MDL             measured: legit-only 150 / 5381; all 156 / 5381
+docs/DATASET.md:161          claim: unusual legitimate 5%                                   measured: 0.0500 of train assessed
+docs/DATASET.md:168-169      claim: anomaly types in train                                  measured: 14; holiday_spike present=True
+docs/DATASET.md:168-169      claim: anomaly types in validation                             measured: 13; holiday_spike present=False
+docs/DATASET.md:168-169      claim: anomaly types in test                                   measured: 14; holiday_spike present=True
+docs/DATASET.md:180-181      claim: biometric 600, password_otp 433, password 313, otp 154  measured: {'password_otp': 433, 'biometric': 600, 'password': 313, 'otp': 154}
+docs/DATASET.md:182          claim: 542 of 1,500 fraud is_anomaly=false                     measured: 542
+docs/DATASET.md:183          claim: 2,355 legit follow failed sign-ins                      measured: 2355
+docs/DATASET.md:184          claim: 126 legit / 150 fraud after alias_rebound               measured: 126 / 150
+docs/DATASET.md:185          claim: 84 legit after limit_changed                            measured: 84
+docs/DATASET.md:186          claim: 2,380 legit / 150 fraud are RTP                         measured: 2380 / 150
+docs/DATASET.md:187          claim: 124 legit / 397 fraud personal >= 4,500 MDL             measured: 124 / 397
+docs/DATASET.md:188          claim: 1,322 legit / 70 fraud foreign session                  measured: 1322 / 70
+docs/DATASET.md:196          claim: 157 campaign evidence records                           measured: 157 non-fixture records, manifest: n/a
+docs/DATASET.md:204          claim: ten never-block fixtures                                measured: 10
+docs/DATASET.md:207          claim: 25 administrative session revocations                   measured: 25
+docs/DATASET.md:222          claim: 1,000 assessed payments a day                           measured: 70 days, min 1000, max 1000
+
+== Code claims
+docs/DATASET.md:102          claim: datagen.dataset.load_partition(path) exists             measured: False
+docs/DESIGN.md:11-12         claim: interface never hard-codes the weights                  measured: literal 0.65 in frontend/src: 0
+docs/DESIGN.md:22-27         claim: #F2F2F5 on #16171C = 16.0:1                             measured: 16.0:1
+docs/DESIGN.md:22-27         claim: #A5A7B0 on #16171C = 7.5:1                              measured: 7.5:1
+docs/DESIGN.md:22-27         claim: #4DA3FF on #16171C = 6.8:1                              measured: 6.8:1
+docs/DESIGN.md:22-27         claim: #32D74B on #16171C = 9.3:1                              measured: 9.3:1
+docs/DESIGN.md:22-27         claim: #FFB340 on #16171C = 10.0:1                             measured: 10.0:1
+docs/DESIGN.md:22-27         claim: #FF6961 on #16171C = 6.3:1                              measured: 6.3:1
+docs/DESIGN.md:24            claim: white on #0A6FD6 = 4.9:1                                measured: 4.9:1
+docs/DESIGN.md:24            claim: white on #C4372B = 5.4:1                                measured: 5.3:1
+docs/DESIGN.md tokens        claim: #16171C present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #F2F2F5 present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #A5A7B0 present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #4DA3FF present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #0A6FD6 present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #C4372B present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #32D74B present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #FFB340 present in frontend/src/index.css               measured: True
+docs/DESIGN.md tokens        claim: #FF6961 present in frontend/src/index.css               measured: True

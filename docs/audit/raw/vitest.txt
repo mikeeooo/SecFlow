@@ -1,0 +1,16 @@
+$ npm --prefix frontend test
+
+> secflow-frontend@1.0.0 test
+> vitest run
+
+
+ RUN  v5.1.0 <repo>/frontend
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  5 passed (5)
+      Tests  26 passed (26)
+   Start at  08:49:52
+   Duration  1.49s (environment 45%, tests 25%, import 12%, setup 10%, transform 8%)
+
+exit=0

@@ -1,0 +1,71 @@
+$ uvx --from import-linter python graph.py   (grimp, the graph library import-linter uses)
+package-level edges (importer -> imported): number of module-level edges
+  backend        -> config     3
+  backend        -> datagen    9
+  backend        -> ml        10
+  backend.tests  -> config     2
+  backend.tests  -> datagen    3
+  backend.tests  -> ml         8
+  datagen        -> config     2
+  ml             -> config     3
+  ml             -> datagen    7
+  scripts        -> backend    1
+
+[backend -> config]
+    backend.api -> config.settings
+    backend.cli -> config.settings
+    backend.service -> config.settings
+[backend -> datagen]
+    backend.analytics -> datagen.records
+    backend.api -> datagen.records
+    backend.cli -> datagen.dataset
+    backend.cli -> datagen.generator
+    backend.service -> datagen.dataset
+    backend.service -> datagen.generator
+    backend.service -> datagen.records
+    backend.stream -> datagen.identities
+    backend.views -> datagen.records
+[backend -> ml]
+    backend.analytics -> ml.model
+    backend.analytics -> ml.policy
+    backend.cli -> ml.evaluation
+    backend.cli -> ml.policy
+    backend.cli -> ml.training
+    backend.service -> ml.assess
+    backend.service -> ml.history
+    backend.service -> ml.model
+    backend.service -> ml.policy
+    backend.views -> ml.policy
+[backend.tests -> config]
+    backend.tests.conftest -> config.settings
+    backend.tests.test_training -> config.settings
+[backend.tests -> datagen]
+    backend.tests.test_dataset -> datagen.dataset
+    backend.tests.test_dataset -> datagen.generator
+    backend.tests.test_features -> datagen.records
+[backend.tests -> ml]
+    backend.tests.conftest -> ml.policy
+    backend.tests.test_features -> ml.features
+    backend.tests.test_features -> ml.history
+    backend.tests.test_policy -> ml.evidence
+    backend.tests.test_policy -> ml.policy
+    backend.tests.test_training -> ml.evaluation
+    backend.tests.test_training -> ml.model
+    backend.tests.test_training -> ml.training
+[datagen -> config]
+    datagen.dataset -> config.limits
+    datagen.generator -> config.limits
+[ml -> config]
+    ml.evaluation -> config.settings
+    ml.features -> config.limits
+    ml.policy -> config.limits
+[ml -> datagen]
+    ml.assess -> datagen.records
+    ml.evaluation -> datagen.dataset
+    ml.evaluation -> datagen.generator
+    ml.evidence -> datagen.records
+    ml.features -> datagen.records
+    ml.history -> datagen.records
+    ml.training -> datagen.dataset
+[scripts -> backend]
+    scripts.api_contract -> backend.api

@@ -1,0 +1,61 @@
+### a. Combined risk score against each component alone (test.json)
+
+| Score | Validation AP | Test AP [95% CI] | Recall @ 1% FPR [95% CI] | Test FPR | Recall @ 5% FPR [95% CI] | Test FPR |
+|---|---:|---:|---:|---:|---:|---:|
+| combined_fixed_weights | 0.719 | 0.668 [0.621, 0.714] | 0.669 [0.620, 0.718] | 0.0129 | 0.836 [0.797, 0.874] | 0.0675 |
+| rules_only | 0.696 | 0.675 [0.628, 0.721] | 0.661 [0.610, 0.710] | 0.0109 | 0.861 [0.825, 0.898] | 0.0411 |
+| isolation_forest_only | 0.566 | 0.495 [0.445, 0.550] | 0.522 [0.475, 0.573] | 0.0180 | 0.681 [0.632, 0.727] | 0.0676 |
+| lof_only | 0.056 | 0.051 [0.036, 0.072] | 0.061 [0.038, 0.086] | 0.0202 | 0.103 [0.071, 0.136] | 0.0568 |
+| dbscan_only | 0.028 | 0.035 [0.028, 0.044] | 0.000 [0.000, 0.000] | 0.0000 | 0.139 [0.101, 0.175] | 0.0408 |
+
+Best single component by validation AP: `rules_only`.
+
+| Metric | Combined 95% CI | Best single 95% CI | Non-overlapping, combined higher | Paired difference [95% CI] |
+|---|---:|---:|---|---:|
+| ap | [0.621, 0.714] | [0.628, 0.721] | no | -0.007 [-0.023, 0.009] |
+| recall@0.01 | [0.620, 0.718] | [0.610, 0.710] | no | +0.008 [-0.025, 0.040] |
+| recall@0.05 | [0.797, 0.874] | [0.825, 0.898] | no | -0.026 [-0.055, 0.003] |
+
+### b. Leave-one-out ablation (weights re-searched on validation)
+
+Fixed weights in `config/policy.json`: {'isolation_forest': 0.65, 'lof': 0.05, 'dbscan': 0.0, 'rules': 0.3}.
+Re-searched 4-component weights: {'isolation_forest': 0.4, 'lof': 0.05, 'dbscan': 0.0, 'rules': 0.55} (validation AP 0.725, 1771 grid points). Test AP 0.689 [0.643, 0.734].
+
+| Dropped | Re-searched weights | Test AP | AP drop [paired 95% CI] | Recall @ 5% FPR | Recall drop [paired 95% CI] |
+|---|---|---:|---:|---:|---:|
+| isolation_forest | lof=0.05, rules=0.95 | 0.686 | +0.003 [-0.006, 0.010] | 0.908 | -0.036 [-0.059, -0.017] |
+| lof | isolation_forest=0.50, rules=0.50 | 0.684 | +0.005 [-0.000, 0.011] | 0.858 | +0.014 [0.000, 0.029] |
+| dbscan | isolation_forest=0.40, lof=0.05, rules=0.55 | 0.689 | +0.000 [0.000, 0.000] | 0.872 | +0.000 [0.000, 0.000] |
+| rules | isolation_forest=1.00 | 0.495 | +0.194 [0.158, 0.229] | 0.681 | +0.192 [0.150, 0.235] |
+
+### c. Shuffled-label controls
+
+(i) Combined score, true test AP 0.668. Test labels shuffled 200 times: first shuffle AP 0.0224, mean 0.0245, range [0.0210, 0.0288]. Test fraud prevalence 0.0240.
+
+(ii) Validation labels shuffled, weights and thresholds re-searched, scored on the true test labels.
+
+| Seed | Weights from shuffled validation | True test AP | Recall @ 1% FPR | Recall @ 5% FPR | Policy Verify/Block | Policy recall (V or B) |
+|---|---|---:|---:|---:|---|---:|
+| true labels | isolation_forest=0.40, lof=0.05, rules=0.55 | 0.689 | | | 68/86 (fixed weights) | 0.781 |
+| 1000 | lof=1.00 | 0.051 | 0.058 | 0.103 | none feasible | n/a |
+| 1001 | lof=0.85, dbscan=0.05, rules=0.10 | 0.130 | 0.131 | 0.183 | 83/100 | 0.167 |
+| 1002 | isolation_forest=0.45, lof=0.30, dbscan=0.25 | 0.155 | 0.067 | 0.367 | 69/100 | 0.322 |
+| 1003 | isolation_forest=0.70, dbscan=0.05, rules=0.25 | 0.639 | 0.389 | 0.747 | none feasible | n/a |
+| 1004 | lof=0.95, rules=0.05 | 0.104 | 0.097 | 0.131 | 92/100 | 0.117 |
+| 1005 | isolation_forest=0.55, lof=0.05, dbscan=0.40 | 0.195 | 0.072 | 0.344 | 65/100 | 0.131 |
+| 1006 | isolation_forest=0.05, lof=0.25, dbscan=0.70 | 0.073 | 0.047 | 0.192 | 43/100 | 0.119 |
+| 1007 | isolation_forest=0.35, lof=0.60, dbscan=0.05 | 0.148 | 0.122 | 0.322 | 83/100 | 0.303 |
+| 1008 | isolation_forest=0.60, lof=0.10, dbscan=0.30 | 0.191 | 0.067 | 0.389 | 71/100 | 0.128 |
+| 1009 | lof=0.05, dbscan=0.10, rules=0.85 | 0.670 | 0.394 | 0.797 | 42/100 | 0.506 |
+
+### d. IsolationForest permutation importance on test AP (base 0.497, 20 permutations per group)
+
+| Group | Features | AP drop mean | Std | Min | Max |
+|---|---:|---:|---:|---:|---:|
+| mia_specific | 7 | +0.2721 | 0.0102 | +0.2495 | +0.2923 |
+| beneficiary | 8 | +0.1798 | 0.0070 | +0.1666 | +0.1985 |
+| amount | 3 | +0.0617 | 0.0039 | +0.0545 | +0.0675 |
+| time | 3 | +0.0138 | 0.0047 | +0.0041 | +0.0212 |
+| device_auth | 4 | -0.0010 | 0.0047 | -0.0098 | +0.0087 |
+| velocity | 6 | -0.0138 | 0.0067 | -0.0264 | -0.0020 |
+

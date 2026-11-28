@@ -1,0 +1,20 @@
+Using CPython 3.13.5
+Creating virtual environment at: <tmp>/venv313
+Downloading pydantic-core (2.0MiB)
+Downloading scikit-learn (7.9MiB)
+Downloading uvloop (1.3MiB)
+Downloading scipy (19.5MiB)
+Downloading numpy (5.2MiB)
+ Downloaded uvloop
+ Downloaded pydantic-core
+ Downloaded numpy
+ Downloaded scikit-learn
+ Downloaded scipy
+Installed 36 packages in 104ms
+..............................................................           [100%]
+=============================== warnings summary ===============================
+<tmp>/venv313/lib/python3.13/site-packages/fastapi/testclient.py:1
+  <tmp>/venv313/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

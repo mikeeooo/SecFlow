@@ -1,0 +1,58 @@
+$ uv run --with pytest-cov pytest --cov=backend --cov=ml --cov=datagen --cov=config --cov-report=term -p no:cacheprovider
+Installed 7 packages in 13ms
+..............................................................           [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  <repo>/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.14.3-final-0 _______________
+
+Name                             Stmts   Miss  Cover
+----------------------------------------------------
+backend/__init__.py                  0      0   100%
+backend/analytics.py               146      0   100%
+backend/api.py                     142     13    91%
+backend/cli.py                      42     42     0%
+backend/schemas.py                 254      3    99%
+backend/service.py                 328      6    98%
+backend/stream.py                  147     19    87%
+backend/tests/__init__.py            0      0   100%
+backend/tests/conftest.py           18      0   100%
+backend/tests/test_api.py          107      0   100%
+backend/tests/test_dataset.py       68      0   100%
+backend/tests/test_features.py      50      0   100%
+backend/tests/test_policy.py        69      0   100%
+backend/tests/test_training.py      69      0   100%
+backend/views.py                    56      1    98%
+config/__init__.py                   0      0   100%
+config/limits.py                    32      1    97%
+config/settings.py                  29      0   100%
+datagen/__init__.py                  0      0   100%
+datagen/dataset.py                 134      8    94%
+datagen/generator.py              1051      9    99%
+datagen/identities.py               92      2    98%
+datagen/records.py                  75      1    99%
+ml/__init__.py                       0      0   100%
+ml/assess.py                        42      1    98%
+ml/evaluation.py                   164      3    98%
+ml/evidence.py                      42      0   100%
+ml/features.py                     150      0   100%
+ml/history.py                      118      1    99%
+ml/model.py                         99      1    99%
+ml/policy.py                       206      1    99%
+ml/training.py                     116      2    98%
+----------------------------------------------------
+TOTAL                             3846    114    97%
+62 passed, 1 warning in 56.87s
+exit=0
+wall seconds: 75.110841989517212
+
+coverage per package (statements covered / statements):
+  backend          1031/ 1115   92.5%
+  backend/tests     381/  381  100.0%
+  config             60/   61   98.4%
+  datagen          1332/ 1352   98.5%
+  ml                928/  937   99.0%

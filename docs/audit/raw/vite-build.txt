@@ -1,0 +1,23 @@
+$ npm --prefix frontend run build
+
+> secflow-frontend@1.0.0 build
+> tsc -p tsconfig.json && vite build
+
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 2206 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.72 kB │ gzip:   0.40 kB
+dist/assets/index-D9r3d0x-.css   32.97 kB │ gzip:   7.08 kB
+dist/assets/index-SGBU8l7y.js   455.17 kB │ gzip: 138.89 kB
+
+✓ built in 251ms
+exit=0
+
+$ ls -l frontend/dist/assets && gzip -9 sizes
+total 968
+-rw-r--r--@ 1 misha  staff   32976 Nov 28 08:49 index-D9r3d0x-.css
+-rw-r--r--@ 1 misha  staff  455178 Nov 28 08:49 index-SGBU8l7y.js
+frontend/dist/assets/index-D9r3d0x-.css gzip -9: 7033 bytes
+frontend/dist/assets/index-SGBU8l7y.js gzip -9: 137131 bytes

@@ -1,0 +1,78 @@
+
+$ git clone --quiet https://github.com/mikeeooo/SecFlow.git <tmp>/fresh
+exit=0 seconds=12.78684401512146
+HEAD: 04d53d4 Merge pull request #2 from mikeeooo/feat/mia-dataset-pr
+
+$ uv sync --frozen
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.5
+ + uvicorn==0.54.0
+ + uvloop==0.23.0
+ + watchfiles==1.3.0
+ + websockets==17.4
+exit=0 seconds=0.12359905242919922
+
+$ uv run --frozen pytest -q -p no:warnings -p no:cacheprovider
+..............................................................           [100%]
+exit=0 seconds=73.936151027679443
+
+$ uv run --frozen ruff check .
+All checks passed!
+exit=0 seconds=0.36820888519287109
+
+$ uv run --frozen ruff format --check .
+318 +         f"{sum(p.startswith('type') for p in problems)} type change(s), {len(removed)} path(s) removed on purpose"
+319 +     )
+320 |     return 1 if problems else 0
+    |
+
+26 files would be reformatted, 15 files already formatted
+exit=1 seconds=0.045439004898071289
+
+$ uv run --frozen python scripts/api_contract.py --check
+removed on purpose: evaluation.per_scenario (1 path(s)): repeated per_fraud_type and per_anomaly_type
+removed on purpose: evaluation.splits.validation_* (2 path(s)): validation is no longer split into two parts
+removed on purpose: evaluation.unseen_scenario.campaigns (1 path(s)): single/multi-victim campaign split removed
+removed on purpose: evaluation.unseen_scenario.*_victim (2 path(s)): single/multi-victim campaign split removed
+removed on purpose: evaluation.unseen_scenario.per_type (1 path(s)): repeated per_fraud_type
+23 responses checked: 0 missing key(s), 0 type change(s), 38 path(s) removed on purpose
+exit=0 seconds=4.3233349323272705
+
+$ npm --prefix frontend ci
+added 183 packages, and audited 190 packages in 1s
+
+35 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+exit=0 seconds=1.2975831031799316
+
+$ npm --prefix frontend test -- --run
+
+ Test Files  5 passed (5)
+      Tests  26 passed (26)
+   Start at  09:05:48
+   Duration  1.26s (environment 37%, tests 32%, import 14%, transform 10%, setup 7%)
+
+exit=0 seconds=2.1968610286712646
+
+$ npm --prefix frontend run typecheck
+
+> secflow-frontend@1.0.0 typecheck
+> tsc -p tsconfig.json
+
+exit=0 seconds=0.59011483192443848
+
+$ npm --prefix frontend run build
+computing gzip size...
+dist/index.html                   0.72 kB │ gzip:   0.40 kB
+dist/assets/index-D9r3d0x-.css   32.97 kB │ gzip:   7.08 kB
+dist/assets/index-SGBU8l7y.js   455.17 kB │ gzip: 138.89 kB
+
+✓ built in 141ms
+exit=0 seconds=0.6468040943145752
+
+$ git status --porcelain   (files the checks left behind in the clone)
+
+$ du -sh <clone>/.git   (packed size of a fresh clone)
+ 81M	<clone>/.git
