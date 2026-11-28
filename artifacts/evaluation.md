@@ -1,6 +1,6 @@
 # SecFlow evaluation report
 
-Generated 2026-11-27T21:38:18Z · model `secflow-sk-3.0-4b97752f19` · policy `secflow-evidence-first-3.0.0+c4573fe9`
+Generated 2026-11-28T05:56:06Z · model `secflow-sk-3.0-4b97752f19` · policy `secflow-evidence-first-3.0.0+c4573fe9`
 
 > Synthetic final-test file storage/test.json (days 86-100, 15,000 assessed MIA instant payments in MDL). Results describe this generated data only; they are not evidence of real-world detection.
 
@@ -86,6 +86,6 @@ Verify rate 4.49% · block rate 0.86% · legitimate false-block rate 0.027% · 1
 
 ## Latency
 
-300 single payments: mean 4.812 ms, p95 5.315 ms, p99 6.107 ms.
+300 single payments: mean 4.548 ms, p95 4.685 ms, p99 4.786 ms.
 
 Scores are anomaly-risk indices, not probabilities of fraud.

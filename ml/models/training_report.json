@@ -50,7 +50,7 @@
         "n_estimators": 200,
         "max_samples": 256,
         "validation_average_precision": 0.5660552680404323,
-        "fit_seconds": 0.136
+        "fit_seconds": 0.161
       }
     ],
     "lof": [
@@ -60,7 +60,7 @@
         "fit_rows_requested": 20000,
         "fit_rows": 20000.0,
         "validation_average_precision": 0.05595208536689767,
-        "fit_seconds": 0.064
+        "fit_seconds": 0.066
       }
     ],
     "dbscan": [
@@ -554,5 +554,5 @@
     "rules": 0.6958215015115718,
     "combined": 0.7192626711646657
   },
-  "training_seconds": 5.3
+  "training_seconds": 5.19
 }
