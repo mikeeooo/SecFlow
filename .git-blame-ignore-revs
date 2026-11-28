@@ -1,0 +1,5 @@
+# Commits that only reformat code. GitHub reads this file. Locally run:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply ruff format to the Python sources
+15cf85074470e64072f5641a6ac46f0cfc64bb02
