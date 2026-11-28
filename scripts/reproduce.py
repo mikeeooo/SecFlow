@@ -2,14 +2,21 @@
 
     uv run python scripts/reproduce.py      # exit 1 if any committed file differs
 
-It runs `generate`, `train` and `evaluate` from `backend.cli` into a temporary directory through the
-SECFLOW_* variables, so the committed files are never touched. Data and model files must match byte for
-byte. The JSON reports must match after the volatile keys in VOLATILE are removed.
+It runs `generate`, `train` twice and `evaluate` from `backend.cli` into a temporary directory through
+the SECFLOW_* variables, so the committed files are never touched.
+
+- The dataset, the manifest, metadata.json and operating_point.json must match byte for byte.
+- The JSON reports must match after the keys in VOLATILE are removed, with numbers equal to within
+  TOLERANCE. LOF distances differ in the last bits between macOS and Linux, which moves LOF average
+  precision by about 1e-6. No decision, threshold or reported digit changes.
+- The model bundle pickles those floats, so it is compared with a second train on the same machine,
+  not with the committed bytes. The evaluation, which the rebuilt bundle produces, covers its behaviour.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -27,6 +34,7 @@ VOLATILE = {
     ],
     "evaluation.json": ["generated_at", "latency_ms", "headline.latency_p95_ms"],
 }
+TOLERANCE = 1e-5
 
 
 def drop(node: Any, keys: list[str]) -> None:
@@ -57,7 +65,9 @@ def differences(a: Any, b: Any, where: str = "") -> list[str]:
         return [
             d for i, (x, y) in enumerate(zip(a, b, strict=True)) for d in differences(x, y, f"{where}[{i}]")
         ]
-    return [] if a == b else [f"{where}: {a!r} != {b!r}"]
+    numbers = all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b))
+    same = math.isclose(a, b, rel_tol=0, abs_tol=TOLERANCE) if numbers else a == b
+    return [] if same else [f"{where}: {a!r} != {b!r}"]
 
 
 def main() -> int:
@@ -70,16 +80,24 @@ def main() -> int:
             "SECFLOW_ARTIFACTS_DIR": str(out / "artifacts"),
             "SECFLOW_AUTOSTART_STREAM": "false",
         }
-        for command in ("generate", "train", "evaluate"):
-            subprocess.run([sys.executable, "-m", "backend.cli", command], cwd=ROOT, env=env, check=True)
+
+        def cli(command: str, **overrides: Path) -> None:
+            run_env = env | {name: str(path) for name, path in overrides.items()}
+            subprocess.run([sys.executable, "-m", "backend.cli", command], cwd=ROOT, env=run_env, check=True)
+
+        cli("generate")
+        cli("train")
+        cli("train", SECFLOW_MODELS_DIR=out / "models_again")
+        cli("evaluate")
 
         pairs = [
             (ROOT / "storage" / name, out / "storage" / name)
             for name in ("train.json", "validation.json", "test.json")
         ]
         pairs.append((ROOT / "datagen" / "manifest.json", out / "manifest.json"))
-        for name in ("secflow_model.joblib", "metadata.json", "operating_point.json", "training_report.json"):
+        for name in ("metadata.json", "operating_point.json", "training_report.json"):
             pairs.append((ROOT / "ml" / "models" / name, out / "models" / name))
+        pairs.append((out / "models_again" / "secflow_model.joblib", out / "models" / "secflow_model.joblib"))
         pairs.append((ROOT / "artifacts" / "evaluation.json", out / "artifacts" / "evaluation.json"))
 
         failures = 0
@@ -90,12 +108,13 @@ def main() -> int:
                 how = "bytes"
             else:
                 diff = differences(stable_json(committed, volatile), stable_json(rebuilt, volatile))
-                how = "json without " + ", ".join(volatile)
+                how = f"json within {TOLERANCE:g}, without " + ", ".join(volatile)
             failures += bool(diff)
-            print(f"{'DIFFERENT' if diff else 'same':9} {committed.relative_to(ROOT)} ({how})")
+            name = committed.relative_to(out if committed.is_relative_to(out) else ROOT)
+            print(f"{'DIFFERENT' if diff else 'same':9} {name} ({how})")
             for line in diff[:20]:
                 print(f"    {line}")
-    print(f"{len(pairs) - failures} of {len(pairs)} committed files reproduced")
+    print(f"{len(pairs) - failures} of {len(pairs)} files reproduced")
     return 1 if failures else 0
 
 
