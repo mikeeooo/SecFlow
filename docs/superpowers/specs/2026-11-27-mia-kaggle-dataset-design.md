@@ -81,12 +81,11 @@ Accounts, counterparties, auth events, incoming credits and evidence are rebuilt
 | File | Days | Use |
 |---|---|---|
 | `train.json` | 1–70 | Fit preprocessing, IF, LOF, DBSCAN (labels unused for fitting) |
-| `validation.json` | 71–85 | Days 71–77: empirical score mapping and learned weights; days 78–85: Verify/Block threshold selection. Split by date inside the file, documented in `ml/training.py`. |
+| `validation.json` | 71–85 | IsolationForest and LOF score references (no labels), then the Verify/Block threshold search (labels). See `ml/training.py`. |
 | `test.json` | 86–100 | One frozen evaluation; also the history the app serves and the live stream continues from |
 
 Campaigns never cross a partition boundary. 40 cold-start accounts are created in the test period.
-40 established holdout accounts are excluded from fitting and selection, as today. Drift (new
-billers, +12% amounts) applies to the test period.
+Drift (new billers, +12% amounts) applies to the test period.
 
 ## Fraud taxonomy (`fraud_type`)
 

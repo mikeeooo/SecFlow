@@ -1,7 +1,14 @@
-"""Model bundle: frozen preprocessing, three scikit-learn detectors, and score mappings.
+"""The three unsupervised detectors and the saved model bundle.
 
-Loading a bundle never fits anything. Feature names, order, and feature version are
-checked against the running code so that a stale bundle fails loudly.
+* IsolationForest scores the scaled payment vector: few random splits isolate an unusual payment.
+* LocalOutlierFactor (novelty mode) compares the local density of a payment's amount features with
+  that of its 20 nearest training neighbours.
+* DBSCAN clusters trailing 24-hour account profiles. DBSCAN cannot score new points, so we keep the
+  training core samples and measure how far a new profile lies from the nearest one.
+
+IsolationForest and LOF return raw scores on different scales. Each raw score is mapped to its
+empirical CDF over the validation payments, giving a value in [0, 1]: 0.9 means "more unusual than
+90% of validation payments". None of this reads a label.
 """
 
 from __future__ import annotations
@@ -13,26 +20,90 @@ from typing import Any
 
 import joblib
 import numpy as np
-import sklearn
+from sklearn.cluster import DBSCAN
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor, NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 
-from ml.algorithms.dbscan_context import ContextResult, DBSCANContext
-from ml.algorithms.isolation_forest import IsolationForestDetector
-from ml.algorithms.local_outlier_factor import LocalOutlierFactorDetector
-from ml.algorithms.preprocessing import EmpiricalScoreMapping, FeaturePreprocessor
-from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES, FeatureSnapshot
-from ml.policy import OperatingPoint
+from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES
 
 BUNDLE_FILE = "secflow_model.joblib"
 METADATA_FILE = "metadata.json"
-OPERATING_POINT_FILE = "operating_point.json"
+# LOF works best in a few related dimensions; the amount features gave the best validation AP.
+LOF_FEATURES = ("log_amount", "amount_zscore_30d", "log_amount_to_prior_max_30d")
+LOF_COLUMNS = [PAYMENT_FEATURES.index(name) for name in LOF_FEATURES]
 
 
 class BundleError(RuntimeError):
-    """Raised when a model bundle is missing or incompatible with the running code."""
+    """The model bundle is missing or was trained with other feature code."""
+
+
+class Preprocessor:
+    """Clip each feature to its 0.5-99.5% training range, then standardise it."""
+
+    def fit(self, matrix: np.ndarray) -> Preprocessor:
+        self.lower, self.upper = np.quantile(matrix, [0.005, 0.995], axis=0)
+        self.scaler = StandardScaler().fit(np.clip(matrix, self.lower, self.upper))
+        return self
+
+    def transform(self, matrix: np.ndarray) -> np.ndarray:
+        return self.scaler.transform(np.clip(np.asarray(matrix, dtype=np.float64), self.lower, self.upper))
+
+
+def cdf(reference: np.ndarray, raw: np.ndarray) -> np.ndarray:
+    """Share of the sorted `reference` scores that are <= each raw score."""
+    return np.searchsorted(reference, raw, side="right") / len(reference)
 
 
 @dataclass(frozen=True)
-class ModelComponents:
+class ContextResult:
+    score: float  # 0 inside a core neighbourhood, up to 1 at twice eps or further
+    status: str  # within_context | outside_context | insufficient_history
+    distance: float | None
+    cluster: int | None  # cluster of the core neighbourhood the profile falls in
+    nearest_cluster: int  # closest cluster, also for profiles outside every neighbourhood
+
+
+class DbscanContext:
+    """DBSCAN fitted on scaled 24-hour profiles; new profiles are scored against the frozen core samples."""
+
+    def __init__(self, eps: float, min_samples: int) -> None:
+        self.eps = float(eps)
+        self.min_samples = int(min_samples)
+        self.metric = "euclidean"
+
+    def fit(self, profiles: np.ndarray) -> DbscanContext:
+        self.scaler = StandardScaler().fit(profiles)
+        scaled = self.scaler.transform(profiles)
+        labels = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(scaled)
+        self.core_samples = scaled[labels.core_sample_indices_]
+        self.core_labels = labels.labels_[labels.core_sample_indices_]
+        self.nn = NearestNeighbors(n_neighbors=1).fit(self.core_samples)
+        self.summary = {
+            "fit_profiles": float(len(scaled)),
+            "core_samples": float(len(self.core_samples)),
+            "clusters": float(len(set(labels.labels_.tolist()) - {-1})),
+            "noise_fraction": float(np.mean(labels.labels_ == -1)),
+        }
+        return self
+
+    def score(self, profiles: np.ndarray, statuses: list[str]) -> list[ContextResult]:
+        distances, indices = self.nn.kneighbors(self.scaler.transform(profiles))
+        results = []
+        for distance, index, status in zip(distances[:, 0], indices[:, 0], statuses, strict=True):
+            cluster = int(self.core_labels[index])
+            if status != "ok":  # fewer than three earlier payments: no profile to compare
+                results.append(ContextResult(0.0, "insufficient_history", None, None, cluster))
+            elif distance <= self.eps:
+                results.append(ContextResult(0.0, "within_context", float(distance), cluster, cluster))
+            else:
+                score = min(1.0, (distance - self.eps) / self.eps)
+                results.append(ContextResult(score, "outside_context", float(distance), None, cluster))
+        return results
+
+
+@dataclass(frozen=True)
+class Components:
     if_raw: float
     if_score: float
     lof_raw: float
@@ -42,110 +113,43 @@ class ModelComponents:
 
 @dataclass
 class ModelBundle:
-    preprocessor: FeaturePreprocessor
-    isolation_forest: IsolationForestDetector
-    lof: LocalOutlierFactorDetector
-    dbscan: DBSCANContext
-    if_mapping: EmpiricalScoreMapping
-    lof_mapping: EmpiricalScoreMapping
+    preprocessor: Preprocessor
+    isolation_forest: IsolationForest
+    lof: LocalOutlierFactor
+    dbscan: DbscanContext
+    if_reference: np.ndarray  # sorted raw IF scores of the validation payments
+    lof_reference: np.ndarray
     metadata: dict[str, Any]
 
     @property
     def version(self) -> str:
         return str(self.metadata["model_version"])
 
-    def score_batch(
-        self, payment: np.ndarray, context: np.ndarray, context_statuses: tuple[str, ...] | list[str]
-    ) -> list[ModelComponents]:
-        """Score already-extracted feature rows. Each detector runs exactly once per row."""
-        transformed = self.preprocessor.transform(payment)
-        if_raw = self.isolation_forest.raw_scores(transformed)
-        lof_raw = self.lof.raw_scores(transformed)
-        if_score = self.if_mapping.transform(if_raw)
-        lof_score = self.lof_mapping.transform(lof_raw)
-        contexts = self.dbscan.score(np.asarray(context, dtype=np.float64), context_statuses)
-        return [
-            ModelComponents(float(if_raw[i]), float(if_score[i]), float(lof_raw[i]), float(lof_score[i]), contexts[i])
-            for i in range(len(contexts))
-        ]
+    def raw_scores(self, payment: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Raw IF and LOF scores, inverted so that higher means more unusual."""
+        x = self.preprocessor.transform(payment)
+        return -self.isolation_forest.score_samples(x), -self.lof.score_samples(x[:, LOF_COLUMNS])
 
-    def score(self, snapshot: FeatureSnapshot) -> ModelComponents:
-        return self.score_batch(
-            np.asarray([snapshot.payment_vector]), np.asarray([snapshot.context_vector]), [snapshot.context_status]
-        )[0]
+    def score_batch(self, payment: np.ndarray, context: np.ndarray, statuses: list[str]) -> list[Components]:
+        if_raw, lof_raw = self.raw_scores(payment)
+        if_score, lof_score = cdf(self.if_reference, if_raw), cdf(self.lof_reference, lof_raw)
+        contexts = self.dbscan.score(context, statuses)
+        return [Components(float(if_raw[i]), float(if_score[i]), float(lof_raw[i]), float(lof_score[i]), contexts[i])
+                for i in range(len(contexts))]
 
-    def save(self, directory: Path, operating_point: OperatingPoint, extra: dict[str, Any]) -> None:
+    def save(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
-        joblib.dump(
-            {
-                "preprocessor": self.preprocessor,
-                "isolation_forest": self.isolation_forest,
-                "lof": self.lof,
-                "dbscan": self.dbscan,
-                "if_mapping": self.if_mapping,
-                "lof_mapping": self.lof_mapping,
-                "metadata": self.metadata,
-            },
-            directory / BUNDLE_FILE,
-            compress=3,
-        )
-        (directory / METADATA_FILE).write_text(json.dumps({**self.metadata, **extra}, indent=2) + "\n")
-        (directory / OPERATING_POINT_FILE).write_text(
-            json.dumps(
-                {
-                    "verify_threshold": operating_point.verify,
-                    "block_threshold": operating_point.block,
-                    "source": operating_point.source,
-                    "version": operating_point.version,
-                    "model_version": self.version,
-                    "weights": dict(operating_point.weights) if operating_point.weights else None,
-                    "segments": {
-                        name: {"verify": verify, "block": block}
-                        for name, (verify, block) in operating_point.segments.items()
-                    },
-                },
-                indent=2,
-            )
-            + "\n"
-        )
+        joblib.dump(self, directory / BUNDLE_FILE, compress=3)
+        (directory / METADATA_FILE).write_text(json.dumps(self.metadata, indent=2) + "\n")
 
 
 def load_bundle(directory: Path) -> ModelBundle:
     path = directory / BUNDLE_FILE
     if not path.exists():
         raise BundleError(f"Model bundle not found at {path}. Run `python -m backend.cli train`.")
-    payload = joblib.load(path)
-    metadata = payload["metadata"]
-    if tuple(metadata["payment_features"]) != PAYMENT_FEATURES or tuple(metadata["context_features"]) != CONTEXT_FEATURES:
-        raise BundleError("Model bundle feature schema does not match the running feature code")
-    if metadata["feature_version"] != FEATURE_VERSION:
-        raise BundleError(f"Feature version mismatch: bundle {metadata['feature_version']}, code {FEATURE_VERSION}")
-    return ModelBundle(
-        preprocessor=payload["preprocessor"],
-        isolation_forest=payload["isolation_forest"],
-        lof=payload["lof"],
-        dbscan=payload["dbscan"],
-        if_mapping=payload["if_mapping"],
-        lof_mapping=payload["lof_mapping"],
-        metadata=metadata,
-    )
-
-
-def load_operating_point(directory: Path, model_version: str | None) -> OperatingPoint:
-    path = directory / OPERATING_POINT_FILE
-    if not path.exists():
-        raise BundleError(f"Operating point not found at {path}")
-    raw = json.loads(path.read_text())
-    if model_version is not None and raw.get("model_version") != model_version:
-        raise BundleError("Operating point was selected for a different model version")
-    if not isinstance(raw.get("weights"), dict) or not isinstance(raw.get("segments"), dict):
-        raise BundleError("Operating point predates learned weights and segment thresholds; retrain first")
-    segments = {name: (float(t["verify"]), float(t["block"])) for name, t in raw["segments"].items()}
-    return OperatingPoint(
-        float(raw["verify_threshold"]), float(raw["block_threshold"]), raw["source"], raw["version"],
-        weights={k: float(v) for k, v in raw["weights"].items()}, segments=segments,
-    )
-
-
-def sklearn_version() -> str:
-    return sklearn.__version__
+    bundle = joblib.load(path)
+    meta = bundle.metadata
+    if (meta["feature_version"] != FEATURE_VERSION or tuple(meta["payment_features"]) != PAYMENT_FEATURES
+            or tuple(meta["context_features"]) != CONTEXT_FEATURES):
+        raise BundleError("The model bundle was trained with different feature code; retrain it.")
+    return bundle

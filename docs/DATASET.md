@@ -29,13 +29,13 @@ the code side, never in `storage/`.
 | File | Used for |
 |---|---|
 | `train.json` | Fitting preprocessing, IsolationForest, LOF and DBSCAN. Labels are not used for fitting. |
-| `validation.json` | Split by date inside the file (`ml/training.py`). Days 71–77: empirical score mapping (no labels) and learned combination weights. Days 78–85: parameter and Verify/Block threshold selection. |
+| `validation.json` | The reference scores for the IsolationForest and LOF score mapping (no labels), then the Verify/Block threshold search (labels). See `ml/training.py`. |
 | `test.json` | One frozen final evaluation (`ml/evaluation.py`). It is also the history the app serves, which the simulator and the live stream continue from. |
 
-There is no separate demonstration dataset. The service loads only `test.json` (its runtime view),
-so its features see the 15 test days and nothing earlier. The evaluation loads all three files, so
-test features also see days 1–85 as history. A test payment can therefore score differently in the
-app than in the evaluation, mostly in the first test days, where the app has little history.
+There is no separate demonstration dataset. The service loads `validation.json` as history only and
+assesses and shows the 15,000 payments of `test.json`, without labels. Features look back at most 30
+days, so the 15 validation days give each account and beneficiary its past, and the app decides close
+to the evaluation, which loads all three files.
 
 ## MIA facts used
 
@@ -113,15 +113,13 @@ columns as each row is read**, and rebuild everything the pipeline needs:
 Rows without `transfer_type = "instant"` or with a currency other than MDL are refused
 (`DatasetError`). Labels have a separate loader (`load_labels`) that only training and evaluation
 call. The service never calls it. A test changes every label in a copy of `test.json` and checks
-that the runtime view and the features stay identical.
+that the runtime view stays identical.
 
 ## Population
 
 400 accounts (336 personal, 64 business, all resident in Moldova) are shared by all partitions. 40
 personal **cold-start accounts** are opened during days 86–97 and make their first payment in
-`test.json`. Training removes 40 established **holdout accounts** (seeded, chosen without labels)
-from every fitting and selection row, so the test period also reports an account-disjoint subset.
-There are 650 base counterparties: 25 popular billers, 8 simulated public offices, merchants and
+`test.json`. There are 650 base counterparties: 25 popular billers, 8 simulated public offices, merchants and
 persons. There are also 90 diaspora remitters abroad. Payees nobody has paid before keep appearing
 over time.
 
@@ -205,7 +203,7 @@ The store treats a record as active at time *t* only if it was recorded at or be
 `effective_at ≤ t < expires_at`, its status is `confirmed`, its source is trusted, and its type
 blocks. There are ten **never-block fixtures** (`SEC-FX-*`), two each of expired, retracted,
 future-recorded, pending-review and untrusted-source evidence. All of them point at popular billers
-that legitimate customers keep paying, and a test checks that none of them is ever active. There are
+that legitimate customers keep paying. The evidence tests cover each of these five cases. There are
 also 25 administrative session revocations, which are not fraud evidence. All evidence is
 simulated; none of it is a real watchlist.
 
@@ -217,19 +215,18 @@ uv run python -m backend.cli validate
 uv run pytest backend/tests/test_dataset.py
 ```
 
-`validate` checks:
+`validate` (`datagen/dataset.py`) checks these points:
 
 - `storage/` holds exactly the three files;
 - the SHA-256 of each file matches the manifest;
-- row counts (1,000 assessed payments a day), unique transaction IDs, and the documented column order;
-- chronological, whole-day partitions;
-- `transfer_type = instant`, `currency = MDL` and a known scheme on every row;
-- no personal payment above 5,000 MDL, and no personal sender-day or sender-month above the daily
-  or monthly limit;
-- every fraud type with its expected count per partition, and the test-only types absent from train
-  and validation;
-- anomaly counts, campaigns inside one partition, and consistent sender identities;
-- no label columns in the runtime view;
-- zero duplicate row fingerprints across files;
-- reproducibility: the generator runs again from the seed into a temporary directory, and every file
-  must match **byte for byte**.
+- each partition has 1,000 assessed payments a day;
+- every row has `transfer_type = instant` and `currency = MDL`;
+- no personal payment is above 5,000 MDL, and no personal sender-day or sender-month is above the
+  daily or monthly limit;
+- every fraud type has its expected count per partition, and the test-only types are absent from
+  train and validation;
+- the runtime loader accepts each file and drops the label columns;
+- no row appears in two files (row fingerprints).
+
+`backend/tests/test_dataset.py` also runs the generator again from the seed into a temporary
+directory and checks that every file matches the committed one byte for byte.

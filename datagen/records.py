@@ -14,12 +14,7 @@ KEY_SCALE = 1_000_000  # ordering key = epoch_seconds * KEY_SCALE + global seque
 # SecFlow assesses instant transfers only; every dataset row must declare this type.
 INSTANT_TRANSFER = "instant"
 CURRENCY = "MDL"  # MIA Plati Instant settles in Moldovan lei only
-PAYMENT_SCHEMES = (
-    "p2p_alias", "p2p_iban", "p2b_qr_static", "p2b_qr_dynamic", "p2b_link", "request_to_pay", "b2b", "p2g",
-    "b2p_salary", "remittance_in",
-)
 QR_SCHEMES = frozenset({"p2b_qr_static", "p2b_qr_dynamic"})
-AUTH_EVENT_TYPES = ("login_failure", "login_success", "session_revoked", "alias_rebound", "limit_changed")
 
 
 def parse_ts(value: str) -> int:
@@ -34,10 +29,6 @@ def make_key(ts: int, seq: int) -> int:
     if seq >= KEY_SCALE:
         raise ValueError("sequence number exceeds key capacity")
     return ts * KEY_SCALE + seq
-
-
-def key_ts(key: int) -> int:
-    return key // KEY_SCALE
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +60,7 @@ class AuthEvent:
     account_id: str
     session_id: str
     device_id: str
-    event_type: str  # one of AUTH_EVENT_TYPES
+    event_type: str  # login_failure | login_success | session_revoked | alias_rebound | limit_changed
     auth_method: str
     ip_country: str
     reason: str | None
@@ -104,20 +95,8 @@ class Counterparty:
     category: str
 
 
-def check_instant(row: dict) -> None:
-    transfer_type = row.get("transfer_type")
-    if transfer_type != INSTANT_TRANSFER:
-        raise ValueError(
-            f"Transaction {row.get('transaction_id')}: transfer_type is mandatory and must be "
-            f"{INSTANT_TRANSFER!r}, found {transfer_type!r}"
-        )
-
-
 def request_from_row(row: dict) -> PaymentRequest:
     """Runtime request from one assessed dataset row (label columns are never read)."""
-    check_instant(row)
-    if row.get("currency") != CURRENCY:
-        raise ValueError(f"Transaction {row.get('transaction_id')}: currency must be {CURRENCY!r}")
     registered = row.get("alias_registered_at")
     return PaymentRequest(
         request_id=row["transaction_id"],

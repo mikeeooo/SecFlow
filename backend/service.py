@@ -1,11 +1,10 @@
-"""Assessment and review orchestration over local files plus temporary process memory.
+"""The app's state: test.json as history, every assessment, simulations and reviews, all in memory.
 
-At startup the service loads `storage/test.json` as its history (runtime view: label columns are
-dropped as the rows are read), the frozen model bundle, the policy and its validated operating point,
-and the trusted security evidence carried by the rows.
-It replays every baseline request through the shared assessment pipeline, each one seeing only
-its own event-time snapshot. Simulations then append to a temporary overlay of the same
-history index; they never rewrite baseline files and never retrain a model.
+At startup the service loads test.json without its labels, the model bundle, the policy and the
+thresholds, and assesses every test payment as of its own time. Simulations append to the same
+history index, so a later simulation sees the earlier ones. Nothing is written to disk: a restart
+starts again from test.json. One lock serialises simulations and reviews, which is all a single
+process needs.
 """
 
 from __future__ import annotations
@@ -13,10 +12,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import math
+import threading
 import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -37,10 +36,11 @@ from backend.schemas import (
     ScoreBand,
     SimulationRequest,
     TransactionPage,
+    TransactionQuery,
 )
-from config.limits import MiaLimits
+from backend.views import COMPLETED_OUTCOMES, OUTCOME_FOR_DECISION
 from config.settings import Settings
-from datagen.dataset import Dataset, load_partition, read_manifest
+from datagen.dataset import load_partitions, read_manifest
 from datagen.generator import sha256_file
 from datagen.records import (
     KEY_SCALE,
@@ -51,49 +51,62 @@ from datagen.records import (
     format_ts,
     make_key,
 )
-from ml.assess import assess_batch, assess_one, build_evidence_store
-from ml.model import BundleError, ModelBundle, load_bundle, load_operating_point
-from ml.policy import SEGMENTS, OperatingPoint, load_policy
-from runtime.history import HistoryIndex
-from runtime.memory import (
-    COMPLETED_OUTCOMES,
-    OUTCOME_FOR_DECISION,
-    AssessmentRecord,
-    ConflictError,
-    MemoryState,
-    NotFoundError,
-    ReviewRecord,
-    utc_now_iso,
-)
-from runtime.review_log import ReviewHistoryEntry, ReviewLog
+from ml.assess import AssessmentResult, Assessor, evidence_store
+from ml.history import HistoryIndex
+from ml.model import load_bundle
+from ml.policy import load_operating_point, load_policy
 
 log = logging.getLogger("secflow.service")
 HISTOGRAM_BINS = 20
 FOREIGN_COUNTRIES = ("RO", "IT", "DE", "FR", "GB", "UA", "TR", "US", "NL")
 
 
+class NotFoundError(KeyError):
+    """Unknown request, account or other identifier (404)."""
+
+
+class ConflictError(RuntimeError):
+    """A request ID reused with another payload, or a review that is not allowed (409)."""
+
+
 class MiaLimitError(ValueError):
-    """The payment breaks an MIA Plati Instant limit for the sender's account type (answered with 422)."""
+    """The payment breaks the MIA per-transaction limit of the sender's account type (422)."""
+
+
+def utc_now_iso() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-4] + "Z"
 
 
 @dataclass(frozen=True)
-class TransactionFilters:
-    q: str | None = None
-    decision: str | None = None
-    decision_source: str | None = None
-    origin: str | None = None
-    review_status: str | None = None
-    date_from: str | None = None
-    date_to: str | None = None
-    min_score: float | None = None
-    max_score: float | None = None
-    sort: str = "time_desc"
-    page: int = 1
-    page_size: int = 25
+class ReviewRecord:
+    review_id: str
+    request_id: str
+    action: str  # approve | reject
+    reason: str
+    actor: str
+    created_at: str
+    simulated_time: int
+    original_decision: str
+    original_risk_score: float | None
+    resulting_outcome: str
 
 
-def _fingerprint(payload: SimulationRequest) -> str:
-    return hashlib.sha256(json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+@dataclass
+class AssessmentRecord:
+    """A frozen automated assessment plus its payment outcome, which only a review changes."""
+
+    seq: int
+    origin: str  # baseline | simulation
+    producer: str | None  # manual | stream | None for baseline
+    request: PaymentRequest
+    key: int
+    result: AssessmentResult
+    assessed_at: str
+    session_events: tuple[AuthEvent, ...]
+    outcome: str
+    fingerprint: str | None = None  # hash of the simulation payload, to answer retries
+    reviews: list[ReviewRecord] = field(default_factory=list)
+    latency_ms: float | None = None
 
 
 class SecFlowService:
@@ -102,187 +115,138 @@ class SecFlowService:
         self.settings = settings
         self.started_at = utc_now_iso()
         self.policy = load_policy(settings.policy_path)
-        self.dataset: Dataset = load_partition(settings.test_path)
-        self.manifest: dict[str, Any] = (read_manifest(settings.manifest_path)
-                                         if settings.manifest_path.exists() else {})
-        self.limits: MiaLimits = self.policy.limits  # type: ignore[assignment]
-        recorded = ((self.manifest.get("partitions") or {}).get("test") or {}).get("sha256")
-        self.hashes_verified = recorded is not None and recorded == sha256_file(settings.test_path)
-        self.model_error: str | None = None
-        self.bundle: ModelBundle | None
-        try:
-            self.bundle = load_bundle(settings.models_dir)
-            self.operating_point = load_operating_point(settings.models_dir, self.bundle.version)
-        except BundleError as error:  # degraded mode: every request is routed to Verify
-            log.warning("Model bundle unavailable: %s", error)
-            self.bundle = None
-            self.model_error = str(error)
-            self.operating_point = OperatingPoint(
-                self.policy.initial_verify, self.policy.initial_block, "initial_unvalidated", "op-initial"
-            )
-        self.evidence = build_evidence_store(self.dataset.security_events, self.policy)
+        self.limits = self.policy.limits
+        self.bundle = load_bundle(settings.models_dir)
+        self.point = load_operating_point(settings.models_dir, self.bundle.version)
+        # validation.json is history only: the 15 days before the test period give each account and
+        # beneficiary its past, as in the evaluation. Only test.json payments are assessed and shown.
+        self.dataset = load_partitions([settings.validation_path, settings.test_path])
+        self.shown = tuple(r for r in self.dataset.requests if self.dataset.partition_of[r.request_id] == "test")
+        self.manifest = read_manifest(settings.manifest_path) if settings.manifest_path.exists() else {}
+        recorded = self.manifest.get("partitions", {})
+        self.hashes_verified = all(
+            recorded.get(path.stem, {}).get("sha256") == sha256_file(path)
+            for path in (settings.validation_path, settings.test_path)
+        )
+        self.evidence = evidence_store(self.dataset.security_events, self.policy)
+        self.assessor = Assessor(self.bundle, self.evidence, self.policy, self.point)
         self.accounts = self.dataset.accounts
         self.counterparties: dict[str, Counterparty] = dict(self.dataset.counterparties)
-        history, keys = HistoryIndex.from_events(
-            self.dataset.requests, self.dataset.auth_events, self.dataset.payment_events
-        )
-        self.state = MemoryState(history)
-        self._sessions: dict[str, list[AuthEvent]] = defaultdict(list)
-        for event in self.dataset.auth_events:
-            self._sessions[event.session_id].append(event)
-        self._replay_baseline(keys)
-        self.review_log = ReviewLog(settings.state_dir)
-        self._restore_reviews()
-        self._evaluation = self._load_evaluation()
-        last_ts = max(history.max_key // KEY_SCALE, self.dataset.requests[-1].ts)
-        self._sim_epoch = last_ts + 3_600
+        self.history, keys = HistoryIndex.from_events(self.dataset.requests, self.dataset.auth_events,
+                                                      self.dataset.payment_events)
+        self.lock = threading.RLock()
+        self.records: dict[str, AssessmentRecord] = {}  # insertion order = time order
+        self.reviews: list[ReviewHistoryItem] = []
+        self._seq = 0
+        self._assess_baseline(keys)
+        self.evaluation = self._read_json(settings.artifacts_dir / "evaluation.json")
+        self.training = self._read_json(settings.models_dir / "training_report.json")
+        self._sim_epoch = max(self.history.max_key // KEY_SCALE, self.dataset.requests[-1].ts) + 3_600
         self._wall_epoch = time.monotonic()
         self._last_ts = self._sim_epoch
-        self._sim_counter = 0
-        self._graph = ClusterGraphBuilder(self.bundle.dbscan) if self.bundle else None
+        self._graph = ClusterGraphBuilder(self.bundle.dbscan)
         self.startup_seconds = round(time.perf_counter() - started, 2)
         log.info("SecFlow service ready in %.2fs", self.startup_seconds)
 
-    # ------------------------------------------------------------------
-    # startup
-    # ------------------------------------------------------------------
-    def _replay_baseline(self, keys: dict[str, int]) -> None:
-        ordered = sorted(self.dataset.requests, key=lambda r: keys[r.request_id])
-        results = assess_batch(
-            ordered, keys, self.state.history, self.accounts, self.bundle, self.evidence, self.policy,
-            self.operating_point,
-        )
-        assessed_at = utc_now_iso()
-        for request, result in zip(ordered, results, strict=True):
-            self.state.add_baseline(
-                AssessmentRecord(
-                    seq=self.state.next_seq(),
-                    origin="baseline",
-                    producer=None,
-                    request=request,
-                    key=keys[request.request_id],
-                    result=result,
-                    assessed_at=assessed_at,
-                    fingerprint=None,
-                    session_events=tuple(self._sessions.get(request.session_id, ())),
-                    outcome=OUTCOME_FOR_DECISION[result.policy.decision],
-                )
-            )
+    def _next_seq(self) -> int:
+        self._seq += 1
+        return self._seq
 
-    def _restore_reviews(self) -> None:
-        """Re-apply persisted reviews to the baseline requests they decided.
+    def _assess_baseline(self, keys: dict[str, int]) -> None:
+        sessions: dict[str, list[AuthEvent]] = defaultdict(list)
+        for event in self.dataset.auth_events:
+            sessions[event.session_id].append(event)
+        ordered = sorted(self.shown, key=lambda r: keys[r.request_id])
+        now = utc_now_iso()
+        for request, result in zip(ordered, self.assessor.assess_batch(ordered, keys, self.history, self.accounts),
+                                   strict=True):
+            self.records[request.request_id] = AssessmentRecord(
+                self._next_seq(), "baseline", None, request, keys[request.request_id], result, now,
+                tuple(sessions.get(request.session_id, ())), OUTCOME_FOR_DECISION[result.policy.decision])
 
-        Simulated requests do not survive a restart, so their reviews stay visible only in the
-        history. A stored review is re-applied only when the baseline request still carries the
-        same automated decision (a retrained model or a new dataset may change it).
-        """
-        restored = 0
-        for entry in self.review_log.entries():
-            record = self.state.records.get(entry.request_id)
-            if record is None or record.origin != "baseline" or entry.origin != "baseline":
-                continue
-            if record.result.policy.decision != entry.original_decision or record.reviews:
-                continue
-            self.state.restore_review(entry.request_id, ReviewRecord(
-                review_id=entry.review_id, request_id=entry.request_id, action=entry.action, reason=entry.reason,
-                actor=entry.actor, created_at=entry.created_at, simulated_time=entry.simulated_time,
-                original_decision=entry.original_decision, original_risk_score=entry.original_risk_score,
-                resulting_outcome=entry.resulting_outcome,
-            ))
-            restored += 1
-        if restored:
-            log.info("Restored %d persisted review(s) onto baseline requests", restored)
+    @staticmethod
+    def _read_json(path) -> dict[str, Any] | None:
+        return json.loads(path.read_text()) if path.exists() else None
 
-    def _load_evaluation(self) -> dict[str, Any] | None:
-        path = self.settings.artifacts_dir / "evaluation.json"
-        if not path.exists():
-            return None
-        try:
-            return json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as error:
-            log.warning("Evaluation report unreadable: %s", error)
-            return None
-
-    def score_band(self, score: float | None) -> ScoreBand | None:
-        """The labelled final-test fraud rate of the score band this risk score falls in."""
-        report = self._evaluation
-        if score is None or not report or "score_bands" not in report:
-            return None
-        if self.bundle is None or report.get("model_version") != self.bundle.version:
-            return None  # the bands describe a different model
-        bands = report["score_bands"]["bands"]
-        for i, band in enumerate(bands):
-            last = i == len(bands) - 1
-            if band["low"] <= score and (score <= band["high"] if last else score < band["high"]):
-                return ScoreBand(**{k: band[k] for k in ScoreBand.model_fields if k in band},
-                                 base_fraud_rate=report["score_bands"]["base_fraud_rate"],
-                                 evaluated_requests=report["score_bands"]["requests"])
-        return None
-
-    # ------------------------------------------------------------------
-    # helpers
-    # ------------------------------------------------------------------
+    # -- helpers -------------------------------------------------------------
     def simulation_now(self) -> int:
+        """The simulated clock: one hour after the last test event, then real time."""
         return int(self._sim_epoch + (time.monotonic() - self._wall_epoch))
 
     def party(self, party_id: str) -> PartyRef:
-        account = self.accounts.get(party_id)
-        if account:
+        if account := self.accounts.get(party_id):
             return PartyRef(id=party_id, name=account.display_name, kind="account")
         counterparty = self.counterparties.get(party_id)
         return PartyRef(id=party_id, name=counterparty.display_name if counterparty else party_id, kind="counterparty")
 
     def _record(self, request_id: str) -> AssessmentRecord:
-        record = self.state.records.get(request_id)
-        if record is None:
+        if (record := self.records.get(request_id)) is None:
             raise NotFoundError(request_id)
         return record
 
-    def _next_key(self, ts: int) -> int:
-        history = self.state.history
-        history.max_seq += 1
-        key = make_key(ts, history.max_seq)
-        if key <= history.max_key:
-            key = make_key(history.max_key // KEY_SCALE + 1, history.max_seq)
-        return key
+    def _all(self) -> list[AssessmentRecord]:
+        with self.lock:
+            return list(self.records.values())
 
-    def _clock(self, minimum: int | None = None) -> int:
-        ts = max(self.simulation_now(), self._last_ts, minimum or 0)
-        self._last_ts = ts
-        return ts
+    def _next_key(self, ts: int) -> int:
+        """An ordering key after every event already in the history."""
+        self.history.max_seq += 1
+        return make_key(max(ts, self.history.max_key // KEY_SCALE + 1), self.history.max_seq)
+
+    def _clock(self) -> int:
+        self._last_ts = max(self.simulation_now(), self._last_ts)
+        return self._last_ts
 
     def last_device(self, account_id: str) -> str | None:
-        series = self.state.history.auth.get(account_id)
+        series = self.history.auth.get(account_id)
         return series.devices[-1] if series and series.devices else None
 
-    # ------------------------------------------------------------------
-    # simulations
-    # ------------------------------------------------------------------
+    def score_band(self, score: float) -> ScoreBand | None:
+        """The fraud rate measured on test for the score band this risk score falls in."""
+        report = self.evaluation
+        if not report or report.get("model_version") != self.bundle.version:
+            return None  # the bands describe another model
+        bands = report["score_bands"]
+        for i, band in enumerate(bands["bands"]):
+            last = i == len(bands["bands"]) - 1
+            if band["low"] <= score and (score <= band["high"] if last else score < band["high"]):
+                return ScoreBand(**{k: band[k] for k in ScoreBand.model_fields if k in band},
+                                 base_fraud_rate=bands["base_fraud_rate"], evaluated_requests=bands["requests"])
+        return None
+
+    def _detail(self, record: AssessmentRecord, replay: bool = False) -> AssessmentDetail:
+        detail = views.detail(record, self.party, self.policy, self.point, self.bundle.version, replay)
+        detail.score_band = self.score_band(record.result.risk.total)
+        return detail
+
+    # -- simulations ---------------------------------------------------------
     def simulate(self, payload: SimulationRequest, producer: str = "manual") -> tuple[AssessmentDetail, bool]:
+        """Assess one simulated payment. Returns (detail, replayed): a retry with the same ID and payload
+        gets the stored answer; the same ID with another payload is a conflict."""
         if payload.sender_id not in self.accounts:
             raise NotFoundError(f"Unknown sender {payload.sender_id}")
-        if payload.recipient_id and payload.recipient_id not in self.accounts and payload.recipient_id not in self.counterparties:
+        if payload.recipient_id and not (payload.recipient_id in self.accounts or payload.recipient_id in self.counterparties):
             raise NotFoundError(f"Unknown recipient {payload.recipient_id}")
         if payload.recipient_id == payload.sender_id:
             raise ConflictError("Sender and recipient must differ")
         segment = self.accounts[payload.sender_id].account_type
         cap = self.limits.for_segment(segment).per_transaction
         if payload.amount > cap:
-            raise MiaLimitError(
-                f"MIA Plati Instant accepts at most {cap:,.0f} MDL per transaction from a {segment} account; "
-                f"{payload.amount:,.2f} MDL was requested"
-            )
-        record, replay = self.state.submit_once(
-            payload.request_id, _fingerprint(payload), lambda: self._assess_and_commit(payload, producer)
-        )
-        return self._detail(record, replay), replay
+            raise MiaLimitError(f"MIA Plati Instant accepts at most {cap:,.0f} MDL per transaction from a {segment} "
+                                f"account; {payload.amount:,.2f} MDL was requested")
+        fingerprint = hashlib.sha256(json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+        with self.lock:
+            if (existing := self.records.get(payload.request_id)) is not None:
+                if existing.fingerprint != fingerprint:
+                    raise ConflictError(f"Request ID {payload.request_id} was already used with a different payload")
+                return self._detail(existing, replay=True), True
+            record = self._assess_and_commit(payload, producer, fingerprint)
+            self.records[payload.request_id] = record
+            return self._detail(record), False
 
-    def _assess_and_commit(self, payload: SimulationRequest, producer: str) -> AssessmentRecord:
-        """Runs under the state lock: append session events, assess once, commit the attempt."""
-        history = self.state.history
-        self._sim_counter += 1
-        suffix = f"{self._sim_counter:06d}"
-        account = self.accounts[payload.sender_id]
+    def _assess_and_commit(self, payload: SimulationRequest, producer: str, fingerprint: str) -> AssessmentRecord:
+        """Append the sign-in events, assess the payment as of now, then record the attempt."""
+        suffix = f"{self._seq + 1:06d}"
         recipient_id = payload.recipient_id
         if recipient_id is None:
             recipient_id = f"CP-SIM-{suffix}"
@@ -291,283 +255,222 @@ class SecFlowService:
         device = payload.device_id or f"DEV-SIM-{suffix}"
         session = f"SES-SIM-{suffix}"
         ts = self._clock()
-        events: list[AuthEvent] = []
-        for attempt in range(payload.failed_login_attempts):
-            events.append(AuthEvent(f"AE-SIM-{suffix}-{attempt}", ts + 20 * attempt, payload.sender_id, session, device,
-                                    "login_failure", payload.auth_method, payload.ip_country, "invalid_credentials"))
-        success_ts = ts + 20 * payload.failed_login_attempts
-        events.append(AuthEvent(f"AE-SIM-{suffix}-ok", success_ts, payload.sender_id, session, device, "login_success",
+        events = [AuthEvent(f"AE-SIM-{suffix}-{i}", ts + 20 * i, payload.sender_id, session, device, "login_failure",
+                            payload.auth_method, payload.ip_country, "invalid_credentials")
+                  for i in range(payload.failed_login_attempts)]
+        signed_in = ts + 20 * payload.failed_login_attempts
+        events.append(AuthEvent(f"AE-SIM-{suffix}-ok", signed_in, payload.sender_id, session, device, "login_success",
                                 payload.auth_method, payload.ip_country, None))
         for event in events:
-            history.add_auth(event, self._next_key(event.ts))
-        qr_merchant = None
-        if payload.payment_scheme in ("p2b_qr_static", "p2b_qr_dynamic"):
-            qr_merchant = payload.qr_payload_merchant_id or recipient_id
+            self.history.add_auth(event, self._next_key(event.ts))
+        qr = payload.payment_scheme in ("p2b_qr_static", "p2b_qr_dynamic")
         request = PaymentRequest(
-            request_id=payload.request_id, ts=success_ts + 8, sender_id=payload.sender_id, recipient_id=recipient_id,
+            request_id=payload.request_id, ts=signed_in + 8, sender_id=payload.sender_id, recipient_id=recipient_id,
             recipient_type="account" if recipient_id in self.accounts else "counterparty", amount=payload.amount,
             currency=payload.currency, channel=payload.channel, device_id=device, session_id=session,
             auth_method=payload.auth_method, ip_country=payload.ip_country, transfer_type=payload.transfer_type,
             payment_scheme=payload.payment_scheme,
             request_to_pay_id=f"RTP-SIM-{suffix}" if payload.payment_scheme == "request_to_pay" else None,
-            qr_payload_merchant_id=qr_merchant, recipient_alias=payload.recipient_alias,
-        )
+            qr_payload_merchant_id=(payload.qr_payload_merchant_id or recipient_id) if qr else None,
+            recipient_alias=payload.recipient_alias)
         key = self._next_key(request.ts)
         started = time.perf_counter()
-        result = assess_one(request, key, history, account, self.bundle, self.evidence, self.policy, self.operating_point)
-        latency_ms = (time.perf_counter() - started) * 1_000
-        history.add_request(request, key)  # attempted activity counts regardless of the decision
+        [result] = self.assessor.assess_batch([request], {request.request_id: key}, self.history, self.accounts)
+        latency_ms = round((time.perf_counter() - started) * 1_000, 3)
+        self.history.add_request(request, key)  # an attempt counts as activity whatever the decision
         outcome = OUTCOME_FOR_DECISION[result.policy.decision]
         if outcome == "permitted":
             self._settle(request, request.ts + 2)
         self._last_ts = request.ts + 2
-        return AssessmentRecord(
-            seq=self.state.next_seq(), origin="simulation", producer=producer, request=request, key=key, result=result,
-            assessed_at=utc_now_iso(), fingerprint=None, session_events=tuple(events), outcome=outcome,
-            latency_ms=round(latency_ms, 3),
-        )
+        return AssessmentRecord(self._next_seq(), "simulation", producer, request, key, result, utc_now_iso(),
+                                tuple(events), outcome, fingerprint, latency_ms=latency_ms)
 
     def _settle(self, request: PaymentRequest, ts: int) -> None:
-        event = PaymentEvent(f"PE-SIM-{request.request_id}", ts, "transfer_settled", request.sender_id,
-                             request.recipient_id, request.amount, request.currency, request.request_id)
-        self.state.history.add_payment(event, self._next_key(ts))
+        """A completed payment credits the recipient, which feeds their incoming-funds features."""
+        self.history.add_payment(PaymentEvent(f"PE-SIM-{request.request_id}", ts, "transfer_settled",
+                                              request.sender_id, request.recipient_id, request.amount,
+                                              request.currency, request.request_id), self._next_key(ts))
 
-    # ------------------------------------------------------------------
-    # reviews
-    # ------------------------------------------------------------------
+    # -- reviews -------------------------------------------------------------
     def review(self, request_id: str, payload: ReviewRequest) -> Investigation:
-        def build(record: AssessmentRecord) -> ReviewRecord:
-            """Runs under the state lock: persist to the history first, then settle and commit."""
+        """Approve or reject a Verify decision. The automated decision itself never changes."""
+        with self.lock:
+            record = self._record(request_id)
+            policy = record.result.policy
+            if policy.decision != "Verify":
+                raise ConflictError("Only requests whose automated decision is Verify can be reviewed")
+            if record.reviews:
+                raise ConflictError("This request already has a final review outcome")
             approved = payload.action == "approve"
             now = self._clock()
-            seq = self.review_log.next_seq()
-            review = ReviewRecord(
-                review_id=f"REV-{seq:05d}", request_id=request_id, action=payload.action,
-                reason=payload.reason, actor=payload.actor, created_at=utc_now_iso(), simulated_time=now,
-                original_decision=record.result.policy.decision,
-                original_risk_score=round(record.result.risk.total, 2) if record.result.risk else None,
-                resulting_outcome="approved_after_review" if approved else "rejected_after_review",
-            )
             request = record.request
-            self.review_log.append(ReviewHistoryEntry(
-                review_id=review.review_id, seq=seq, request_id=request_id, action=review.action,
-                reason=review.reason, actor=review.actor, created_at=review.created_at, simulated_time=now,
-                original_decision=review.original_decision, original_decision_label=record.result.policy.label,
-                original_risk_score=review.original_risk_score, resulting_outcome=review.resulting_outcome,
-                origin=record.origin, event_time=format_ts(request.ts), sender_id=request.sender_id,
-                sender_name=self.party(request.sender_id).name, recipient_id=request.recipient_id,
-                recipient_name=self.party(request.recipient_id).name, amount=request.amount, currency=request.currency,
-            ))
+            review = ReviewRecord(
+                review_id=f"REV-{len(self.reviews) + 1:05d}", request_id=request_id, action=payload.action,
+                reason=payload.reason, actor=payload.actor, created_at=utc_now_iso(), simulated_time=now,
+                original_decision=policy.decision, original_risk_score=round(record.result.risk.total, 2),
+                resulting_outcome="approved_after_review" if approved else "rejected_after_review")
+            record.reviews.append(review)
+            record.outcome = review.resulting_outcome
             if approved and record.origin == "simulation":
-                self._settle(record.request, now)
-            return review
-
-        self.state.add_review(request_id, build)
-        return self.investigation(request_id)
+                self._settle(request, now)
+            self.reviews.append(ReviewHistoryItem(
+                review_id=review.review_id, request_id=request_id, action=review.action, reason=review.reason,
+                actor=review.actor, created_at=review.created_at, original_decision=review.original_decision,
+                original_decision_label=policy.label, original_risk_score=review.original_risk_score,
+                resulting_outcome=review.resulting_outcome, origin=record.origin, event_time=format_ts(request.ts),
+                sender_id=request.sender_id, sender_name=self.party(request.sender_id).name,
+                recipient_id=request.recipient_id, recipient_name=self.party(request.recipient_id).name,
+                amount=request.amount, currency=request.currency, investigation_available=True))
+            return self.investigation(request_id)
 
     def review_history(self, action: str | None, q: str | None, page: int, page_size: int,
                        sort: str) -> ReviewHistoryPage:
-        entries, total, counts = self.review_log.page(action, q, page, page_size, sort)
-        with self.state.lock:
-            live = {e.request_id for e in entries if e.request_id in self.state.records}
-        items = [
-            ReviewHistoryItem(
-                **{k: getattr(e, k) for k in ReviewHistoryItem.model_fields if hasattr(e, k)},
-                investigation_available=e.request_id in live,
-            )
-            for e in entries
-        ]
-        status = self.review_log.status()
-        return ReviewHistoryPage(items=items, total=total, page=page, page_size=page_size,
-                                 approved=counts["approve"], rejected=counts["reject"],
-                                 persisted=status["persisted"], storage_note=status["error"])
+        with self.lock:
+            entries = list(self.reviews)
+        query = (q or "").strip().lower()
+        selected = [e for e in entries if (not action or e.action == action) and (not query or query in f"{e.request_id} {e.sender_name} {e.recipient_name} {e.sender_id} {e.recipient_id} {e.actor} {e.reason}".lower())]
+        if sort != "oldest":
+            selected.reverse()
+        counts = Counter(e.action for e in entries)
+        start = (page - 1) * page_size
+        return ReviewHistoryPage(items=selected[start:start + page_size], total=len(selected), page=page,
+                                 page_size=page_size, approved=counts["approve"], rejected=counts["reject"],
+                                 persisted=False, storage_note="Reviews live in memory; a restart clears them.")
 
-    # ------------------------------------------------------------------
-    # queries
-    # ------------------------------------------------------------------
-    def _detail(self, record: AssessmentRecord, replay: bool = False) -> AssessmentDetail:
-        detail = views.detail(record, self.party, self.policy, self.operating_point,
-                              self.bundle.version if self.bundle else None, replay)
-        detail.score_band = self.score_band(detail.risk_score)
-        return detail
-
+    # -- queries -------------------------------------------------------------
     def investigation(self, request_id: str) -> Investigation:
-        with self.state.lock:
+        with self.lock:
             record = self._record(request_id)
-            return Investigation(
-                assessment=self._detail(record),
-                timeline=views.timeline(record),
-                reviews=[views.review_view(r) for r in record.reviews],
-                can_review=record.result.policy.decision == "Verify" and not record.reviews,
-            )
+            return Investigation(assessment=self._detail(record), timeline=views.timeline(record),
+                                 reviews=[views.review_view(r) for r in record.reviews],
+                                 can_review=record.result.policy.decision == "Verify" and not record.reviews)
 
-    def _records(self) -> list[AssessmentRecord]:
-        with self.state.lock:
-            return [self.state.records[rid] for rid in self.state.order]
-
-    def transactions(self, f: TransactionFilters) -> TransactionPage:
-        records = self._records()
+    def transactions(self, f: TransactionQuery) -> TransactionPage:
         query = (f.q or "").strip().lower()
 
         def matches(r: AssessmentRecord) -> bool:
-            result = r.result
-            if f.decision and result.policy.decision != f.decision:
+            policy, score, day = r.result.policy, r.result.risk.total, format_ts(r.request.ts)[:10]
+            checks = (
+                not f.decision or policy.decision == f.decision,
+                not f.decision_source or policy.decision_source == f.decision_source,
+                not f.origin or r.origin == f.origin,
+                not f.review_status or views.review_status(r) == f.review_status,
+                not f.date_from or day >= f.date_from,
+                not f.date_to or day <= f.date_to,
+                f.min_score is None or score >= f.min_score,
+                f.max_score is None or score <= f.max_score,
+            )
+            if not all(checks):
                 return False
-            if f.decision_source and result.policy.decision_source != f.decision_source:
-                return False
-            if f.origin and r.origin != f.origin:
-                return False
-            if f.review_status and views.review_status(r) != f.review_status:
-                return False
-            stamp = format_ts(r.request.ts)
-            if f.date_from and stamp[:10] < f.date_from:
-                return False
-            if f.date_to and stamp[:10] > f.date_to:
-                return False
-            score = result.risk.total if result.risk else None
-            if f.min_score is not None and (score is None or score < f.min_score):
-                return False
-            if f.max_score is not None and (score is None or score > f.max_score):
-                return False
-            if query:
-                haystack = f"{r.request.request_id} {r.request.sender_id} {r.request.recipient_id} {self.party(r.request.sender_id).name} {self.party(r.request.recipient_id).name}".lower()
-                return query in haystack
-            return True
+            if not query:
+                return True
+            request = r.request
+            return query in f"{request.request_id} {request.sender_id} {request.recipient_id} {self.party(request.sender_id).name} {self.party(request.recipient_id).name}".lower()
 
-        selected = [r for r in records if matches(r)]
+        selected = [r for r in self._all() if matches(r)]
         if f.sort == "risk_desc":
-            selected.sort(key=lambda r: (r.result.risk.total if r.result.risk else -1, r.key), reverse=True)
+            selected.sort(key=lambda r: (r.result.risk.total, r.key), reverse=True)
         else:
             selected.sort(key=lambda r: r.key, reverse=f.sort != "time_asc")
         start = (f.page - 1) * f.page_size
-        items = [views.summary(r, self.party) for r in selected[start:start + f.page_size]]
-        return TransactionPage(items=items, total=len(selected), page=f.page, page_size=f.page_size)
+        return TransactionPage(items=[views.summary(r, self.party) for r in selected[start:start + f.page_size]],
+                               total=len(selected), page=f.page, page_size=f.page_size)
 
     def live_feed(self, after: int, limit: int) -> list[Any]:
-        with self.state.lock:
-            ids = [rid for rid in self.state.simulation_order if self.state.records[rid].seq > after]
-            ids = ids[-limit:]
-            return [views.summary(self.state.records[rid], self.party) for rid in ids]
-
-    def latest_cursor(self) -> int:
-        with self.state.lock:
-            if not self.state.simulation_order:
-                return 0
-            return self.state.records[self.state.simulation_order[-1]].seq
+        simulated = [r for r in self._all() if r.origin == "simulation" and r.seq > after]
+        return [views.summary(r, self.party) for r in simulated[-limit:]]
 
     def overview(self) -> dict[str, Any]:
-        records = self._records()
-        by_label = Counter(r.result.policy.label for r in records)
-        by_origin = Counter(r.origin for r in records)
-        outcomes = Counter(r.outcome for r in records)
-        volume = defaultdict(float)
-        for r in records:
-            volume[r.outcome] += r.request.amount
+        records = self._all()
+        labels = Counter(r.result.policy.label for r in records)
+        origins = Counter(r.origin for r in records)
+        volume: defaultdict[str, float] = defaultdict(float)
         days: dict[str, dict[str, Any]] = {}
         for r in records:
+            volume[r.outcome] += r.request.amount
             day = format_ts(r.request.ts)[:10]
-            bucket = days.setdefault(day, {"date": day, "requests": 0, "risk_sum": 0.0, "scored": 0,
-                                           "Permit": 0, "Verify": 0, "Block": 0})
+            bucket = days.setdefault(day, {"date": day, "requests": 0, "risk": [], "Permit": 0, "Verify": 0, "Block": 0})
             bucket["requests"] += 1
             bucket[r.result.policy.decision] += 1
-            if r.result.risk:
-                bucket["risk_sum"] += r.result.risk.total
-                bucket["scored"] += 1
-        trend = [
-            {"date": b["date"], "requests": b["requests"], "permit": b["Permit"], "verify": b["Verify"],
-             "block": b["Block"], "mean_risk": round(b["risk_sum"] / b["scored"], 2) if b["scored"] else None}
-            for b in sorted(days.values(), key=lambda b: b["date"])
-        ]
-        recent = sorted(records, key=lambda r: r.key, reverse=True)[:8]
-        pending = [r for r in records if views.review_status(r) == "pending"]
-        pending.sort(key=lambda r: (r.result.risk.total if r.result.risk else 0), reverse=True)
+            bucket["risk"].append(r.result.risk.total)
+        pending = sorted((r for r in records if views.review_status(r) == "pending"),
+                         key=lambda r: r.result.risk.total, reverse=True)
         return {
             "totals": {
                 "assessed": len(records),
-                "baseline": by_origin.get("baseline", 0),
-                "simulations": by_origin.get("simulation", 0),
-                "permitted": by_label.get("Permitted", 0),
-                "needs_verification": by_label.get("Needs verification", 0),
-                "preventive_blocks": by_label.get("Preventive risk block", 0),
-                "confirmed_evidence_blocks": by_label.get("Confirmed fraud evidence", 0),
+                "baseline": origins["baseline"],
+                "simulations": origins["simulation"],
+                "permitted": labels["Permitted"],
+                "needs_verification": labels["Needs verification"],
+                "preventive_blocks": labels["Preventive risk block"],
+                "confirmed_evidence_blocks": labels["Confirmed fraud evidence"],
                 "awaiting_review": len(pending),
-                "reviewed": self.state.review_count,
+                "reviewed": len(self.reviews),
             },
-            "outcomes": dict(outcomes),
+            "outcomes": dict(Counter(r.outcome for r in records)),
             "volumes": {
                 "completed": round(sum(volume[o] for o in COMPLETED_OUTCOMES), 2),
                 "pending_verification": round(volume["pending_verification"], 2),
                 "blocked_attempts": round(volume["blocked_attempt"] + volume["rejected_after_review"], 2),
                 "currency": "MDL",
                 "note": "Completed volume counts only permitted or approved simulated outcomes. "
-                "Blocked and pending attempts are excluded; no funds move through a bank.",
+                        "Blocked and pending attempts are excluded; no funds move through a bank.",
             },
-            "trend": trend,
-            "recent": [views.summary(r, self.party) for r in recent],
+            "trend": [{"date": b["date"], "requests": b["requests"], "permit": b["Permit"], "verify": b["Verify"],
+                       "block": b["Block"], "mean_risk": round(float(np.mean(b["risk"])), 2)}
+                      for b in sorted(days.values(), key=lambda b: b["date"])],
+            "recent": [views.summary(r, self.party) for r in sorted(records, key=lambda r: r.key, reverse=True)[:8]],
             "review_queue": [views.summary(r, self.party) for r in pending[:8]],
             "simulation_time": format_ts(self.simulation_now()),
         }
 
-    # -- accounts ---------------------------------------------------------
     def accounts_page(self, q: str | None, page: int, page_size: int, account_type: str | None) -> AccountPage:
-        records = self._records()
         stats: dict[str, dict[str, Any]] = {}
-        for r in records:
+        for r in self._all():
             s = stats.setdefault(r.request.sender_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
             s["requests"] += 1
-            s["flagged"] += int(r.result.policy.decision != "Permit")
-            s["rejected"] += int(r.outcome == "rejected_after_review")
+            s["flagged"] += r.result.policy.decision != "Permit"
+            s["rejected"] += r.outcome == "rejected_after_review"
             if s["last"] is None or r.key > s["last"].key:
                 s["last"] = r
         query = (q or "").strip().lower()
-        accounts = [
-            a for a in self.accounts.values()
-            if (not query or query in a.display_name.lower() or query in a.account_id.lower())
-            and (not account_type or a.account_type == account_type)
-        ]
-        accounts.sort(key=lambda a: a.display_name)
-        start = (page - 1) * page_size
+        accounts = sorted((a for a in self.accounts.values()
+                           if (not query or query in a.display_name.lower() or query in a.account_id.lower())
+                           and (not account_type or a.account_type == account_type)), key=lambda a: a.display_name)
         items = []
-        for a in accounts[start:start + page_size]:
+        for a in accounts[(page - 1) * page_size:page * page_size]:
             s = stats.get(a.account_id, {"requests": 0, "flagged": 0, "rejected": 0, "last": None})
             last = s["last"]
             items.append(AccountSummary(
                 account_id=a.account_id, display_name=a.display_name, account_type=a.account_type,
                 home_country=a.home_country, created_at=format_ts(a.created_at), requests=s["requests"],
                 flagged=s["flagged"], rejected=s["rejected"], last_activity=format_ts(last.request.ts) if last else None,
-                last_decision=last.result.policy.decision if last else None,
-            ))
-        by_type = Counter(a.account_type for a in self.accounts.values())
+                last_decision=last.result.policy.decision if last else None))
+        types = Counter(a.account_type for a in self.accounts.values())
         return AccountPage(items=items, total=len(accounts), page=page, page_size=page_size,
-                           all_accounts=len(self.accounts), personal=by_type.get("personal", 0),
-                           business=by_type.get("business", 0),
-                           active=sum(1 for a in self.accounts if stats.get(a, {}).get("requests")))
+                           all_accounts=len(self.accounts), personal=types["personal"], business=types["business"],
+                           active=sum(1 for a in self.accounts if a in stats))
 
     def account_detail(self, account_id: str) -> dict[str, Any]:
-        account = self.accounts.get(account_id)
-        if account is None:
+        if (account := self.accounts.get(account_id)) is None:
             raise NotFoundError(account_id)
-        records = self._records()
+        records = self._all()
         sent = [r for r in records if r.request.sender_id == account_id]
         received = [r for r in records if r.request.recipient_id == account_id]
         amounts = sorted(r.request.amount for r in sent)
-        recipients = Counter(r.request.recipient_id for r in sent)
-        hours = [(r.request.ts % 86_400) / 3_600 for r in sent]
         devices: dict[str, dict[str, Any]] = {}
-        auth = self.state.history.auth.get(account_id)
-        if auth:
+        if auth := self.history.auth.get(account_id):
             for key, device in zip(auth.keys, auth.devices, strict=True):
-                entry = devices.setdefault(device, {"device_id": device, "first_seen": format_ts(key // KEY_SCALE), "sign_ins": 0})
+                entry = devices.setdefault(device, {"device_id": device, "first_seen": format_ts(key // KEY_SCALE),
+                                                    "sign_ins": 0})
                 entry["sign_ins"] += 1
                 entry["last_seen"] = format_ts(key // KEY_SCALE)
         latest = max(sent, key=lambda r: r.key) if sent else None
         context = None
-        if latest and latest.result.components:
+        if latest:
             ctx = latest.result.components.context
             context = {"request_id": latest.request.request_id, "status": ctx.status, "score": ctx.score,
                        "distance": ctx.distance, "cluster": ctx.cluster, "at": format_ts(latest.request.ts)}
-        context_counts = Counter(r.result.components.context.status for r in sent if r.result.components)
-        linked = sorted(sent + received, key=lambda r: r.key, reverse=True)[:30]
         return {
             "account": {"account_id": account.account_id, "display_name": account.display_name,
                         "account_type": account.account_type, "home_country": account.home_country,
@@ -577,48 +480,43 @@ class SecFlowService:
                 "requests_received": len(received),
                 "median_amount": amounts[len(amounts) // 2] if amounts else None,
                 "p90_amount": amounts[int(len(amounts) * 0.9)] if amounts else None,
-                "typical_hour": round(float(np.median(hours)), 1) if hours else None,
+                "typical_hour": round(float(np.median([(r.request.ts % 86_400) / 3_600 for r in sent])), 1)
+                if sent else None,
                 "decisions": dict(Counter(r.result.policy.decision for r in sent)),
-                "top_recipients": [
-                    {**self.party(rid).model_dump(), "payments": n} for rid, n in recipients.most_common(6)
-                ],
+                "top_recipients": [{**self.party(rid).model_dump(), "payments": n}
+                                   for rid, n in Counter(r.request.recipient_id for r in sent).most_common(6)],
                 "devices": sorted(devices.values(), key=lambda d: d["first_seen"]),
             },
-            "context": {"latest": context, "counts": dict(context_counts)},
-            "activity": [views.summary(r, self.party) for r in linked],
+            "context": {"latest": context, "counts": dict(Counter(r.result.components.context.status for r in sent))},
+            "activity": [views.summary(r, self.party)
+                         for r in sorted(sent + received, key=lambda r: r.key, reverse=True)[:30]],
         }
 
     def parties(self, q: str, limit: int) -> list[dict[str, Any]]:
         query = q.strip().lower()
-        found: list[dict[str, Any]] = []
-        for a in self.accounts.values():
-            if not query or query in a.display_name.lower() or query in a.account_id.lower():
-                found.append({"id": a.account_id, "name": a.display_name, "kind": "account", "detail": a.account_type})
-        for c in self.counterparties.values():
-            if query and (query in c.display_name.lower() or query in c.counterparty_id.lower()):
-                found.append({"id": c.counterparty_id, "name": c.display_name, "kind": "counterparty", "detail": c.category})
+        found = [{"id": a.account_id, "name": a.display_name, "kind": "account", "detail": a.account_type}
+                 for a in self.accounts.values()
+                 if not query or query in a.display_name.lower() or query in a.account_id.lower()]
+        found += [{"id": c.counterparty_id, "name": c.display_name, "kind": "counterparty", "detail": c.category}
+                  for c in self.counterparties.values()
+                  if query and (query in c.display_name.lower() or query in c.counterparty_id.lower())]
         return found[:limit]
 
     def simulator_options(self, sender_id: str | None) -> dict[str, Any]:
         now = self.simulation_now()
-        flagged = [
-            {"evidence_id": e.evidence_id, "id": e.entity_id, "name": self.party(e.entity_id).name,
-             "evidence_type": e.evidence_type}
-            for e in self.evidence.active_entities("counterparty", now)
-        ]
         sender = None
-        if sender_id and sender_id in self.accounts:
-            series = self.state.history.sender.get(sender_id)
+        if sender_id in self.accounts:
+            series = self.history.sender.get(sender_id)
             recent = list(dict.fromkeys(reversed(series.recipients[-40:]))) if series else []
             amounts = sorted(series.amounts[-30:]) if series else []
             account = self.accounts[sender_id]
+            auth = self.history.auth.get(sender_id)
             sender = {
                 "account_id": sender_id,
                 "account_type": account.account_type,
                 "home_country": account.home_country,
                 "max_amount": self.limits.for_segment(account.account_type).per_transaction,
-                "known_devices": list(dict.fromkeys(reversed(self.state.history.auth[sender_id].devices)))[:4]
-                if sender_id in self.state.history.auth else [],
+                "known_devices": list(dict.fromkeys(reversed(auth.devices)))[:4] if auth else [],
                 "recent_recipients": [self.party(r).model_dump() for r in recent[:8]],
                 "median_amount": amounts[len(amounts) // 2] if amounts else None,
             }
@@ -626,113 +524,93 @@ class SecFlowService:
             "simulation_time": format_ts(now),
             "currencies": ["MDL"],
             "payment_schemes": list(OUTGOING_SCHEMES),
-            "limits": {
-                segment: {"per_transaction": lim.per_transaction, "per_day": lim.per_day, "per_month": lim.per_month}
-                for segment, lim in (("personal", self.limits.personal), ("business", self.limits.business))
-            },
+            "limits": {segment: {"per_transaction": lim.per_transaction, "per_day": lim.per_day,
+                                 "per_month": lim.per_month}
+                       for segment, lim in (("personal", self.limits.personal), ("business", self.limits.business))},
             "auth_methods": ["biometric", "password_otp", "otp", "password"],
             "countries": sorted({a.home_country for a in self.accounts.values()} | set(FOREIGN_COUNTRIES)),
-            "flagged_beneficiaries": flagged,
+            "flagged_beneficiaries": [
+                {"evidence_id": e.evidence_id, "id": e.entity_id, "name": self.party(e.entity_id).name,
+                 "evidence_type": e.evidence_type} for e in self.evidence.active_entities("counterparty", now)],
             "sender": sender,
         }
 
-    # -- algorithms -------------------------------------------------------
+    # -- algorithms and health -----------------------------------------------
+    def _thresholds(self) -> dict[str, dict[str, float]]:
+        return {name: {"verify": v, "block": b} for name, (v, b) in self.point.segments.items()}
+
     def algorithms(self) -> dict[str, Any]:
-        records = self._records()
-        scored = [r for r in records if r.result.components]
+        records = self._all()
 
-        def histogram(values: list[float]) -> list[int]:
-            counts, _ = np.histogram(values, bins=HISTOGRAM_BINS, range=(0.0, 1.0))
-            return counts.tolist()
+        def histogram(values: list[float], top: float = 1.0) -> list[int]:
+            return np.histogram(values, bins=HISTOGRAM_BINS, range=(0.0, top))[0].tolist()
 
-        distributions = {
-            "isolation_forest": histogram([r.result.components.if_score for r in scored]),
-            "lof": histogram([r.result.components.lof_score for r in scored]),
-            "rules": histogram([r.result.rules.score for r in records]),
-            "dbscan": histogram([r.result.components.context.score for r in scored]),
-            "risk_score": np.histogram([r.result.risk.total for r in scored if r.result.risk], bins=HISTOGRAM_BINS,
-                                       range=(0, 100))[0].tolist(),
-        }
         daily: dict[str, Counter] = defaultdict(Counter)
-        for r in scored:
+        for r in records:
             daily[format_ts(r.request.ts)[:10]][r.result.components.context.status] += 1
-        context_days = [{"date": d, **dict(c)} for d, c in sorted(daily.items())]
-        report_path = self.settings.models_dir / "training_report.json"
-        training = json.loads(report_path.read_text()) if report_path.exists() else None
+        training = self.training
+        point = self.point
         return {
-            "model": self.bundle.metadata if self.bundle else None,
-            "model_error": self.model_error,
+            "model": self.bundle.metadata,
+            "model_error": None,
             "policy": {
                 "version": self.policy.version,
-                "weights": dict(self.operating_point.weights or self.policy.weights),
-                "weights_source": "learned" if self.operating_point.weights else "policy_fallback",
-                "segments": self._segment_view(),
-                "operating_point": {"verify": self.operating_point.verify, "block": self.operating_point.block,
-                                    "source": self.operating_point.source, "version": self.operating_point.version},
+                "weights": dict(self.policy.weights),
+                "weights_source": "policy",
+                "segments": self._thresholds(),
+                "operating_point": {"verify": point.verify, "block": point.block, "source": point.source,
+                                    "version": point.version},
                 "min_corroborating_families": self.policy.min_families,
                 "families": dict(self.policy.families),
-                "rules": [
-                    {"code": r.code, "family": r.family, "weight": r.weight, "corroborating": r.corroborating,
-                     "description": r.description, "params": dict(r.params)}
-                    for r in self.policy.rules
-                ],
+                "rules": [{"code": r.code, "family": r.family, "weight": r.weight, "corroborating": r.corroborating,
+                           "description": r.description, "params": dict(r.params)} for r in self.policy.rules],
                 "cold_start": {"max_amount_without_history": self.policy.cold_start_max_amount,
                                "strong_auth_methods": sorted(self.policy.strong_auth_methods)},
                 "trusted_sources": list(self.policy.trusted_sources),
             },
-            "distributions": distributions,
+            "distributions": {
+                "isolation_forest": histogram([r.result.components.if_score for r in records]),
+                "lof": histogram([r.result.components.lof_score for r in records]),
+                "rules": histogram([r.result.rules.score for r in records]),
+                "dbscan": histogram([r.result.components.context.score for r in records]),
+                "risk_score": histogram([r.result.risk.total for r in records], 100.0),
+            },
             "histogram_bins": HISTOGRAM_BINS,
             "dbscan_context": {
-                "status_counts": dict(Counter(r.result.components.context.status for r in scored)),
-                "daily": context_days,
+                "status_counts": dict(Counter(r.result.components.context.status for r in records)),
+                "daily": [{"date": d, **dict(c)} for d, c in sorted(daily.items())],
             },
-            "decision_sources": dict(Counter(f"{r.result.policy.decision}/{r.result.policy.decision_source}" for r in records)),
+            "decision_sources": dict(Counter(f"{r.result.policy.decision}/{r.result.policy.decision_source}"
+                                             for r in records)),
             "training": training and {
                 "validation_component_average_precision": training["validation_component_average_precision"],
-                "threshold_selection": {k: training["threshold_selection"][k] for k in
-                                        ("chosen", "candidates_evaluated", "feasible_candidates", "frontier",
-                                         "initial_candidate")},
+                "threshold_selection": training["threshold_selection"],
                 "search": training["search"],
-                "weights_search": {k: training["weights_search"][k] for k in
-                                   ("partition", "candidates", "best_average_precision", "selected", "top", "rows",
-                                    "fraud")},
+                "weights_search": training["weights_search"],
                 "segment_thresholds": training["segment_thresholds"],
-                "holdout_accounts": training["holdout_accounts"]["count"],
-                "calibration_component_average_precision": training["calibration_component_average_precision"],
+                "holdout_accounts": 0,
             },
         }
 
     def dashboard(self, window: str) -> dict[str, Any]:
-        return dashboard(self._records(), window, self.simulation_now(), self.operating_point, dict(self.policy.goals))
+        return dashboard(self._all(), window, self.simulation_now(), self.point, dict(self.policy.goals))
 
     def cluster_graph(self, max_anomalies: int) -> dict[str, Any]:
-        if self._graph is None:
-            raise NotFoundError("cluster graph (model bundle unavailable)")
-        return self._graph.build(self._records(), self.party, max_anomalies)
-
-    def evaluation(self) -> dict[str, Any] | None:
-        return self._evaluation
-
-    def _segment_view(self) -> dict[str, dict[str, float]]:
-        point = self.operating_point
-        return {s: dict(zip(("verify", "block"), point.thresholds_for(s), strict=True)) for s in SEGMENTS}
+        return self._graph.build(self._all(), self.party, max_anomalies)
 
     def health(self, stream: dict[str, Any]) -> dict[str, Any]:
-        manifest = self.manifest
-        with self.state.lock:
-            simulations = len(self.state.simulation_order)
-            reviews = self.state.review_count
-        requests = self.dataset.requests
+        requests = self.shown
+        simulations = sum(1 for r in self._all() if r.origin == "simulation")
         return {
-            "status": "ok" if self.bundle else "degraded",
+            "status": "ok",
             "started_at": self.started_at,
             "startup_seconds": self.startup_seconds,
             "data": {
                 "source": "local_files",
-                "dataset": manifest.get("dataset", "secflow-mia-instant"),
+                "dataset": self.manifest.get("dataset", "secflow-mia-instant"),
                 "file": "storage/test.json",
-                "generator_version": manifest.get("generator_version"),
-                "seed": manifest.get("seed"),
+                "generator_version": self.manifest.get("generator_version"),
+                "seed": self.manifest.get("seed"),
                 "currency": "MDL",
                 "requests": len(requests),
                 "context_credits": self.dataset.context_credits,
@@ -740,36 +618,22 @@ class SecFlowService:
                 "hashes_verified": self.hashes_verified,
                 "date_range": {"start": format_ts(requests[0].ts), "end": format_ts(requests[-1].ts)},
             },
-            "model": {
-                "loaded": self.bundle is not None,
-                "version": self.bundle.version if self.bundle else None,
-                "error": self.model_error,
-            },
+            "model": {"loaded": True, "version": self.bundle.version, "error": None},
             "policy": {
                 "version": self.policy.version,
-                "operating_point": {"verify": self.operating_point.verify, "block": self.operating_point.block,
-                                    "source": self.operating_point.source,
-                                    "weights": dict(self.operating_point.weights or self.policy.weights),
-                                    "segments": self._segment_view()},
+                "operating_point": {"verify": self.point.verify, "block": self.point.block, "source": self.point.source,
+                                    "weights": dict(self.policy.weights), "segments": self._thresholds()},
             },
             "state": {
                 "kind": "process_memory",
                 "simulations": simulations,
-                "reviews": reviews,
+                "reviews": len(self.reviews),
                 "persisted": False,
                 "shared_across_workers": False,
-                "review_history": self.review_log.status(),
-                "note": "Simulations live in this process only; a restart discards them. Every approve or reject "
-                "is also written to the review history file, which survives restarts. Run a single backend process.",
+                "review_history": {"persisted": False, "path": None, "error": None},
+                "note": "Simulations and reviews live in this process only; a restart discards them. "
+                        "Run a single backend process.",
             },
             "stream": stream,
             "simulation_time": format_ts(self.simulation_now()),
         }
-
-
-def iso_now() -> str:
-    return datetime.now(UTC).isoformat()
-
-
-def finite_or_none(value: float | None) -> float | None:
-    return value if value is not None and math.isfinite(value) else None

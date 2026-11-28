@@ -1,5 +1,5 @@
 {
-  "model_version": "secflow-sk-2.0-910679dc58",
+  "model_version": "secflow-sk-3.0-4b97752f19",
   "feature_version": "features-2.0.0",
   "payment_features": [
     "log_amount",
@@ -64,19 +64,19 @@
     },
     "splits": {
       "train": "train.json, days 1-70: preprocessing, IsolationForest, LOF, DBSCAN (no labels)",
-      "validation_mapping": "validation.json, days 71-77: score mappings (no labels), learned weights",
-      "validation_selection": "validation.json, days 78-85: parameter and threshold selection"
+      "validation_mapping": "validation.json, days 71-85: IF and LOF score references (no labels)",
+      "validation_selection": "validation.json, days 71-85: Verify/Block threshold search (labels)"
     }
   },
   "fit_rows": {
-    "preprocessing": 63431,
-    "isolation_forest": 63431,
+    "preprocessing": 70000,
+    "isolation_forest": 70000,
     "lof": 20000,
     "dbscan": 20000,
-    "score_mapping_reference": 6311,
-    "weights_reference": 6311
+    "score_mapping_reference": 15000,
+    "weights_reference": 15000
   },
-  "holdout_accounts": 40,
+  "holdout_accounts": 0,
   "selected_parameters": {
     "isolation_forest": {
       "n_estimators": 200,
@@ -89,7 +89,7 @@
     },
     "dbscan": {
       "min_samples": 5,
-      "eps": 0.69341,
+      "eps": 0.70514,
       "eps_quantile": 0.9
     },
     "weights": {
@@ -107,46 +107,24 @@
   },
   "segment_thresholds": {
     "personal": {
-      "verify": 71.0,
-      "block": 91.0
+      "verify": 68.0,
+      "block": 86.0
     },
     "business": {
-      "verify": 69.0,
-      "block": 91.0
+      "verify": 68.0,
+      "block": 86.0
     }
   },
   "dbscan_context": {
     "fit_profiles": 20000.0,
-    "core_samples": 17942.0,
-    "clusters": 131.0,
-    "noise_fraction": 0.07315,
-    "eps": 0.6934074760530363,
+    "core_samples": 18000.0,
+    "clusters": 123.0,
+    "noise_fraction": 0.0689,
+    "eps": 0.7051358079166585,
     "min_samples": 5,
     "metric": "euclidean",
     "adapter": "frozen-core: within eps of a training core sample -> 0, beyond -> min(1, (d - eps) / eps), insufficient history -> 0"
   },
-  "score_mapping": "empirical CDF of inverted raw scores over the unlabelled validation days 71-77",
-  "policy_version": "secflow-evidence-first-2.0.0+91b14a52",
-  "operating_point": {
-    "verify": 69.0,
-    "block": 91.0,
-    "source": "validated",
-    "version": "op-65088891",
-    "weights": {
-      "isolation_forest": 0.65,
-      "lof": 0.05,
-      "dbscan": 0.0,
-      "rules": 0.3
-    },
-    "segments": {
-      "personal": {
-        "verify": 71.0,
-        "block": 91.0
-      },
-      "business": {
-        "verify": 69.0,
-        "block": 91.0
-      }
-    }
-  }
+  "score_mapping": "empirical CDF of inverted raw scores over the validation payments (days 71-85)",
+  "policy_version": "secflow-evidence-first-3.0.0+c4573fe9"
 }

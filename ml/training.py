@@ -1,17 +1,13 @@
-"""Offline training: chronological fitting, bounded parameter search, and operating-point selection.
+"""Training: fit the detectors on train.json, then choose the Verify/Block thresholds on validation.json.
 
-Data use per file (labels are only opened where stated):
+1. Replay train.json and validation.json in time order and build each payment's features from the
+   events before it.
+2. Fit the preprocessor, IsolationForest, LOF and DBSCAN on train.json. No labels.
+3. Score validation.json. Its raw IF and LOF scores become the CDF references. No labels.
+4. Open the validation labels and grid-search the Verify/Block pair that flags the most fraud within
+   the goals in config/policy.json.
 
-* `storage/train.json` (days 1-70): fit preprocessing, IsolationForest, LOF (novelty) and DBSCAN. No labels.
-* `storage/validation.json`, split by date inside the file:
-  - days 71-77 ("validation_mapping"): fit the IF/LOF empirical score mappings (no labels), then use the
-    labels to learn the combination weights of the risk index;
-  - days 78-85 ("validation_selection"): labels used to choose estimator parameters and the per-segment
-    Verify/Block thresholds.
-* `storage/test.json` (days 86-100): not read here. `ml.evaluation` opens it once, after freezing.
-
-Forty established holdout accounts (seeded, chosen without labels) are excluded from every fitting and
-selection row so the test period can report an account-disjoint subset.
+test.json is never read here; `ml.evaluation` opens it once, after everything is frozen.
 """
 
 from __future__ import annotations
@@ -19,374 +15,198 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import sklearn
+from sklearn.ensemble import IsolationForest
 from sklearn.metrics import average_precision_score
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import LocalOutlierFactor, NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
 from datagen.dataset import Dataset, file_hashes, load_labels, load_partitions, read_manifest
-from ml.algorithms.dbscan_context import DBSCANContext, EmptyCoreError
-from ml.algorithms.isolation_forest import IsolationForestDetector
-from ml.algorithms.local_outlier_factor import LOF_SUBSPACES, LocalOutlierFactorDetector, subspace_columns
-from ml.algorithms.preprocessing import EmpiricalScoreMapping, FeaturePreprocessor
-from ml.assess import build_evidence_store
-from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES
-from ml.model import ModelBundle, sklearn_version
+from ml.features import CONTEXT_FEATURES, FEATURE_VERSION, PAYMENT_FEATURES, build_features
+from ml.history import HistoryIndex
+from ml.model import LOF_COLUMNS, LOF_FEATURES, DbscanContext, ModelBundle, Preprocessor, cdf
 from ml.policy import (
+    COMPONENTS,
+    OPERATING_POINT_FILE,
     SEGMENTS,
     OperatingPoint,
     Policy,
     assessment_status,
-    combine_arrays,
-    decide_arrays,
+    decision_codes,
     evaluate_rules,
     segment_of,
 )
-from ml.replay import ReplayResult, replay
-from ml.weights import search_weights
 
 SEED = 42
-DAY = 86_400
-MAPPING_DAYS = 7  # the first seven days of validation.json (days 71-77) map scores and learn the weights
-SPLITS = ("train", "validation_mapping", "validation_selection", "test")
-IF_GRID = ({"n_estimators": 100, "max_samples": 256}, {"n_estimators": 100, "max_samples": 512},
-           {"n_estimators": 200, "max_samples": 256}, {"n_estimators": 200, "max_samples": 512})
-LOF_GRID = (20, 35, 50)
-LOF_FIT_ROWS = (20_000, None)  # seeded subsample or every fitting row
-HOLDOUT_ACCOUNTS = 40
-HOLDOUT_SEED = 4242
-DBSCAN_MIN_SAMPLES = (5, 10, 20)
-DBSCAN_EPS_QUANTILES = (0.90, 0.95, 0.98)
-DBSCAN_FIT_ROWS = 20_000
-MODEL_FAMILY = "secflow-sk"
+IF_TREES, IF_SAMPLES = 200, 256  # 256 is the sample size of the original IsolationForest paper
+LOF_NEIGHBORS, LOF_FIT_ROWS = 20, 20_000  # a seeded subsample keeps each LOF query fast
+DBSCAN_MIN_SAMPLES, DBSCAN_EPS_QUANTILE, DBSCAN_FIT_ROWS = 5, 0.90, 20_000
+# A few weightings measured next to the fixed policy weights, for the report and the docs.
+WEIGHT_ALTERNATIVES = (
+    {"isolation_forest": 0.25, "lof": 0.25, "dbscan": 0.25, "rules": 0.25},
+    {"isolation_forest": 0.35, "lof": 0.25, "dbscan": 0.10, "rules": 0.30},
+    {"isolation_forest": 0.50, "lof": 0.00, "dbscan": 0.00, "rules": 0.50},
+    {"isolation_forest": 1.00, "lof": 0.00, "dbscan": 0.00, "rules": 0.00},
+    {"isolation_forest": 0.00, "lof": 0.00, "dbscan": 0.00, "rules": 1.00},
+)
 
 
-@dataclass(frozen=True)
-class PartitionView:
-    rows: np.ndarray  # boolean mask over replay rows
-
-    def take(self, matrix: np.ndarray) -> np.ndarray:
-        return matrix[self.rows]
-
-
-def split_assignments(dataset: Dataset) -> dict[str, str]:
-    """Training split of every assessed payment: its file, with validation.json split by date."""
-    validation_ts = [r.ts for r in dataset.requests if dataset.partition_of[r.request_id] == "validation"]
-    mapping_end = (min(validation_ts) // DAY) * DAY + MAPPING_DAYS * DAY if validation_ts else 0
-    out = {}
-    for r in dataset.requests:
-        part = dataset.partition_of[r.request_id]
-        if part == "validation":
-            part = "validation_mapping" if r.ts < mapping_end else "validation_selection"
-        out[r.request_id] = part
-    return out
-
-
-def _partition_masks(result: ReplayResult, splits: dict[str, str]) -> dict[str, PartitionView]:
-    part = np.array([splits[r] for r in result.request_ids])
-    return {name: PartitionView(part == name) for name in SPLITS}
-
-
-def _ap(y: np.ndarray, scores: np.ndarray) -> float | None:
-    return float(average_precision_score(y, scores)) if 0 < y.sum() < len(y) else None
-
-
-def rule_scores_for(result: ReplayResult, mask: np.ndarray, policy: Policy) -> tuple[np.ndarray, np.ndarray]:
-    """Rules score and number of distinct corroborating families for the masked rows."""
-    ids = np.array(result.request_ids)[mask]
-    statuses = np.array(result.history_status)[mask]
-    scores = np.empty(len(ids))
-    families = np.empty(len(ids), dtype=np.int64)
-    for i, (rid, status) in enumerate(zip(ids, statuses, strict=True)):
-        outcome = evaluate_rules(result.facts[rid], status, policy)
-        scores[i] = outcome.score
-        families[i] = len(outcome.corroborating_families)
-    return scores, families
-
-
-def unsafe_mask_for(result: ReplayResult, mask: np.ndarray, policy: Policy) -> np.ndarray:
-    ids = np.array(result.request_ids)[mask]
-    statuses = np.array(result.history_status)[mask]
-    out = np.zeros(len(ids), dtype=bool)
-    for i, (rid, status) in enumerate(zip(ids, statuses, strict=True)):
-        facts = result.facts[rid]
-        state, _ = assessment_status(status, facts["amount"], facts["auth_method"], True, True, policy)
-        out[i] = state in {"insufficient_history", "model_unavailable", "invalid_features"}
-    return out
-
-
-def _search_isolation_forest(x_train, x_cal, x_val, y_val) -> tuple[dict, list[dict]]:
-    records, best = [], None
-    for params in IF_GRID:
-        started = time.perf_counter()
-        detector = IsolationForestDetector(random_state=SEED, **params).fit(x_train)
-        mapping = EmpiricalScoreMapping().fit(detector.raw_scores(x_cal))
-        val = mapping.transform(detector.raw_scores(x_val))
-        record = {**params, "validation_average_precision": _ap(y_val, val),
-                  "fit_seconds": round(time.perf_counter() - started, 3)}
-        records.append(record)
-        if best is None or (record["validation_average_precision"] or 0) > (best[0]["validation_average_precision"] or 0):
-            best = (record, detector, mapping)
-    assert best is not None
-    return {"record": best[0], "detector": best[1], "mapping": best[2]}, records
-
-
-def holdout_accounts(candidates: set[str] | frozenset[str]) -> frozenset[str]:
-    """Seeded choice of established accounts kept out of every fitting and selection row (no labels read).
-
-    `candidates` are the senders of train.json and validation.json; cold-start accounts only appear in test.
-    """
-    candidates = sorted(candidates)
-    rng = np.random.default_rng(HOLDOUT_SEED)
-    return frozenset(rng.choice(candidates, size=min(HOLDOUT_ACCOUNTS, len(candidates)), replace=False).tolist())
-
-
-def _search_lof(x_train, x_cal, x_val, y_val) -> tuple[dict, list[dict]]:
-    """Behaviour subspace x n_neighbors x fit rows; best validation AP, ties to fewer fit rows."""
-    records, best = [], None
-    for name in LOF_SUBSPACES:
-        columns = subspace_columns(name)
-        for k in LOF_GRID:
-            for fit_rows in LOF_FIT_ROWS:
-                started = time.perf_counter()
-                detector = LocalOutlierFactorDetector(k, columns=columns, fit_rows=fit_rows, random_state=SEED)
-                detector.fit(x_train)
-                # novelty scoring is only applied to unseen calibration/validation rows
-                mapping = EmpiricalScoreMapping().fit(detector.raw_scores(x_cal))
-                val = mapping.transform(detector.raw_scores(x_val))
-                record = {"subspace": name, "n_neighbors": k, "fit_rows_requested": fit_rows or "all",
-                          "validation_average_precision": _ap(y_val, val), **detector.training_diagnostics(),
-                          "fit_seconds": round(time.perf_counter() - started, 3)}
-                records.append(record)
-                rank = (record["validation_average_precision"] or 0.0, -detector.n_fit_rows)
-                if best is None or rank > best[3]:
-                    best = (record, detector, mapping, rank)
-    assert best is not None
-    return {"record": best[0], "detector": best[1], "mapping": best[2]}, records
-
-
-def _search_dbscan(profiles_train, ctx_val, status_val, y_val) -> tuple[dict, list[dict]]:
-    rng = np.random.default_rng(SEED)
-    rows = profiles_train
-    if len(rows) > DBSCAN_FIT_ROWS:
-        rows = rows[np.sort(rng.choice(len(rows), DBSCAN_FIT_ROWS, replace=False))]
-    scaled = StandardScaler().fit_transform(rows)
-    probe = scaled[rng.choice(len(scaled), min(5_000, len(scaled)), replace=False)]
-    records, best = [], None
-    for min_samples in DBSCAN_MIN_SAMPLES:
-        distances, _ = NearestNeighbors(n_neighbors=min_samples).fit(scaled).kneighbors(probe)
-        for quantile in DBSCAN_EPS_QUANTILES:
-            eps = float(np.quantile(distances[:, -1], quantile))
-            record: dict[str, Any] = {"min_samples": min_samples, "eps_quantile": quantile, "eps": round(eps, 5)}
-            try:
-                context = DBSCANContext(eps=eps, min_samples=min_samples).fit(rows)
-            except EmptyCoreError as error:
-                record["error"] = str(error)
-                records.append(record)
-                continue
-            scored = np.array([c.score for c in context.score(ctx_val, status_val)])
-            outside = scored > 0
-            fraud_rate = float(outside[y_val].mean()) if y_val.any() else 0.0
-            legit_rate = float(outside[~y_val].mean())
-            record.update(context.summary)
-            record.update({"validation_fraud_outside_rate": round(fraud_rate, 4),
-                           "validation_legitimate_outside_rate": round(legit_rate, 4),
-                           "validation_separation": round(fraud_rate - legit_rate, 4),
-                           "validation_average_precision": _ap(y_val, scored)})
-            records.append(record)
-            ap = record["validation_average_precision"] or 0.0
-            if legit_rate <= 0.15 and (best is None or ap > (best[0]["validation_average_precision"] or 0.0)):
-                best = (record, context)
-    if best is None:
-        raise EmptyCoreError("No DBSCAN candidate produced core samples with an acceptable outside rate")
-    return {"record": best[0], "context": best[1]}, records
-
-
-def select_operating_point(
-    risk: np.ndarray,
-    families: np.ndarray,
-    unsafe: np.ndarray,
-    y: np.ndarray,
-    policy: Policy,
-) -> tuple[OperatingPoint, dict[str, Any]]:
-    """Grid-search Verify/Block thresholds on validation (model + rules only, no evidence channel)."""
-    goals = policy.goals
-    search = policy.threshold_search
-    verify_grid = np.arange(search["verify"]["start"], search["verify"]["stop"] + 1e-9, search["verify"]["step"])
-    block_grid = np.arange(search["block"]["start"], search["block"]["stop"] + 1e-9, search["block"]["step"])
-    no_evidence = np.zeros(len(risk), dtype=bool)
-    n_legit = int((~y).sum())
-    candidates, frontier = [], {}
-    for verify in verify_grid:
-        for block in block_grid:
-            if block <= verify:
-                continue
-            decisions = decide_arrays(risk, families, unsafe, no_evidence, verify, block, policy.min_families)
-            flagged = decisions > 0
-            blocked = decisions == 2
-            verify_rate = float((decisions == 1).mean())
-            false_blocks = int((blocked & ~y).sum())
-            true_blocks = int((blocked & y).sum())
-            n_blocks = int(blocked.sum())
-            row = {
-                "verify_threshold": float(verify),
-                "block_threshold": float(block),
-                "recall_verify_or_block": float((flagged & y).sum() / max(1, y.sum())),
-                "recall_block_only": float(true_blocks / max(1, y.sum())),
-                "verify_rate": verify_rate,
-                "block_rate": float(blocked.mean()),
-                "legitimate_false_block_rate": false_blocks / max(1, n_legit),
-                "block_precision": (true_blocks / n_blocks) if n_blocks else None,
-                "predicted_blocks": n_blocks,
-                "false_blocks": false_blocks,
-            }
-            feasible = (
-                verify_rate <= goals["max_verify_rate"]
-                and row["legitimate_false_block_rate"] <= goals["max_legitimate_false_block_rate"]
-                and (n_blocks == 0 or row["block_precision"] >= goals["min_block_precision"])
-            )
-            row["meets_goals"] = feasible
-            candidates.append(row)
-            key = float(verify)
-            if feasible and (key not in frontier or row["recall_block_only"] > frontier[key]["recall_block_only"]):
-                frontier[key] = row
-    feasible_rows = [c for c in candidates if c["meets_goals"]]
-    if feasible_rows:
-        chosen = max(
-            feasible_rows,
-            key=lambda c: (c["recall_verify_or_block"], c["recall_block_only"], -c["verify_rate"], -c["block_threshold"]),
-        )
-        source = "validated"
-    else:  # keep ambiguous cases in Verify instead of pretending certainty
-        chosen = min(candidates, key=lambda c: (c["legitimate_false_block_rate"], -c["recall_verify_or_block"]))
-        source = "validated_goals_not_met"
-    digest = hashlib.sha256(json.dumps(chosen, sort_keys=True).encode()).hexdigest()[:8]
-    point = OperatingPoint(chosen["verify_threshold"], chosen["block_threshold"], source, f"op-{digest}")
-    return point, {
-        "chosen": chosen,
-        "candidates_evaluated": len(candidates),
-        "feasible_candidates": len(feasible_rows),
-        "frontier": sorted(frontier.values(), key=lambda r: r["verify_threshold"]),
-        "initial_candidate": next(
-            (c for c in candidates if c["verify_threshold"] == policy.initial_verify and c["block_threshold"] == policy.initial_block),
-            None,
-        ),
+def feature_table(dataset: Dataset) -> dict[str, Any]:
+    """Features of every payment in time order, each built from the events ordered before it."""
+    history, keys = HistoryIndex.from_events(dataset.requests, dataset.auth_events, dataset.payment_events)
+    ordered = sorted(dataset.requests, key=lambda r: keys[r.request_id])
+    snapshots = [build_features(r, keys[r.request_id], history, dataset.accounts.get(r.sender_id)) for r in ordered]
+    return {
+        "ids": [r.request_id for r in ordered],
+        "partition": np.array([dataset.partition_of[r.request_id] for r in ordered]),
+        "segment": np.array([segment_of(dataset.accounts.get(r.sender_id)) for r in ordered]),
+        "payment": np.array([s.payment_vector for s in snapshots]),
+        "context": np.array([s.context_vector for s in snapshots]),
+        "snapshots": snapshots,
+        "requests": ordered,
     }
 
 
-def select_segment_points(
-    risk: np.ndarray,
-    families: np.ndarray,
-    unsafe: np.ndarray,
-    y: np.ndarray,
-    segments: np.ndarray,
-    policy: Policy,
-) -> tuple[OperatingPoint, dict[str, Any]]:
-    """Global threshold pair plus one per account segment; a segment without fraud or a feasible pair
-    on validation falls back to the global pair, and the report says why."""
-    global_point, global_report = select_operating_point(risk, families, unsafe, y, policy)
-    pairs: dict[str, tuple[float, float]] = {}
-    report: dict[str, dict[str, Any]] = {}
-    for segment in SEGMENTS:
-        mask = segments == segment
-        base = {"requests": int(mask.sum()), "fraud": int(y[mask].sum())}
-        if not mask.any() or not y[mask].any():
-            reason = "no fraud in this segment on validation" if mask.any() else "no validation requests"
-            report[segment] = {**base, "fallback": True, "reason": reason}
-        else:
-            point, detail = select_operating_point(risk[mask], families[mask], unsafe[mask], y[mask], policy)
-            if detail["feasible_candidates"] == 0:
-                report[segment] = {**base, "fallback": True, "reason": "no threshold pair meets the validation goals"}
-            else:
-                pairs[segment] = (point.verify, point.block)
-                report[segment] = {**base, "fallback": False, "chosen": detail["chosen"],
-                                   "feasible_candidates": detail["feasible_candidates"]}
+def _subsample(rows: np.ndarray, n: int) -> np.ndarray:
+    if len(rows) <= n:
+        return rows
+    return rows[np.sort(np.random.default_rng(SEED).choice(len(rows), n, replace=False))]
+
+
+def _ap(y: np.ndarray, scores: np.ndarray) -> float:
+    return float(average_precision_score(y, scores))
+
+
+def fit_detectors(payment: np.ndarray, context: np.ndarray, context_ok: np.ndarray) -> dict[str, Any]:
+    """Fit the preprocessor and the three detectors on training rows only."""
+    preprocessor = Preprocessor().fit(payment)
+    x = preprocessor.transform(payment)
+    started = time.perf_counter()
+    iforest = IsolationForest(n_estimators=IF_TREES, max_samples=IF_SAMPLES, random_state=SEED).fit(x)
+    if_seconds = time.perf_counter() - started
+    started = time.perf_counter()
+    lof_rows = _subsample(x[:, LOF_COLUMNS], LOF_FIT_ROWS)
+    lof = LocalOutlierFactor(n_neighbors=LOF_NEIGHBORS, novelty=True).fit(lof_rows)
+    lof_seconds = time.perf_counter() - started
+    # DBSCAN's eps from the k-distance curve: the distance to the 5th neighbour that 90% of profiles stay under.
+    profiles = _subsample(context[context_ok], DBSCAN_FIT_ROWS)
+    scaled = StandardScaler().fit_transform(profiles)
+    k_distance = NearestNeighbors(n_neighbors=DBSCAN_MIN_SAMPLES).fit(scaled).kneighbors(scaled)[0][:, -1]
+    eps = float(np.quantile(k_distance, DBSCAN_EPS_QUANTILE))
+    dbscan = DbscanContext(eps, DBSCAN_MIN_SAMPLES).fit(profiles)
+    return {"preprocessor": preprocessor, "iforest": iforest, "lof": lof, "dbscan": dbscan,
+            "rows": len(x), "lof_rows": len(lof_rows), "dbscan_rows": len(profiles),
+            "if_seconds": if_seconds, "lof_seconds": lof_seconds}
+
+
+def select_thresholds(risk: np.ndarray, families: np.ndarray, unsafe: np.ndarray, y: np.ndarray,
+                      policy: Policy) -> tuple[OperatingPoint, dict[str, Any]]:
+    """Grid-search Verify/Block on validation: most fraud flagged within the goals.
+
+    Validation has no brand-new accounts, but the live system does and they are reviewed far more
+    often, so part of the Verify budget (`new_account_verify_reserve`) is kept free for them.
+    """
+    goals = policy.goals
+    verify_budget = goals["max_verify_rate"] - policy.new_account_verify_reserve
+    search = policy.threshold_search
+    grid = {name: np.arange(s["start"], s["stop"] + 1e-9, s["step"]) for name, s in search.items()}
+    candidates, frontier = [], {}
+    for verify in grid["verify"]:
+        for block in grid["block"]:
+            if block <= verify:
                 continue
-        pairs[segment] = (global_point.verify, global_point.block)
-    digest = hashlib.sha256(
-        json.dumps({"global": global_report["chosen"], "segments": pairs}, sort_keys=True).encode()
-    ).hexdigest()[:8]
-    point = OperatingPoint(global_point.verify, global_point.block, global_point.source, f"op-{digest}",
-                           segments=pairs)
-    return point, {"global": global_report, "segments": report}
-
-
-def _model_version(hashes: dict[str, str], selection: dict[str, Any]) -> str:
-    material = json.dumps(
-        {"files": hashes, "selection": selection, "features": FEATURE_VERSION, "sklearn": sklearn_version()},
-        sort_keys=True,
-    )
-    return f"{MODEL_FAMILY}-2.0-{hashlib.sha256(material.encode()).hexdigest()[:10]}"
+            codes = decision_codes(risk, families, unsafe, verify, block, policy.min_families)
+            blocked = codes == 2
+            n_blocks, true_blocks = int(blocked.sum()), int((blocked & y).sum())
+            row = {
+                "verify_threshold": float(verify),
+                "block_threshold": float(block),
+                "recall_verify_or_block": float(((codes > 0) & y).sum() / y.sum()),
+                "recall_block_only": true_blocks / float(y.sum()),
+                "verify_rate": float((codes == 1).mean()),
+                "block_rate": float(blocked.mean()),
+                "legitimate_false_block_rate": (n_blocks - true_blocks) / float((~y).sum()),
+                "block_precision": true_blocks / n_blocks if n_blocks else None,
+                "predicted_blocks": n_blocks,
+                "false_blocks": n_blocks - true_blocks,
+            }
+            row["meets_goals"] = bool(
+                row["verify_rate"] <= verify_budget
+                and row["legitimate_false_block_rate"] <= goals["max_legitimate_false_block_rate"]
+                and (n_blocks == 0 or row["block_precision"] >= goals["min_block_precision"]))
+            candidates.append(row)
+            best = frontier.get(row["verify_threshold"])
+            if row["meets_goals"] and (best is None or row["recall_block_only"] > best["recall_block_only"]):
+                frontier[row["verify_threshold"]] = row
+    feasible = [c for c in candidates if c["meets_goals"]]
+    if not feasible:
+        raise RuntimeError("No Verify/Block pair meets the goals on validation")
+    chosen = max(feasible, key=lambda c: (c["recall_verify_or_block"], c["recall_block_only"], -c["verify_rate"],
+                                          -c["block_threshold"]))
+    digest = hashlib.sha256(json.dumps(chosen, sort_keys=True).encode()).hexdigest()[:8]
+    point = OperatingPoint(chosen["verify_threshold"], chosen["block_threshold"], "validated", f"op-{digest}")
+    initial = next((c for c in candidates if (c["verify_threshold"], c["block_threshold"])
+                    == (policy.initial_verify, policy.initial_block)), None)
+    return point, {"chosen": chosen, "candidates_evaluated": len(candidates), "feasible_candidates": len(feasible),
+                   "verify_budget": verify_budget, "frontier": [frontier[k] for k in sorted(frontier)],
+                   "initial_candidate": initial}
 
 
 def train_models(train_path: Path, validation_path: Path, models_dir: Path, policy: Policy,
                  manifest_path: Path | None = None) -> dict[str, Any]:
     started = time.perf_counter()
-    dataset = load_partitions([train_path, validation_path])
+    table = feature_table(load_partitions([train_path, validation_path]))
+    is_train, is_val = table["partition"] == "train", table["partition"] == "validation"
+    context_ok = np.array([s.context_status == "ok" for s in table["snapshots"]])
+    fitted = fit_detectors(table["payment"][is_train], table["context"][is_train], context_ok[is_train])
+
+    # Score validation; its raw IF and LOF scores are the CDF references (no labels).
+    val_index = np.flatnonzero(is_val)
+    snapshots = [table["snapshots"][i] for i in val_index]
+    x_val = fitted["preprocessor"].transform(table["payment"][is_val])
+    if_raw = -fitted["iforest"].score_samples(x_val)
+    lof_raw = -fitted["lof"].score_samples(x_val[:, LOF_COLUMNS])
+    contexts = fitted["dbscan"].score(table["context"][is_val], [s.context_status for s in snapshots])
+    rules = [evaluate_rules(s.facts, s.history_status, policy) for s in snapshots]
+    components = np.column_stack([
+        cdf(np.sort(if_raw), if_raw), cdf(np.sort(lof_raw), lof_raw),
+        [c.score for c in contexts], [r.score for r in rules]])
+    families = np.array([len(r.corroborating_families) for r in rules])
+    requests = [table["requests"][i] for i in val_index]
+    unsafe = np.array([assessment_status(s.history_status, r.amount, r.auth_method, policy)[0] == "insufficient_history"
+                       for s, r in zip(snapshots, requests, strict=True)])
+
+    # Labels are opened only now, for the threshold search and the report.
+    labels = load_labels([validation_path])
+    y = np.array([bool(labels[r.request_id]["is_fraud"]) for r in requests])
+    weights = dict(policy.weights)
+    risk = 100.0 * components @ np.array([weights[c] for c in COMPONENTS])
+    point, thresholds = select_thresholds(risk, families, unsafe, y, policy)
+
     hashes = file_hashes([train_path, validation_path])
     manifest = read_manifest(manifest_path) if manifest_path is not None and manifest_path.exists() else {}
-    splits = split_assignments(dataset)
-    labelled_ids = [rid for rid, part in splits.items() if part.startswith("validation")]
-    result = replay(dataset, keep_facts_for=labelled_ids)
-    by_id = {r.request_id: r for r in dataset.requests}
-    senders = np.array([by_id[rid].sender_id for rid in result.request_ids])
-    holdout = holdout_accounts({r.sender_id for r in dataset.requests})
-    keep = ~np.isin(senders, sorted(holdout))
-    masks = {name: PartitionView(view.rows & keep) for name, view in _partition_masks(result, splits).items()}
-    tr, cal, val = masks["train"], masks["validation_mapping"], masks["validation_selection"]
-
-    preprocessor = FeaturePreprocessor().fit(tr.take(result.payment))
-    x_train = preprocessor.transform(tr.take(result.payment))
-    x_cal = preprocessor.transform(cal.take(result.payment))
-    x_val = preprocessor.transform(val.take(result.payment))
-
-    labels = load_labels([validation_path])  # validation labels only: mapping days (weights), selection days
-    ids = np.array(result.request_ids)
-    y_cal = np.array([bool(labels[rid]["is_fraud"]) for rid in ids[cal.rows]])
-    y_val = np.array([bool(labels[rid]["is_fraud"]) for rid in ids[val.rows]])
-
-    best_if, if_records = _search_isolation_forest(x_train, x_cal, x_val, y_val)
-    best_lof, lof_records = _search_lof(x_train, x_cal, x_val, y_val)
-    statuses = np.array(result.context_status)
-    profiles_train = result.context[tr.rows & (statuses == "ok")]
-    best_db, db_records = _search_dbscan(
-        profiles_train, val.take(result.context), list(statuses[val.rows]), y_val
-    )
-
-    def components_for(view: PartitionView, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        if_s = best_if["mapping"].transform(best_if["detector"].raw_scores(x))
-        lof_s = best_lof["mapping"].transform(best_lof["detector"].raw_scores(x))
-        db_s = np.array([c.score for c in best_db["context"].score(view.take(result.context), list(statuses[view.rows]))])
-        rules_s, families = rule_scores_for(result, view.rows, policy)
-        return np.column_stack([if_s, lof_s, db_s, rules_s]), families
-
-    cal_components, _ = components_for(cal, x_cal)
-    weights, weights_report = search_weights(cal_components, y_cal)
-
-    val_components, families_val = components_for(val, x_val)
-    unsafe_val = unsafe_mask_for(result, val.rows, policy)
-    risk_val = combine_arrays(*val_components.T, weights)
-    segments_val = np.array([segment_of(dataset.accounts.get(s)) for s in senders[val.rows]])
-    point, threshold_report = select_segment_points(risk_val, families_val, unsafe_val, y_val, segments_val, policy)
-    point = replace(point, weights=weights)
-
     selection = {
-        "isolation_forest": {k: best_if["record"][k] for k in ("n_estimators", "max_samples")},
-        "lof": {k: best_lof["record"][k] for k in ("subspace", "n_neighbors", "fit_rows_requested")},
-        "dbscan": {k: best_db["record"][k] for k in ("min_samples", "eps", "eps_quantile")},
+        "isolation_forest": {"n_estimators": IF_TREES, "max_samples": IF_SAMPLES},
+        "lof": {"subspace": "amount", "n_neighbors": LOF_NEIGHBORS, "fit_rows_requested": LOF_FIT_ROWS},
+        "dbscan": {"min_samples": DBSCAN_MIN_SAMPLES, "eps": round(fitted["dbscan"].eps, 5),
+                   "eps_quantile": DBSCAN_EPS_QUANTILE},
         "weights": weights,
     }
+    material = json.dumps({"files": hashes, "selection": selection, "features": FEATURE_VERSION,
+                           "sklearn": sklearn.__version__}, sort_keys=True)
+    segment_thresholds = {name: {"verify": point.verify, "block": point.block} for name in SEGMENTS}
+    dbscan = fitted["dbscan"]
     metadata = {
-        "model_version": _model_version(hashes, selection),
+        "model_version": f"secflow-sk-3.0-{hashlib.sha256(material.encode()).hexdigest()[:10]}",
         "feature_version": FEATURE_VERSION,
         "payment_features": list(PAYMENT_FEATURES),
         "context_features": list(CONTEXT_FEATURES),
-        "lof_features": list(LOF_SUBSPACES[best_lof["record"]["subspace"]]),
-        "sklearn_version": sklearn_version(),
+        "lof_features": list(LOF_FEATURES),
+        "sklearn_version": sklearn.__version__,
         "random_seed": SEED,
         "training_dataset": {
             "files": ["storage/train.json", "storage/validation.json"],
@@ -395,67 +215,79 @@ def train_models(train_path: Path, validation_path: Path, models_dir: Path, poli
             "file_hashes": hashes,
             "splits": {
                 "train": "train.json, days 1-70: preprocessing, IsolationForest, LOF, DBSCAN (no labels)",
-                "validation_mapping": "validation.json, days 71-77: score mappings (no labels), learned weights",
-                "validation_selection": "validation.json, days 78-85: parameter and threshold selection",
+                "validation_mapping": "validation.json, days 71-85: IF and LOF score references (no labels)",
+                "validation_selection": "validation.json, days 71-85: Verify/Block threshold search (labels)",
             },
         },
         "fit_rows": {
-            "preprocessing": int(tr.rows.sum()),
-            "isolation_forest": int(tr.rows.sum()),
-            "lof": int(best_lof["detector"].n_fit_rows),
-            "dbscan": int(min(DBSCAN_FIT_ROWS, len(profiles_train))),
-            "score_mapping_reference": int(cal.rows.sum()),
-            "weights_reference": int(cal.rows.sum()),
+            "preprocessing": fitted["rows"],
+            "isolation_forest": fitted["rows"],
+            "lof": fitted["lof_rows"],
+            "dbscan": fitted["dbscan_rows"],
+            "score_mapping_reference": int(is_val.sum()),
+            "weights_reference": int(is_val.sum()),
         },
-        "holdout_accounts": len(holdout),
+        "holdout_accounts": 0,
         "selected_parameters": selection,
         "combination_weights": weights,
-        "segment_thresholds": {k: {"verify": v[0], "block": v[1]} for k, v in point.segments.items()},
+        "segment_thresholds": segment_thresholds,
         "dbscan_context": {
-            **best_db["context"].summary,
-            "eps": best_db["context"].eps,
-            "min_samples": best_db["context"].min_samples,
-            "metric": best_db["context"].metric,
+            **dbscan.summary, "eps": dbscan.eps, "min_samples": dbscan.min_samples, "metric": dbscan.metric,
             "adapter": ("frozen-core: within eps of a training core sample -> 0, beyond -> min(1, (d - eps) / eps), "
                         "insufficient history -> 0"),
         },
-        "score_mapping": "empirical CDF of inverted raw scores over the unlabelled validation days 71-77",
+        "score_mapping": "empirical CDF of inverted raw scores over the validation payments (days 71-85)",
+        "policy_version": policy.version,
     }
-    bundle = ModelBundle(
-        preprocessor=preprocessor,
-        isolation_forest=best_if["detector"],
-        lof=best_lof["detector"],
-        dbscan=best_db["context"],
-        if_mapping=best_if["mapping"],
-        lof_mapping=best_lof["mapping"],
-        metadata=metadata,
-    )
-    operating_point = {
-        "verify": point.verify, "block": point.block, "source": point.source, "version": point.version,
-        "weights": weights, "segments": metadata["segment_thresholds"],
-    }
+    bundle = ModelBundle(fitted["preprocessor"], fitted["iforest"], fitted["lof"], dbscan, np.sort(if_raw),
+                         np.sort(lof_raw), metadata)
+    bundle.save(models_dir)
+    (models_dir / OPERATING_POINT_FILE).write_text(json.dumps({
+        "verify_threshold": point.verify, "block_threshold": point.block, "source": point.source,
+        "version": point.version, "model_version": bundle.version, "segments": segment_thresholds,
+    }, indent=2) + "\n")
 
-    def component_ap(y: np.ndarray, matrix: np.ndarray) -> dict[str, float | None]:
-        out: dict[str, float | None] = {name: _ap(y, matrix[:, i]) for i, name in enumerate(
-            ("isolation_forest", "lof", "dbscan", "rules"))}
-        out["combined"] = _ap(y, combine_arrays(*matrix.T, weights))
-        return out
+    def ap_of(w: dict[str, float]) -> float:
+        return _ap(y, components @ np.array([w[c] for c in COMPONENTS]))
 
+    weightings = sorted(({**w, "average_precision": ap_of(w)} for w in (weights, *WEIGHT_ALTERNATIVES)),
+                        key=lambda r: -r["average_precision"])
+    outside = np.array([c.status == "outside_context" for c in contexts])
+    fraud_outside, legit_outside = float(outside[y].mean()), float(outside[~y].mean())
     report = {
         "policy_version": policy.version,
-        "operating_point": operating_point,
+        "operating_point": {"verify": point.verify, "block": point.block, "source": point.source,
+                            "version": point.version, "weights": weights, "segments": segment_thresholds},
         "selected_parameters": selection,
-        "search": {"isolation_forest": if_records, "lof": lof_records, "dbscan": db_records},
-        "weights_search": {**weights_report, "partition": "validation_mapping (days 71-77)", "selected": weights,
-                           "rows": int(cal.rows.sum()), "fraud": int(y_cal.sum())},
-        "threshold_selection": threshold_report["global"],
-        "segment_thresholds": threshold_report["segments"],
-        "holdout_accounts": {"count": len(holdout), "seed": HOLDOUT_SEED, "account_ids": sorted(holdout)},
-        "calibration_component_average_precision": component_ap(y_cal, cal_components),
-        "validation_component_average_precision": component_ap(y_val, val_components),
+        "search": {
+            "isolation_forest": [{"n_estimators": IF_TREES, "max_samples": IF_SAMPLES,
+                                  "validation_average_precision": _ap(y, components[:, 0]),
+                                  "fit_seconds": round(fitted["if_seconds"], 3)}],
+            "lof": [{"subspace": "amount", "n_neighbors": LOF_NEIGHBORS, "fit_rows_requested": LOF_FIT_ROWS,
+                     "fit_rows": float(fitted["lof_rows"]), "validation_average_precision": _ap(y, components[:, 1]),
+                     "fit_seconds": round(fitted["lof_seconds"], 3)}],
+            "dbscan": [{"min_samples": DBSCAN_MIN_SAMPLES, "eps_quantile": DBSCAN_EPS_QUANTILE,
+                        "eps": round(dbscan.eps, 5), **dbscan.summary,
+                        "validation_fraud_outside_rate": round(fraud_outside, 4),
+                        "validation_legitimate_outside_rate": round(legit_outside, 4),
+                        "validation_separation": round(fraud_outside - legit_outside, 4),
+                        "validation_average_precision": _ap(y, components[:, 2])}],
+        },
+        "weights_search": {
+            "partition": "validation.json, days 71-85: fixed policy weights next to a few alternatives",
+            "candidates": len(weightings), "best_average_precision": weightings[0]["average_precision"],
+            "selected": weights, "top": weightings, "rows": len(y), "fraud": int(y.sum()),
+        },
+        "threshold_selection": thresholds,
+        "segment_thresholds": {
+            name: {"requests": int((table["segment"][is_val] == name).sum()),
+                   "fraud": int(y[table["segment"][is_val] == name].sum()),
+                   "fallback": True, "reason": "one threshold pair for every segment"}
+            for name in SEGMENTS
+        },
+        "validation_component_average_precision": {
+            **{name: _ap(y, components[:, i]) for i, name in enumerate(COMPONENTS)}, "combined": _ap(y, risk)},
         "training_seconds": round(time.perf_counter() - started, 2),
-        "evidence_store_size": len(build_evidence_store(dataset.security_events, policy).records),
     }
-    bundle.save(models_dir, point, {"policy_version": policy.version, "operating_point": operating_point})
     (models_dir / "training_report.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
