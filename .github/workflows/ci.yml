@@ -87,8 +87,7 @@ jobs:
       - run: npm ci
       - name: tsc --noEmit
         run: npm run typecheck
-      - name: ESLint
-        if: false # turned on with the ESLint config
+      - name: Lint with oxlint, warnings fail
         run: npm run lint
       - run: npm test
       - name: vite build

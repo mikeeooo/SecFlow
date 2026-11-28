@@ -102,9 +102,9 @@ export function SimulatorPage() {
 
   const median = sender?.median_amount ?? 200;
   const maxAmount = sender?.max_amount ?? PERSONAL_CAP;
-  const nearCap = (share: number) => Math.min(median * 7, maxAmount * share).toFixed(2);
   const personScheme: PaymentScheme = sender?.account_type === "business" ? "p2p_iban" : "p2p_alias";
   const presets = useMemo(() => {
+    const nearCap = (share: number) => Math.min(median * 7, maxAmount * share).toFixed(2);
     const known = sender?.recent_recipients ?? [];
     const flagged = options.data?.flagged_beneficiaries ?? [];
     const device = sender?.known_devices[0] ?? NEW_DEVICE;
